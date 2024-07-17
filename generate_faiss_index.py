@@ -11,6 +11,7 @@ def gen_randomly_samples_for_faiss_train_random10000():
     prefix = 'HERE_'
     project_name = 'KenData'
     project_name = 'ST'
+    project_name = 'TCGA-COMBINED'
     backbone = 'ProvGigaPath'
     d1 = 1536
     d2 = 256
