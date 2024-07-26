@@ -276,12 +276,12 @@ def main():
         'mobilenetv3': 1280,
         'CLIP': 512,
         'PLIP': 512,
-        'ProvGigaPath': 1536,
-        'CONCH': 512
+        # 'ProvGigaPath': 1536,
+        # 'CONCH': 512
     }
 
     sub_epochs = [1]
-    save_root = '/Users/zhongz2/down/figures_20240707'
+    save_root = '/Users/zhongz2/down/figures_20240726'
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
@@ -344,7 +344,7 @@ def main():
                     for accum_iter in accum_iters:
                         for backbone in network_dims.keys():
                             filenames.append(
-                                '/Volumes/data-1/temp29/debug/results/ngpus{}_accum{}_backbone{}_dropout0.25'.format(
+                                '/Volumes/data-1/temp29/debug/results_20240724/ngpus{}_accum{}_backbone{}_dropout0.25'.format(
                                     num_gpus, accum_iter, backbone
                                 )
                             )

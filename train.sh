@@ -80,11 +80,11 @@ rsync -avh /lscratch/$SLURM_JOB_ID/results/ngpus${NUM_GPUS}_accum${ACCUM_ITER}_b
 exit;
 
 if [ ! -d "splits" ]; then
-    ln -sf /data/zhongz2/TCGA-ALL2_256/generated7/splits/ .
+    ln -sf /data/zhongz2/TCGA-ALL2_256/generated7/splits2/ splits
 fi
 NUM_GPUS=2
 GRES_STR="--gres=gpu:v100x:${NUM_GPUS},lscratch:700"
-FINAL_SAVE_ROOT=/data/zhongz2/temp29/debug/results
+FINAL_SAVE_ROOT=/data/zhongz2/temp29/debug/results_20240724
 if [ ! -d ${FINAL_SAVE_ROOT} ]; then
     mkdir -p ${FINAL_SAVE_ROOT}
 fi
@@ -94,9 +94,11 @@ fi
 # "CLIP" # 174G
 # "PLIP" # 174G
 # "CONCH" # 174G
-BACKBONES=("CONCH")
-BACKBONES=("mobilenetv3" "CLIP")
+# BACKBONES=("CONCH")
+# BACKBONES=("mobilenetv3" "CLIP")
 
+BACKBONES=("PLIP")
+BACKBONES=("mobilenetv3" "CLIP")
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 DROPOUT=0.25
 
