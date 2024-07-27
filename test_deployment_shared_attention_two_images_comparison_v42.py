@@ -48,7 +48,7 @@ import torch
 from model import AttentionModel
 import umap
 from utils import get_svs_prefix, _assertLevelDownsamplesV2, new_web_annotation
-from common import HF_MODELS_DICT
+from common import HF_MODELS_DICT, CLASSIFICATION_DICT
 from dataset import PatchDatasetV2
 
 
@@ -75,10 +75,12 @@ def get_args():
     parser.add_argument('--ckpt_path', default='/data/zhongz2/temp29/debug/results/ngpus2_accum4_backboneProvGigaPath_dropout0.25/split_1/snapshot_39.pt', type=str)
     parser.add_argument('--cluster_feat_name', default='feat_before_attention_feat', type=str)
     parser.add_argument('--csv_filename', default='/data/zhongz2/ST_256/all_20231117.xlsx', type=str)
-    parser.add_argument('--cluster_task_index', default=0, type=int)
-    parser.add_argument('--num_patches', default=128, type=int) 
     parser.add_argument('--cluster_task_name', default='one_patient', type=str)
-    parser.add_argument('--only_step1', default='no', type=str)
+    # parser.add_argument('--csv_filename', default='/data/zhongz2/ST_256/response_group_sample.xlsx', type=str)
+    # parser.add_argument('--cluster_task_name', default='response_groups', type=str)
+    parser.add_argument('--cluster_task_index', default=0, type=int)
+    parser.add_argument('--num_patches', default=128, type=int)
+    parser.add_argument('--only_step1', default='gen_patches', type=str)  # yes, no, gen_patches
     return parser.parse_args()
 
 def main():
@@ -170,8 +172,33 @@ def main():
         df['one_patient'] = [0 for _ in range(len(df))]
 
     df = df.reset_index() 
-
     df_all = df.copy()
+
+    if args.only_step1 == 'yes':
+        dones = []
+        for row_ind, row in df.iterrows():
+            svs_filenames = row['HEfiles'] if 'HEfiles' in row else row['DX_filename']
+            svs_filename_list = svs_filenames.split(',')  # 2 slides
+            patient_ind = row['patient_ind']
+            PATIENT_ID = row['PATIENT_ID']
+            label = 0
+            done = []
+            for j, filename in enumerate(svs_filename_list):
+                svs_filename = os.path.join(args.svs_dir, os.path.basename(filename).replace(' ', '').replace('&', ''))
+                svs_prefix = get_svs_prefix(svs_filename)
+                save_filename1 = '{}/{}_big_orig.zip'.format(save_root3_1, svs_prefix)
+                save_filename = '{}/{}_big_attention_map.zip'.format(save_root3, svs_prefix)
+                if os.path.exists(save_filename) and os.path.exists(save_filename1):
+                    done.append(True)
+                else:
+                    done.append(False)
+            if np.all(done):
+                dones.append(1)
+            else:
+                dones.append(0)
+        df['isDone'] = dones
+        df = df[df['isDone']==0].reset_index(drop=True)
+        
     indices = np.arange(len(df))
     index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size)
     sub_df = df.iloc[index_splits[idr_torch.rank]]
@@ -497,6 +524,85 @@ def main():
     if args.only_step1 == 'yes':
         sys.exit(0)
 
+
+    if args.only_step1 == 'gen_patches':
+        local_temp_dir = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], str(idr_torch.rank),
+                                      str(idr_torch.local_rank))
+        os.makedirs(local_temp_dir, exist_ok=True)
+
+        json_files = glob.glob(os.path.join(save_root1, 'analysis', '{}_top_{}/'.format(args.cluster_task_name, args.num_patches), '**', '*_cs.json'), recursive=True)
+        all_patches = {}
+        if len(json_files):
+            for f in json_files:
+                svs_prefix = os.path.basename(f).replace('_cs.json', '')
+                if svs_prefix not in all_patches:
+                    all_patches[svs_prefix] = set()
+                with open(f, 'r') as fp:
+                    dd = json.load(fp)
+                for k, v in dd.items():
+                    if len(v):
+                        lines = v.strip().split('\n')
+                        for line in lines:
+                            splits = line.split(',')
+                            all_patches[svs_prefix].add(
+                                (int(splits[-2]), int(splits[-1])))
+
+        save_root5 = os.path.join(save_root1, 'patch_images', '{}_top_{}/'.format(args.cluster_task_name, args.num_patches))
+        os.makedirs(save_root5, exist_ok=True)
+
+        existed_prefixes = set([os.path.basename(f).replace(
+            '.tar.gz', '') for f in glob.glob(os.path.join(save_root5, '*.tar.gz'))])
+
+        for row_ind, row in df.iterrows():
+
+            svs_filenames = row['HEfiles'] if 'HEfiles' in row else row['DX_filename']
+            svs_filename_list = svs_filenames.split(',')  # 2 slides
+
+            for j, filename in enumerate(svs_filename_list):
+                svs_filename = os.path.join(args.svs_dir, os.path.basename(filename).replace(' ', '').replace('&', ''))
+                svs_prefix = get_svs_prefix(svs_filename)
+                if svs_prefix in existed_prefixes:
+                    print('existed')
+                    continue
+                if svs_prefix not in all_patches:
+                    continue
+                local_svs_filename = os.path.join(
+                    local_temp_dir, os.path.basename(svs_filename))
+                if not os.path.exists(local_svs_filename):
+                    os.system(
+                        f'cp -RL "{svs_filename}" "{local_svs_filename}"')
+                slide = openslide.OpenSlide(local_svs_filename)
+                h5filename = os.path.join(args.patches_dir, svs_prefix + '.h5')
+                with h5py.File(h5filename, 'r') as h5file:  # the mask_root is the CLAM patches dir
+                    all_coords = h5file['coords'][()]
+                    patch_level = h5file['coords'].attrs['patch_level']
+                    patch_size = h5file['coords'].attrs['patch_size']
+                if svs_prefix not in all_patches:
+                    all_patches[svs_prefix] = all_coords
+
+                fh = io.BytesIO()
+                tar_fp = tarfile.open(fileobj=fh, mode='w:gz')
+                for coord in all_patches[svs_prefix]:
+                    patch = slide.read_region(location=(int(coord[0]), int(coord[1])), level=patch_level,
+                                              size=(patch_size, patch_size)).convert(
+                        'RGB')  # .resize((128, 128))  # BGR
+                    # patch.save(os.path.join(patches_save_dir, 'x{}_y{}.JPEG'.format(coord[0], coord[1])))
+                    im_buffer = io.BytesIO()
+                    patch.save(im_buffer, format='JPEG')
+                    info = tarfile.TarInfo(
+                        name='{}/x{}_y{}.JPEG'.format(svs_prefix, coord[0], coord[1]))
+                    info.size = im_buffer.getbuffer().nbytes
+                    info.mtime = time.time()
+                    im_buffer.seek(0)
+                    tar_fp.addfile(info, im_buffer)
+                tar_fp.close()
+                with open('{}/{}.tar.gz'.format(save_root5, svs_prefix), 'wb') as fp:
+                    fp.write(fh.getvalue())
+
+                if os.path.exists(local_svs_filename):
+                    os.system(f'rm -rf "{local_svs_filename}"')
+        sys.exit(0)
+        
     labels_dict = {
         'response_groups': {0: 'BadResponse', 1: 'GoodResponse'},
         'group_label': {0: 'group0', 1: 'group1'},
@@ -513,7 +619,35 @@ def main():
             result = step2(args, row_df, labels_dict, save_root4, file_inds_dict, save_root1, save_root_gene_da_dir, is_single_patient=True)
             step2_results.append(result)
     else:
-        pass
+        included_columns = ['patient_ind', 'PATIENT_ID'] + \
+            ['HEfiles' if 'HEfiles' in df.columns else 'DX_filename']
+        if args.cluster_task_name in df.columns:
+            included_columns.append(args.cluster_task_name)
+        df = df[included_columns].set_index('PATIENT_ID')
+
+        df.index.name = 'PATIENT_ID'
+        df = df.reset_index()
+        print(df)
+
+        for k, v in CLASSIFICATION_DICT.items():
+            if k in labels_dict:
+                continue
+            labels_dict[k] = {kk: vv for kk, vv in enumerate(v)}
+
+        if args.cluster_task_name in df.columns:  # only use a subset
+            df = df[~df[args.cluster_task_name].isna()]
+            df = df.astype({args.cluster_task_name: int})
+
+        try:
+            df = df[df[args.cluster_task_name].isin(list(labels_dict[args.cluster_task_name]))].reset_index(drop=True)
+        except:
+            return step2_results
+        print('begin step2')
+        print(df)
+        result = step2(args, df, labels_dict, save_root4, file_inds_dict,
+              save_root1, save_root_gene_da_dir,
+              is_single_patient=False)
+        step2_results.append(result)
     return step2_results
 
 
@@ -612,14 +746,10 @@ def step2(args, df, labels_dict, save_root4, file_inds_dict, save_root1, save_ro
     Y = Y0
 
     all_params = []
-    # for feature_normalization_type in ['meanstd']: 
-    #     for dimension_reduction_method in ['none', 'pca3d', 'umap3d']:
-    #         for clustering_method in ['kmeans', 'hierarchical']:
-    #             for num_clusters in [8, 16]:
     for feature_normalization_type in ['meanstd']: 
-        for dimension_reduction_method in ['none']:
-            for clustering_method in ['hierarchical']:
-                for num_clusters in [8]:
+        for dimension_reduction_method in ['none', 'pca3d', 'umap3d']:
+            for clustering_method in ['kmeans', 'hierarchical']:
+                for num_clusters in [8, 16]:
                     for clustering_distance_metric in ['euclidean']:
                         all_params.append((args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, save_root4, file_inds_dict, save_root1,
                                            is_single_patient, file_inds, patch_info_dicts, level_dimensions_dict, level_downsamples_dict,
@@ -715,7 +845,6 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
         all_preds0 = all_preds0[kmeans0_Y]
         print('all_preds0 shape: ', all_preds0.shape)
 
-    clustering_keep_thresholds = [1, 10, 20, 30, 40, 50]
     clustering_keep_thresholds = [1]  # [1, 50, 100]
     if is_single_patient:
         clustering_keep_thresholds = [1]  # [1, 5, 10]  # ST
@@ -883,7 +1012,7 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
                 all_cluster_data[svs_prefix] = {'coords_in_original': coords_in_original, 'cluster_labels': nn_labels_j}
 
                 gene_data_filename = f'{save_root}/../../../../gene_data/{svs_prefix}_gene_data.pkl'
-                if os.path.exists(gene_data_filename):
+                if (args.cluster_task_name == 'one_class' or args.cluster_task_name == 'one_patient') and os.path.exists(gene_data_filename):
                     with open(gene_data_filename, 'rb') as fp:
                         gene_data_dict = pickle.load(fp)
 
