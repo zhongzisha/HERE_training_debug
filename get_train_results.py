@@ -190,12 +190,98 @@ TCGA-ALL2, best_epoch: 37, best_split: 3, mean value: [33.95193159],
  [35.09961563]
  [34.41912573]]
 """
+
+
+""" epoch 50
+begin mobilenetv3
+TCGA-ALL2, best_epoch: 32, best_split: 1, mean value: [26.84497921], 
+[[26.47217891]
+ [27.22670201]
+ [26.97138443]
+ [26.95306755]
+ [26.60156315]]
+
+begin CLIP
+TCGA-ALL2, best_epoch: 48, best_split: 3, mean value: [25.50994445], 
+[[25.42180675]
+ [25.61419662]
+ [24.69003383]
+ [26.51350539]
+ [25.31017968]]
+
+begin PLIP
+TCGA-ALL2, best_epoch: 49, best_split: 3, mean value: [29.28577201], 
+[[29.60092453]
+ [28.7463423 ]
+ [29.06418942]
+ [30.18882975]
+ [28.82857405]]
+
+begin ProvGigaPath
+TCGA-ALL2, best_epoch: 39, best_split: 1, mean value: [33.24150728], 
+[[33.26106165]
+ [33.49437003]
+ [33.0977323 ]
+ [33.37102611]
+ [32.98334629]]
+
+begin CONCH
+TCGA-ALL2, best_epoch: 37, best_split: 3, mean value: [33.95193159], 
+[[32.8254739 ]
+ [33.69786708]
+ [33.71757559]
+ [35.09961563]
+ [34.41912573]]
+"""
+
+""" epoch 100
+begin mobilenetv3
+TCGA-ALL2, best_epoch: 32, best_split: 3, mean value: [26.96678552], 
+[[26.73870231]
+ [26.69949782]
+ [26.9149441 ]
+ [27.80078376]
+ [26.67999959]]
+
+begin CLIP
+TCGA-ALL2, best_epoch: 97, best_split: 1, mean value: [26.46315352], 
+[[26.72797169]
+ [27.00353473]
+ [26.0617172 ]
+ [26.90730903]
+ [25.61523493]]
+
+begin PLIP
+TCGA-ALL2, best_epoch: 66, best_split: 3, mean value: [29.25514214], 
+[[29.86416785]
+ [28.85635187]
+ [28.72621062]
+ [30.07893741]
+ [28.75004294]]
+
+begin ProvGigaPath
+TCGA-ALL2, best_epoch: 39, best_split: 1, mean value: [33.24150728], 
+[[33.26106165]
+ [33.49437003]
+ [33.0977323 ]
+ [33.37102611]
+ [32.98334629]]
+
+begin CONCH
+TCGA-ALL2, best_epoch: 53, best_split: 3, mean value: [34.16496451], 
+[[33.35970299]
+ [33.56453657]
+ [34.04463461]
+ [35.49385124]
+ [34.36209713]]
+"""
 def check_best_split_v2():
+    results_dir = 'results_20240724_e100'
     for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH']: 
         print(f'\nbegin {backbone}')
         for proj_name in ['TCGA-ALL2']:
             task_types = ['cls', 'reg']
-            splits_dir = f'/Volumes/data-1/temp29/debug/results/ngpus2_accum4_backbone{backbone}_dropout0.25'
+            splits_dir = f'/Volumes/data-1/temp29/debug/{results_dir}/ngpus2_accum4_backbone{backbone}_dropout0.25'
             subset = 'test'
 
             all_results = []
@@ -276,12 +362,12 @@ def main():
         'mobilenetv3': 1280,
         'CLIP': 512,
         'PLIP': 512,
-        # 'ProvGigaPath': 1536,
-        # 'CONCH': 512
+        'ProvGigaPath': 1536,
+        'CONCH': 512
     }
 
     sub_epochs = [1]
-    save_root = '/Users/zhongz2/down/figures_20240726'
+    save_root = '/Users/zhongz2/down/figures_20240801_e50'
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):

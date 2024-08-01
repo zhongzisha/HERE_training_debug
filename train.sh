@@ -44,7 +44,11 @@ fi
 FEATS_DIR=/lscratch/${SLURM_JOB_ID}/${BACKBONE}/all
 if [ ! -d ${FEATS_DIR} ]; then 
     mkdir -p /lscratch/${SLURM_JOB_ID}/${BACKBONE}
-    time cp -RL ${TCGA_ROOT_DIR}/TCGA-ALL2_256/featsHF/${BACKBONE}/pt_files ${FEATS_DIR}
+    if [ -d ${TCGA_ROOT_DIR}/TCGA-ALL2_256/featsHF/${BACKBONE}/pt_files_train ]; then
+        time cp -RL ${TCGA_ROOT_DIR}/TCGA-ALL2_256/featsHF/${BACKBONE}/pt_files_train ${FEATS_DIR}
+    else
+        time cp -RL ${TCGA_ROOT_DIR}/TCGA-ALL2_256/featsHF/${BACKBONE}/pt_files ${FEATS_DIR}
+    fi
     # copy outside data, make sure their filenames are different)
     time cp -RL ${TCGA_ROOT_DIR}/TransNEO_256/featsHF/${BACKBONE}/pt_files/* ${FEATS_DIR}
     time cp -RL ${TCGA_ROOT_DIR}/METABRIC_256/featsHF/${BACKBONE}/pt_files/* ${FEATS_DIR}
@@ -73,7 +77,8 @@ torchrun \
     --save_root ${SAVE_ROOT} \
     --outside_test_filenames ${OUTSIDE_TEST_FILENAMES} \
     --backbone ${BACKBONE} \
-    --dropout ${DROPOUT}
+    --dropout ${DROPOUT} \
+    --max_epochs 100
 
 rsync -avh /lscratch/$SLURM_JOB_ID/results/ngpus${NUM_GPUS}_accum${ACCUM_ITER}_backbone${BACKBONE}_dropout${DROPOUT} ${FINAL_SAVE_ROOT}
 
@@ -84,7 +89,7 @@ if [ ! -d "splits" ]; then
 fi
 NUM_GPUS=2
 GRES_STR="--gres=gpu:v100x:${NUM_GPUS},lscratch:700"
-FINAL_SAVE_ROOT=/data/zhongz2/temp29/debug/results_20240724
+FINAL_SAVE_ROOT=/data/zhongz2/temp29/debug/results_20240724_e100
 if [ ! -d ${FINAL_SAVE_ROOT} ]; then
     mkdir -p ${FINAL_SAVE_ROOT}
 fi
@@ -98,7 +103,8 @@ fi
 # BACKBONES=("mobilenetv3" "CLIP")
 
 BACKBONES=("PLIP")
-BACKBONES=("mobilenetv3" "CLIP")
+BACKBONES=("mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH")
+
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 DROPOUT=0.25
 

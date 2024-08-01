@@ -45,9 +45,10 @@ sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 
     job.sh "no" "one_patient"
 sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=8 --nodes=1 --ntasks-per-node=1 \
     job.sh "no" "response_groups"
-
 sbatch --partition=gpu --mem=32G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=2 --nodes=1 --ntasks-per-node=1 \
-    job.sh "gen_patches"
+    job.sh "gen_patches" "one_patient"
+sbatch --partition=gpu --mem=32G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=2 --nodes=1 --ntasks-per-node=1 \
+    job.sh "gen_patches" "response_groups"
 
 
 

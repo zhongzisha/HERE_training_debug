@@ -4,7 +4,7 @@
 #SBATCH --partition=gpu
 #SBATCH --mail-type=FAIL
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=100gb
+#SBATCH --mem=48gb
 #SBATCH --ntasks-per-core=1
 #SBATCH --time=108:00:00
 
@@ -72,11 +72,11 @@ PROJ_NAME="TCGA-ALL2"
 DATA_VERSION=generated7
 PATCH_SIZE=256
 MODEL_NAME=CONCH
-MODEL_NAME=ProvGigaPath
+# MODEL_NAME=ProvGigaPath
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \
-  --nodes=8 \
+  --nodes=16 \
     job_extract_features.sh \
     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
 
@@ -109,3 +109,14 @@ sbatch --gres=gpu:v100x:1,lscratch:32 \
     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
 
 
+
+PROJ_NAME="KenData"
+DATA_VERSION=generated7
+PATCH_SIZE=256
+MODEL_NAME=CONCH
+TCGA_ROOT_DIR=/data/zhongz2
+
+sbatch --gres=gpu:v100x:1,lscratch:32 \
+  --nodes=16 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
