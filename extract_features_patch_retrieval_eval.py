@@ -74,15 +74,18 @@ class PatchDataset_bak(Dataset):
 class PatchDataset(Dataset):
     # patch_name = patch_label_file.loc[idx, 'Patch Names']
     # label = patch_label_file.loc[idx, 'label']
-    def __init__(self, csv_filename, patch_data_path, patch_name_col='Patch Names', label_col='label'):
+    def __init__(self, csv_filename, patch_data_path, patch_name_col='Patch Names', label_col='label', image_resize=None):
         super().__init__()
         self.df = pd.read_csv(csv_filename)
         self.patch_names = [os.path.join(patch_data_path, fname) for fname in self.df[patch_name_col].values.tolist()]
         self.labels = self.df[label_col].values.tolist()
+        self.image_resize = image_resize
     def __len__(self):
         return len(self.patch_names)
     def __getitem__(self, idx):
         im = Image.open(self.patch_names[idx]).convert('RGB')
+        if self.image_resize is not None:
+            im = im.resize((self.image_resize, self.image_resize))
         return im, self.labels[idx]
 
 
@@ -106,7 +109,7 @@ def get_kimianet_model(network_input_patch_width, weights_address='./KimiaNetKer
     kn_feature_extractor_seq = Sequential([Lambda(preprocessing_fn_kimianet,
                                                   arguments={
                                                       'network_input_patch_width': network_input_patch_width},
-                                                  input_shape=(None, None, 3), dtype=tf.uint8)])
+                                                  input_shape=(None, None, 3), dtype=tf.float32)])
 
     kn_feature_extractor_seq.add(kn_feature_extractor)
 
@@ -171,7 +174,7 @@ def preprocessing_fn_kimianet(input_batch, network_input_patch_width):
     # get the original input size
     org_input_size = tf.shape(input_batch)[1]
     # standardization
-    scaled_input_batch = tf.cast(input_batch, 'float') / 255.
+    scaled_input_batch = tf.cast(input_batch, 'float') # / 255.
     # resizing the patches if necessary
     resized_input_batch = tf.cond(tf.equal(org_input_size, network_input_patch_width),
                                   lambda: scaled_input_batch,
@@ -235,9 +238,9 @@ def get_args():
         description='Build daatbase for patch data')
     parser.add_argument("--exp_name", type=str, default='kather100k',
                         help="Patch data name for the experiment")
-    parser.add_argument("--patch_label_file", type=str, required=True,
+    parser.add_argument("--patch_label_file", type=str,
                         help="The csv file that contain patch name and its label")
-    parser.add_argument("--patch_data_path", type=str, required=True,
+    parser.add_argument("--patch_data_path", type=str,
                         help="Path to the folder that contains all patches")
     parser.add_argument("--codebook_semantic", type=str, default="./checkpoints/codebook_semantic.pt",
                         help="Path to semantic codebook")
@@ -255,11 +258,13 @@ def get_args():
                         help="image_size")
     parser.add_argument("--do_hash_evaluation", type=int, default=0,
                         help="do hash evaluation on the given features")
+    parser.add_argument("--action", type=str, default="",
+                        help="action")
     return parser.parse_args()
 
 
 
-def extract_feats_Yottixel(args):
+def extract_feats_Yottixel1(args):
     # get the model
     if args.network == 'kimianet':
         model = get_kimianet_model(network_input_patch_width=1000)
@@ -302,6 +307,86 @@ def extract_feats_Yottixel(args):
                     'feat_extract_time': feat_extract_time}, fp)
 
 
+def extract_feats_Yottixel(args):
+    # get the model
+    if args.network == 'kimianet':
+        model = get_kimianet_model(network_input_patch_width=1000)
+    elif args.network == 'kimianet_imagenet':
+        model = get_kimianet_model(
+            network_input_patch_width=1000, weights_address='imagenet')
+    elif args.network == 'densenet121':
+        if args.image_size == 224:
+            model = get_dn121_model_224()
+        else:
+            model = get_dn121_model()
+    else:
+        raise ValueError('Network not supported')
+
+
+    transform = transforms.Compose(
+        [
+            transforms.Resize(256),
+            transforms.ToTensor()
+        ]
+    )
+
+    time.sleep(np.random.randint(1, 5))
+    dataset = PatchDataset(args.patch_label_file, args.patch_data_path)
+
+    def collate_fn2(examples):
+        pixel_values = torch.stack([transform(example[0]) for example in examples])
+        labels = np.vstack([example[1] for example in examples])
+        return pixel_values.permute([0,2,3,1]), labels
+
+    kwargs = {'num_workers': 8, 'pin_memory': False, 'shuffle': False}
+    dataloader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn2)
+
+    # pdb.set_trace()
+    X = []
+    t_enc_start = time.time()
+    with torch.no_grad():
+        for batch_index, (batch_images, batch_labels) in enumerate(tqdm(dataloader)):
+            batch_images = batch_images.cpu().numpy() 
+            features = model.predict(batch_images)
+            X.append(features)
+    
+    feat_extract_time = time.time() - t_enc_start
+    Y = dataset.labels
+    patch_names = [os.path.basename(patch_name).split(".")[0] for patch_name in dataset.patch_names]
+    with open(args.save_filename, 'wb') as fp:
+        pickle.dump({'X': X, 'Y': Y, 'patch_names': patch_names,
+                    'feat_extract_time': feat_extract_time}, fp)
+
+    if False:
+        patch_label_file = pd.read_csv(args.patch_label_file)
+
+        X = []
+        Y = []
+        patch_names = []
+        t_enc_start = time.time()
+        for idx in tqdm(range(len(patch_label_file))):
+            patch_name = patch_label_file.loc[idx, 'Patch Names']
+            label = patch_label_file.loc[idx, 'label']
+            if args.exp_name == 'kather100k':
+                patch = openslide.open_slide(os.path.join(args.patch_data_path, patch_name))
+                patch_rescaled = patch.read_region((0, 0), 0, (224, 224)).convert('RGB')
+            else:
+                patch = Image.open(os.path.join(args.patch_data_path, patch_name))
+                patch_rescaled = patch.convert('RGB')
+            final_feat = model.predict(np.array(patch_rescaled)[None, :])
+
+            X.append(final_feat)
+            Y.append(label)
+            patch_names.append(patch_name.split(".")[0])
+
+        feat_extract_time = time.time() - t_enc_start
+
+        with open(args.save_filename, 'wb') as fp:
+            pickle.dump({'X': X, 'Y': Y, 'patch_names': patch_names,
+                        'feat_extract_time': feat_extract_time}, fp)
+
+
+
 def extract_feats_RetCCL(args):
 
     device = torch.device("cuda") if torch.cuda.is_available() else torch.device('cpu')
@@ -323,7 +408,7 @@ def extract_feats_RetCCL(args):
     )
 
     time.sleep(np.random.randint(1, 5))
-    dataset = PatchDataset(args.patch_label_file, args.patch_data_path)
+    dataset = PatchDataset(args.patch_label_file, args.patch_data_path, image_resize=256)
 
     def collate_fn2(examples):
         pixel_values = torch.stack([transform(example[0]) for example in examples])
@@ -436,14 +521,15 @@ def extract_feats_HiDARE_new(args):
         labels = np.vstack([example[1] for example in examples])
         return pixel_values, labels
 
-    kwargs = {'num_workers': 8, 'pin_memory': True, 'shuffle': False}
+    batch_size = 16 if 'mobilenetv3' in model_name else 64
+    kwargs = {'num_workers': 0 if 'mobilenetv3' in model_name else 4, 'pin_memory': True, 'shuffle': False, 'batch_size': batch_size}
     if transform is not None:
-        dataloader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn2)
+        dataloader = DataLoader(dataset=dataset, **kwargs, collate_fn=collate_fn2)
     else:
         if 'CONCH' in model_name:
-            dataloader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn_CONCH)
+            dataloader = DataLoader(dataset=dataset, **kwargs, collate_fn=collate_fn_CONCH)
         else:
-            dataloader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn)
+            dataloader = DataLoader(dataset=dataset, **kwargs, collate_fn=collate_fn)
 
     attention_net_W = state_dict['MODEL_STATE']['attention_net.0.weight'].T.to(device)
     attention_net_b = state_dict['MODEL_STATE']['attention_net.0.bias'].to(device)
@@ -452,7 +538,7 @@ def extract_feats_HiDARE_new(args):
     t_enc_start = time.time()
     with torch.no_grad():
         for batch_index, (batch_images, batch_labels) in enumerate(tqdm(dataloader)):
-            batch_images = batch_images.to(device)
+            batch_images = batch_images.to(device, non_blocking=True)
             if model_name == 'mobilenetv3':
                 _ = feature_extractor(batch_images)
                 batch_feats = feature_tensors.get('after_flatten_feat')
@@ -1001,8 +1087,6 @@ def extract_feats_HIPT(args):
 
 def get_results_v4(args):
     save_filename = args.save_filename.replace('.pkl', '_results1.pkl')
-    if os.path.exists(save_filename.replace('.pkl', '.csv')):
-        return
 
     if 'bcss' in args.exp_name:
         bcss_root = '/data/zhongz2/0_Public-data-Amgad2019_0.25MPP/'
@@ -1293,18 +1377,18 @@ def get_results_v5_hash_evaluation(args):
 
     faiss_indexes, faiss_index_times = build_faiss_indexes(feats, Y)
 
-    if True:
-        project_name = 'Kather100K'
-        faiss_bins_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/kather_faiss_bins'
-        os.makedirs(faiss_bins_dir, exist_ok=True)
-        for faiss_type, index in faiss_indexes.items():
-            save_filename = f'{faiss_bins_dir}/all_data_feat_before_attention_feat_faiss_{faiss_type}_{project_name}.bin'
-            if 'Binary' in faiss_type:
-                with open(save_filename, 'wb') as fp:
-                    pickle.dump({'binarizer': index['binarizer'],
-                                 'index': faiss.serialize_index_binary(index['index'])}, fp)
-            else:
-                faiss.write_index(index['index'], save_filename)
+    # if True:
+    #     project_name = 'Kather100K'
+    #     faiss_bins_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240802_hidare/kather_faiss_bins'
+    #     os.makedirs(faiss_bins_dir, exist_ok=True)
+    #     for faiss_type, index in faiss_indexes.items():
+    #         save_filename = f'{faiss_bins_dir}/all_data_feat_before_attention_feat_faiss_{faiss_type}_{project_name}.bin'
+    #         if 'Binary' in faiss_type:
+    #             with open(save_filename, 'wb') as fp:
+    #                 pickle.dump({'binarizer': index['binarizer'],
+    #                              'index': faiss.serialize_index_binary(index['index'])}, fp)
+    #         else:
+    #             faiss.write_index(index['index'], save_filename)
 
     patch_names = data['patch_names']
     topk_MV = 5
@@ -1434,251 +1518,15 @@ def get_results_v5_hash_evaluation(args):
 
 
 
-
-
-def get_results_v6_hash_evaluation(args):
-    from types import SimpleNamespace
-    import os,pickle,faiss
-    import pandas as pd
-    import numpy as np
-    import time
-
-    args = SimpleNamespace(**{'exp_name': 'bcss_512_0.8', 'save_filename': '/data/zhongz2/temp19/bcss_512_0.8_HiDARE_PLIP_0_feats.pkl'})
-
-    if 'bcss' in args.exp_name:
-        bcss_root = '/data/zhongz2/0_Public-data-Amgad2019_0.25MPP/'
-        df = pd.read_csv(os.path.join(
-            bcss_root, 'meta/gtruth_codes.tsv'), sep='\t')
-        labels_dict = {int(label): label_name for label_name, label in zip(
-            df['label'].values, df['GT_code'].values)}
-        palette_filename = os.path.join(bcss_root, 'palette.npy')
-        palette = np.load(palette_filename)
-    elif 'PanNuke' in args.exp_name:
-        labels_dict = {0: 'Neoplastic cells', 1: 'Inflammatory',
-                       2: 'Connective/Soft tissue cells', 3: 'Dead Cells', 4: 'Epithelial', 5: 'Background'}
-    elif 'kather' in args.exp_name:
-        labels_dict = {'ADI': 0,
-                       'BACK': 1,
-                       'DEB': 2,
-                       'LYM': 3,
-                       'MUC': 4,
-                       'MUS': 5,
-                       'NORM': 6,
-                       'STR': 7,
-                       'TUM': 8}
-        labels_dict = {int(v):k for k,v in labels_dict.items()}
-    elif 'NuCLS' in args.exp_name:
-        labels_dict = {0: 'AMBIGUOUS',
-                1: 'lymphocyte',
-                2: 'macrophage',
-                3: 'nonTILnonMQ_stromal',
-                4: 'other_nucleus',
-                5: 'plasma_cell',
-                6: 'tumor_nonMitotic'}
-    else:
-        raise ValueError("wrong labels_dict")
-
-    with open(args.save_filename, 'rb') as fp:
-        data = pickle.load(fp)
-
-    if isinstance(data['X'][0], np.ndarray):
-        X = np.concatenate(data['X'], axis=0)
-    else:
-        X = torch.concat(data['X'], axis=0).cpu().numpy()
-    
-    feats = X / np.linalg.norm(X, axis=1)[:, None]
-    Y = np.stack(data['Y'])
-
-    # faiss_indexes, faiss_index_times = build_faiss_indexes(feats, Y)
-    faiss_index_times = None
-    tcga_names = ["TCGA-ACC", "TCGA-BLCA", "TCGA-BRCA", "TCGA-CESC", "TCGA-CHOL",
-                "TCGA-COAD", "TCGA-DLBC", "TCGA-ESCA", "TCGA-GBM", "TCGA-HNSC",
-                "TCGA-KICH", "TCGA-KIRC", "TCGA-KIRP", "TCGA-LGG", "TCGA-LIHC",
-                "TCGA-LUAD", "TCGA-LUSC", "TCGA-MESO", "TCGA-OV", "TCGA-PAAD",
-                "TCGA-PCPG", "TCGA-PRAD", "TCGA-READ", "TCGA-SARC", "TCGA-SKCM",
-                "TCGA-STAD", "TCGA-TGCT", "TCGA-THCA", "TCGA-THYM", "TCGA-UCEC",
-                "TCGA-UCS", "TCGA-UVM"]
-    faiss_bin_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/search_results_v2/faiss_bins'
-    # load faiss index files for each project
-    # faiss_ITQ_ds = [128]  # [32, 64, 128, 256]
-    # faiss_Ms = [8]  # [8, 16, 32]
-    # faiss_nlists = [256]  # [256, 512, 1024]
-    faiss_ITQ_ds = [32, 64, 128]
-    faiss_Ms = [8, 16, 32]
-    faiss_nlists = [128, 256, 512]
-
-    faiss_ITQ_ds = [128]
-    faiss_Ms = [32]
-    faiss_nlists = [128]
-
-    faiss_ITQ_ds = [32, 64, 128]
-    faiss_Ms = [8, 16, 32]
-    faiss_nlists = [128, 256]
-    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names}
-    for Key, project_names in runs.items():
-        faiss_indexes = {'faiss_IndexFlatIP': {}}
-        for project_name in project_names:  # only ST support IndexFlatIP search
-            faiss_indexes['faiss_IndexFlatIP'][project_name] = \
-                faiss.read_index(
-                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
-        for dd in faiss_ITQ_ds:
-            faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = {}
-            for project_name in project_names:
-                with open(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
-                    faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name] = pickle.load(
-                        fp)
-                    faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'] = \
-                        faiss.deserialize_index_binary(
-                            faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'])
-        for m in faiss_Ms:
-            for nlist in faiss_nlists:
-                faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = {}
-                for project_name in project_names:
-                    faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'][project_name] = \
-                        faiss.read_index(
-                            f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
-
-        patch_names = data['patch_names']
-        topk_MV = 5
-
-        print('begin ', Key)
-        search_times = {}
-        for faiss_type, faiss_index in faiss_indexes.items():
-            save_filename = args.save_filename.replace('.pkl', f'_binary_{faiss_type}_results1.pkl')
-            # if os.path.exists(save_filename.replace('.pkl', '.csv')):
-            #     return
-            all_results = {}
-
-            if 'kather' in args.exp_name:
-                print('kather, using random100 searching')
-                newdf = pd.read_csv('./kather100k_patch_label_file_random100.csv', index_col=0)
-                indices = newdf['Unnamed: 0'].values
-            else:
-                indices = np.arange(len(Y))
-
-            # distances = pairwise_distances(X[indices, :], X)
-            # print(distances.shape)
-            # for ind in range(len(Y)):
-            search_time = 0
-            iii = 0
-            for iii, ind in enumerate(indices):
-                # # D, I = index.search(feats1[ind][None, :], k=10)
-                # tempdist = distances[iii, :]
-                # # tempdist = pairwise_distances(X[ind].reshape(1, -1), X).reshape(-1)
-                # inds = np.argsort(tempdist)
-                # I = inds[:10]
-                t_search_start = time.time()
-                query_embedding = feats[ind].reshape(1, -1)
-                query_embedding_binary = None
-        
-                for iiiii, project_name in enumerate(project_names):
-                    if 'Binary' in faiss_type and 'ITQ' in faiss_type:
-                        query_embedding_binary = faiss_index[project_name]['binarizer'].sa_encode(query_embedding)
-                    if 'Binary' in faiss_type:
-                        tempdist, I = faiss_index[project_name]['index'].search(query_embedding_binary, topk_MV*2)
-                    elif 'HNSW' in faiss_type:
-                        tempdist, I = faiss_index[project_name].search(query_embedding, topk_MV*2)
-                    elif 'IndexFlatIP' in faiss_type:
-                        tempdist, I = faiss_index[project_name].search(query_embedding, topk_MV*2)
-                    else:
-                        raise ValueError("error")
-                
-                search_time += time.time() - t_search_start
-
-                if iii == 100:
-                    break
-
-            search_times[faiss_type] = search_time / iii # len(indices) # average search time
-
-        # get number of rows
-        total_rows = {}
-        for faiss_type, faiss_index in faiss_indexes.items():
-            nbtotal = 0
-            for iiiii, project_name in enumerate(project_names):
-                if 'Binary' in faiss_type:
-                    nbtotal += faiss_index[project_name]['index'].nbtotal
-                elif 'HNSW' in faiss_type:
-                    nbtotal += faiss_index[project_name].nbtotal
-                elif 'IndexFlatIP' in faiss_type:
-                    nbtotal += faiss_index[project_name].nbtotal
-                else:
-                    raise ValueError("error")
-            total_rows[faiss_type] = nbtotal
-
-        del faiss_indexes
-        with open(args.save_filename.replace('.pkl', f'_{Key}_binary_search_times.pkl'), 'wb') as fp:
-            pickle.dump({'search_times': search_times, 'index_times': faiss_index_times, 'total_rows': total_rows}, fp)
-
-
-    all_total_rows = {}
-    all_sizes = {}
-    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names, 'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST']}
-    # runs = {'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST']}
-    for Key, project_names in runs.items():
-        if Key in all_total_rows:
-            print(f'{Key} existed, skip')
-            continue
-        total_size = {}
-        if 'faiss_indexes' in locals() or 'faiss_indexes' in globals():
-            del faiss_indexes
-        faiss_indexes = {'faiss_IndexFlatIP': {}}
-        total_size['faiss_IndexFlatIP'] = 0
-        for project_name in project_names:  # only ST support IndexFlatIP search
-            faiss_indexes['faiss_IndexFlatIP'][project_name] = \
-                faiss.read_index(
-                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
-            total_size['faiss_IndexFlatIP'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
-        for dd in faiss_ITQ_ds:
-            faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = {}
-            total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = 0
-            for project_name in project_names:
-                total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin")
-                with open(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
-                    faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name] = pickle.load(
-                        fp)
-                    faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'] = \
-                        faiss.deserialize_index_binary(
-                            faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'])
-        for m in faiss_Ms:
-            for nlist in faiss_nlists:
-                faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = {}
-                total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = 0
-                for project_name in project_names:
-                    total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
-                    faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'][project_name] = \
-                        faiss.read_index(
-                            f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
-        all_sizes[Key] = total_size
-        # get number of rows
-        total_rows = {}
-        for faiss_type, faiss_index in faiss_indexes.items():
-            ntotal = 0
-            size = 0
-            for iiiii, project_name in enumerate(project_names):
-                if 'Binary' in faiss_type:
-                    ntotal += faiss_index[project_name]['index'].ntotal
-                elif 'HNSW' in faiss_type:
-                    ntotal += faiss_index[project_name].ntotal
-                elif 'IndexFlatIP' in faiss_type:
-                    ntotal += faiss_index[project_name].ntotal
-                else:
-                    raise ValueError("error")
-            total_rows[faiss_type] = ntotal
-        
-        all_total_rows[Key] = total_rows
-
-
-
-
 # 20240620 TCGA-COMBINED
-def get_results_v7_hash_evaluation(args):
+def get_results_v7_hash_evaluation():
     from types import SimpleNamespace
     import os,pickle,faiss
     import pandas as pd
     import numpy as np
     import time
 
-    args = SimpleNamespace(**{'exp_name': 'bcss_512_0.8', 'save_filename': '/data/zhongz2/temp19/bcss_512_0.8_HiDARE_PLIP_0_feats.pkl'})
+    args = SimpleNamespace(**{'exp_name': 'bcss_512_0.8', 'save_filename': '/data/zhongz2/temp_20240801/bcss_512_0.8_HiDARE_PLIP_0_feats.pkl'})
 
     if 'bcss' in args.exp_name:
         bcss_root = '/data/zhongz2/0_Public-data-Amgad2019_0.25MPP/'
@@ -1735,23 +1583,14 @@ def get_results_v7_hash_evaluation(args):
                 "TCGA-UCS", "TCGA-UVM"]
     tcga_names = ['TCGA-COMBINED']
     faiss_bin_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/search_results_v2/faiss_bins'
-    # load faiss index files for each project
-    # faiss_ITQ_ds = [128]  # [32, 64, 128, 256]
-    # faiss_Ms = [8]  # [8, 16, 32]
-    # faiss_nlists = [256]  # [256, 512, 1024]
-    faiss_ITQ_ds = [32, 64, 128]
-    faiss_Ms = [8, 16, 32]
-    faiss_nlists = [128, 256, 512]
-
-    faiss_ITQ_ds = [128]
-    faiss_Ms = [32]
-    faiss_nlists = [128]
 
     faiss_ITQ_ds = [32, 64, 128]
     faiss_Ms = [8, 16, 32]
     faiss_nlists = [128, 256]
     runs = {'NCIData': ['KenData'], 'TCGA': tcga_names}
-    for Key, project_names in runs.items():
+    for Key, project_names in runs.items():   
+        print('begin ', Key, '='*80)     
+        print('loading faiss indexes')    
         faiss_indexes = {'faiss_IndexFlatIP': {}}
         for project_name in project_names:  # only ST support IndexFlatIP search
             faiss_indexes['faiss_IndexFlatIP'][project_name] = \
@@ -1842,18 +1681,21 @@ def get_results_v7_hash_evaluation(args):
             total_rows[faiss_type] = ntotal
 
         del faiss_indexes
-        with open(args.save_filename.replace('.pkl', f'_{Key}_binary_search_times_20240619.pkl'), 'wb') as fp:
+        with open(args.save_filename.replace('.pkl', f'_{Key}_binary_search_times.pkl'), 'wb') as fp:
             pickle.dump({'search_times': search_times, 'index_times': faiss_index_times, 'total_rows': total_rows}, fp)
 
 
     all_total_rows = {}
     all_sizes = {}
-    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names, 'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST']}
-    # runs = {'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST']}
+    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names, 'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST'], 'Kather100K': ['Kather100K']}
     for Key, project_names in runs.items():
         if Key in all_total_rows:
             print(f'{Key} existed, skip')
             continue
+        if Key == 'Kather100K':
+            faiss_bin_dir1 = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/kather_faiss_bins'
+        else:
+            faiss_bin_dir1 = faiss_bin_dir
         total_size = {}
         if 'faiss_indexes' in locals() or 'faiss_indexes' in globals():
             del faiss_indexes
@@ -1862,14 +1704,14 @@ def get_results_v7_hash_evaluation(args):
         for project_name in project_names:  # only ST support IndexFlatIP search
             faiss_indexes['faiss_IndexFlatIP'][project_name] = \
                 faiss.read_index(
-                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
-            total_size['faiss_IndexFlatIP'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
+                    f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
+            total_size['faiss_IndexFlatIP'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
         for dd in faiss_ITQ_ds:
             faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = {}
             total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = 0
             for project_name in project_names:
-                total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin")
-                with open(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
+                total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin")
+                with open(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name] = pickle.load(
                         fp)
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'] = \
@@ -1880,10 +1722,10 @@ def get_results_v7_hash_evaluation(args):
                 faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = {}
                 total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = 0
                 for project_name in project_names:
-                    total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] += os.path.getsize(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
+                    total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
                     faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'][project_name] = \
                         faiss.read_index(
-                            f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
+                            f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
         all_sizes[Key] = total_size
         # get number of rows
         total_rows = {}
@@ -1903,19 +1745,7 @@ def get_results_v7_hash_evaluation(args):
         
         all_total_rows[Key] = total_rows
 
-    with open('faiss_bins_count_and_size.pkl','rb') as fp:
-        data1 = pickle.load(fp)
-    all_sizes['Kather100K'] = data1['all_sizes']['Kather100K']
-    all_total_rows['Kather100K'] = data1['all_total_rows']['Kather100K']
-
-    index_name = 'faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
-    projects = ['TCGA', 'NCIData', 'ST']
-    sizes = []
-    for p in projects:
-        sizes.append(all_sizes[p][index_name])
-    sizes.append(all_sizes['ST']['faiss_IndexFlatIP'])
-
-    with open('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/faiss_bins_count_and_size_20240619.pkl', 'wb') as fp:
+    with open('/data/zhongz2/temp_20240801/faiss_bins_count_and_size.pkl', 'wb') as fp:
         pickle.dump({'all_sizes': all_sizes, 'all_total_rows': all_total_rows}, fp)
 
 
@@ -1923,6 +1753,10 @@ def get_results_v7_hash_evaluation(args):
 if __name__ == '__main__':
 
     args = get_args()
+    if args.action == 'faiss_bins_count_and_size':
+        get_results_v7_hash_evaluation()
+        return
+
     save_dir = os.path.dirname(args.save_filename)
     os.makedirs(save_dir, exist_ok=True)
 
@@ -1949,17 +1783,11 @@ if __name__ == '__main__':
     else:
         print('features are existed')
 
-    print('begin processing results ...')
-    # get_results_v2(args)
-    # get_results_v3(args)
-    
-    # with open('args_hash_eval.pkl', 'wb') as fp:
-    #     pickle.dump({'args': args}, fp)
+    print('begin processing results ...') 
+    save_filename = args.save_filename.replace('.pkl', '_results1.pkl')
+    if not os.path.exists(save_filename.replace('.pkl', '.csv')):
+        get_results_v4(args) 
 
-    # import pdb
-    # pdb.set_trace()
-
-    get_results_v4(args)
-    ##### get_results_v5_hash_evaluation(args)
-    ##### get_results_v6_hash_evaluation(args)
+    if not os.path.exists(args.save_filename.replace('.pkl', '_binary_search_times.pkl')):
+        get_results_v5_hash_evaluation(args)
 
