@@ -353,7 +353,6 @@ def plot_search_time_tcga_ncidata():
     fe_methods = ['HiDARE_PLIP']
     fe_label_names = ['HERE_PLIP']
     palette = sns.color_palette('colorblind')
-    TCGA_COMBINED = '_20240619'
     for name in ['Acc', 'Percision']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         hue_orders = {}
@@ -510,10 +509,10 @@ def plot_search_time_tcga_ncidata():
                 plt.close()
 
 
-            if False:
-                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_TCGA_binary_search_times{TCGA_COMBINED}.pkl','rb') as fp:
+            if True:
+                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_TCGA_binary_search_times.pkl','rb') as fp:
                     data1 = pickle.load(fp)
-                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_NCIData_binary_search_times{TCGA_COMBINED}.pkl','rb') as fp:
+                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_NCIData_binary_search_times.pkl','rb') as fp:
                     data2 = pickle.load(fp)
                 with open(f'{root}/kather100k_HiDARE_PLIP_0_feats_binary_search_times.pkl', 'rb') as fp:
                     data3 = pickle.load(fp)
@@ -531,7 +530,7 @@ def plot_search_time_tcga_ncidata():
                     'NuCLS': data5['search_times'],
                     'PanNuke': data6['search_times'],
                 }
-                with open(f'/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/faiss_bins_count_and_size{TCGA_COMBINED}.pkl','rb') as fp:
+                with open(f'{root}/faiss_bins_count_and_size.pkl','rb') as fp:
                     data7 = pickle.load(fp)
                 df1 = pd.DataFrame({k: {kk.replace('faiss_', ''): vv for kk, vv in v.items()} for k, v in data7['all_sizes'].items()})/1024/1024/1024
                 df1.index.name = 'method'

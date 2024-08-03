@@ -101,6 +101,7 @@ PROJ_NAME="ST"
 DATA_VERSION=generated7
 PATCH_SIZE=256
 MODEL_NAME=ProvGigaPath
+MODEL_NAME=CONCH
 TCGA_ROOT_DIR=/data/zhongz2
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \

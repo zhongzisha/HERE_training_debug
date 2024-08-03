@@ -26,7 +26,7 @@ import numpy as np
 import pickle
 from scipy.spatial.distance import pdist
 from sklearn.metrics import pairwise_distances
-import os, glob
+import sys, os, glob
 import pandas as pd
 import time
 import math
@@ -1755,7 +1755,7 @@ if __name__ == '__main__':
     args = get_args()
     if args.action == 'faiss_bins_count_and_size':
         get_results_v7_hash_evaluation()
-        return
+        sys.exit(0)
 
     save_dir = os.path.dirname(args.save_filename)
     os.makedirs(save_dir, exist_ok=True)
