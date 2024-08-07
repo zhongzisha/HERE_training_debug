@@ -43,7 +43,10 @@ from datetime import datetime
 from common import HF_MODELS_DICT
 from dataset import PatchDatasetV2
 from utils import save_hdf5
-
+import PIL
+PIL.Image.MAX_IMAGE_PIXELS = 933120000
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def main():
@@ -120,7 +123,8 @@ def main():
         return hook
 
     time.sleep(3)
-    for index, slide_file_path in enumerate(sub_df['DX_filename'].values):
+    for index, row in sub_df.iterrows():
+        slide_file_path = row['DX_filename']
         svs_prefix = os.path.basename(slide_file_path).replace(args.slide_ext, '')
         slide_file_path = os.path.join(args.data_slide_dir, svs_prefix+ args.slide_ext)
 
@@ -142,7 +146,7 @@ def main():
         patch_size = h5file['coords'].attrs['patch_size']
 
         # filter the coords
-        slide = openslide.OpenSlide(local_svs_filename)
+        slide = openslide.open_slide(local_svs_filename)
         time.sleep(1)
         print('extract features')
 
@@ -193,7 +197,7 @@ def main():
             return pixel_values, coords
 
         dataset = PatchDatasetV2(slide, coords, patch_level, patch_size)
-        kwargs = {'num_workers': 4, 'pin_memory': True, 'shuffle': False}
+        kwargs = {'num_workers': 0, 'pin_memory': True, 'shuffle': False}
         if transform is not None:
             loader = DataLoader(dataset=dataset, batch_size=args.batch_size, **kwargs, collate_fn=collate_fn2)
         else:

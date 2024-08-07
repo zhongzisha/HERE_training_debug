@@ -1,10 +1,10 @@
 #!/bin/bash
 
-#SBATCH --job-name fe
+##SBATCH --job-name fe
 #SBATCH --partition=gpu
 #SBATCH --mail-type=FAIL
 #SBATCH --cpus-per-task=4
-#SBATCH --mem=48gb
+#SBATCH --mem=64gb
 #SBATCH --ntasks-per-core=1
 #SBATCH --time=108:00:00
 
@@ -61,7 +61,7 @@ srun python extract_features.py \
 --data_slide_dir ${DATA_DIRECTORY} \
 --csv_path ${CSV_FILE_NAME} \
 --feat_dir ${FEATURES_DIRECTORY} \
---batch_size 256 \
+--batch_size 64 \
 --slide_ext ${IMAGE_EXT} \
 --model_name ${MODEL_NAME}
 
@@ -120,6 +120,45 @@ MODEL_NAME=PLIP
 TCGA_ROOT_DIR=/data/zhongz2
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
+
+
+
+
+
+
+PROJ_NAME="TNBC"
+DATA_VERSION=generated7
+PATCH_SIZE=256
+TCGA_ROOT_DIR=/data/zhongz2
+
+for MODEL_NAME in "CONCH"; do
+sbatch --job-name=$MODEL_NAME --gres=gpu:v100x:1,lscratch:32 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
+done
+
+
+
+
+
+
+PROJ_NAME="ST_SPOT"
+DATA_VERSION=generated7
+PATCH_SIZE=256
+TCGA_ROOT_DIR=/data/zhongz2
+
+for MODEL_NAME in "ProvGigaPath"; do
+sbatch --job-name=$MODEL_NAME --gres=gpu:v100x:1,lscratch:32 \
   --nodes=16 \
     job_extract_features.sh \
     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
+done
+
+
+
+
+

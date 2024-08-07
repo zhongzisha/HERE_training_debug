@@ -102,6 +102,10 @@ def add_feats_to_faiss(project_name='KenData', backbone='ProvGigaPath', HERE_ckp
     Ms = [8, 16, 32]
     nlists = [128, 256, 512]
     #
+    ITQ_Dims = []
+    Ms = [32]
+    nlists = [128]
+
     faiss_types = [('IndexFlatIP', None), ('IndexFlatL2', None)]
     faiss_types.extend(
         [(f'IndexBinaryFlat_ITQ{dd}_LSH', dd) for dd in ITQ_Dims])
