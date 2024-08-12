@@ -219,22 +219,26 @@ def merge_background_samples_for_deployment():
     import numpy as np
     with open('randomly_1000_data_with_ProvGigaPath.pkl', 'rb') as fp:
         data = pickle.load(fp)
-    for method in ['HERE_ProvGigaPath', 'HERE_CONCH']:
+    del data['ProvGigaPath']
+    del data['HERE_PLIP']['KenData']
+    del data['HERE_PLIP']['ST']
+    for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP']:
         if method not in data:
             data[method] = {}
-        version = ''
-        if method == 'HERE_ProvGigaPath':
-            version = 'V2'
-        if method == 'HERE_CONCH':
-            version = 'V3'
-            version = 'V4' # 20240805 using 10000 samples for training
+        version = 'V4'
+        # if method == 'HERE_ProvGigaPath':
+        #     version = 'V2'
+        #     version = 'V4'
+        # if method == 'HERE_CONCH':
+        #     version = 'V3'
+        #     version = 'V4' # 20240805 using 10000 samples for training
         for project_name in ['KenData', 'ST']:
             if project_name in data[method]:
                 continue
             with open(f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl', 'rb') as fp:
                 data1 = pickle.load(fp)   
             data[method][project_name] = data1[method][project_name]['embeddings']
-    with open('randomly_1000_data_with_ProvGigaPath_CONCH.pkl', 'wb') as fp:
+    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH.pkl', 'wb') as fp:
         pickle.dump(data, fp)
 
 def main():     
