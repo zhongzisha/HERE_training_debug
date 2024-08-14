@@ -50,6 +50,10 @@ import umap
 from utils import get_svs_prefix, _assertLevelDownsamplesV2, new_web_annotation
 from common import HF_MODELS_DICT, CLASSIFICATION_DICT
 from dataset import PatchDatasetV2
+import PIL
+PIL.Image.MAX_IMAGE_PIXELS = 933120000
+from PIL import ImageFile
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def cohend(d1, d2) -> pd.Series:
@@ -247,6 +251,9 @@ def main():
                     transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
                 ]
             )
+        elif model_name == 'CONCH':
+            from conch.open_clip_custom import create_model_from_pretrained
+            feature_extractor, image_processor = create_model_from_pretrained('conch_ViT-B-16','./CONCH_weights_pytorch_model.bin')
         else:
             print('model_params: ', model_params)
             feature_extractor = globals()[model_params[0]].from_pretrained(model_params[1])
@@ -278,6 +285,11 @@ def main():
         def collate_fn2(examples):
             pixel_values = torch.stack([transform(example['pixel_values']) for example in examples])
             labels = np.vstack([example['coords'] for example in examples])
+            return pixel_values, labels
+
+        def collate_fn_CONCH(examples):
+            pixel_values = torch.stack([image_processor(example["pixel_values"]) for example in examples])
+            labels = np.vstack([example["coords"] for example in examples])
             return pixel_values, labels
 
         job_params = []
@@ -336,12 +348,15 @@ def main():
 
                 slide = openslide.OpenSlide(local_svs_filename)
                 dataset = PatchDatasetV2(slide, all_coords, patch_level, patch_size)
-                kwargs = {'num_workers': 4,'pin_memory': True, 'shuffle': False}
+                kwargs = {'num_workers': 0,'pin_memory': True, 'shuffle': False}
 
                 if transform is not None:
                     loader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn2)
                 else:
-                    loader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn)
+                    if model_name == 'CONCH':
+                        loader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn_CONCH)
+                    else:
+                        loader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn)
 
                 after_encoder_feats = []
                 for count, (images, coords) in enumerate(loader):
@@ -352,6 +367,8 @@ def main():
                             features = feature_tensors.get('after_flatten_feat')
                         elif model_name == 'ProvGigaPath':
                             features = feature_extractor(images).detach()
+                        elif model_name == 'CONCH':
+                            features = feature_extractor.encode_image(images, proj_contrast=False, normalize=False).detach()
                         else:  # CLIP, PLIP
                             if transform is not None:
                                 features = feature_extractor.encode_image(images).detach()

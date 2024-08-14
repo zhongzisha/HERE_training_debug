@@ -71,12 +71,13 @@ exit;
 PROJ_NAME="TCGA-ALL2"
 DATA_VERSION=generated7
 PATCH_SIZE=256
-MODEL_NAME=CONCH
+# MODEL_NAME=CONCH
 # MODEL_NAME=ProvGigaPath
+MODEL_NAME=PLIP
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \
-  --nodes=16 \
+  --nodes=8 \
     job_extract_features.sh \
     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
 

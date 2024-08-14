@@ -20,15 +20,30 @@ source /data/zhongz2/venv_py38_hf2/bin/activate
 ONLY_STEP1=${1}
 GROUP_NAME=${2}
 
-SAVE_ROOT="/data/zhongz2/temp29/debug/debug_results/ngpus2_accum4_backboneProvGigaPath_dropout0.25/analysis/ST"
+# SAVE_ROOT="/data/zhongz2/temp29/debug/debug_results/ngpus2_accum4_backboneProvGigaPath_dropout0.25/analysis/ST"
 
+# srun python test_deployment_shared_attention_two_images_comparison_v42.py \
+#     --save_root ${SAVE_ROOT} \
+#     --svs_dir "/data/zhongz2/ST_256/svs" \
+#     --patches_dir "/data/zhongz2/ST_256/patches" \
+#     --image_ext ".svs" \
+#     --backbone "ProvGigaPath" \
+#     --ckpt_path "/data/zhongz2/temp29/debug/results/ngpus2_accum4_backboneProvGigaPath_dropout0.25/split_1/snapshot_39.pt" \
+#     --cluster_feat_name "feat_before_attention_feat" \
+#     --csv_filename "/data/zhongz2/ST_256/all_20231117.xlsx" \
+#     --cluster_task_name ${GROUP_NAME} \
+#     --cluster_task_index 0 \
+#     --num_patches 128 \
+#     --only_step1 ${ONLY_STEP1}
+
+SAVE_ROOT="/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/analysis/ST"
 srun python test_deployment_shared_attention_two_images_comparison_v42.py \
     --save_root ${SAVE_ROOT} \
     --svs_dir "/data/zhongz2/ST_256/svs" \
     --patches_dir "/data/zhongz2/ST_256/patches" \
     --image_ext ".svs" \
-    --backbone "ProvGigaPath" \
-    --ckpt_path "/data/zhongz2/temp29/debug/results/ngpus2_accum4_backboneProvGigaPath_dropout0.25/split_1/snapshot_39.pt" \
+    --backbone "CONCH" \
+    --ckpt_path "/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/split_3/snapshot_53.pt" \
     --cluster_feat_name "feat_before_attention_feat" \
     --csv_filename "/data/zhongz2/ST_256/all_20231117.xlsx" \
     --cluster_task_name ${GROUP_NAME} \
@@ -38,10 +53,10 @@ srun python test_deployment_shared_attention_two_images_comparison_v42.py \
 
 exit;
 
-sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=8 --nodes=8 --ntasks-per-node=1 \
+sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:v100x:1,lscratch:32 --cpus-per-task=8 --nodes=8 --ntasks-per-node=1 \
     job.sh "yes" "one_patient"
 
-sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=8 --nodes=8 --ntasks-per-node=1 \
+sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:v100x:1,lscratch:32 --cpus-per-task=8 --nodes=8 --ntasks-per-node=1 \
     job.sh "no" "one_patient"
 sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:k80:1,lscratch:32 --cpus-per-task=8 --nodes=1 --ntasks-per-node=1 \
     job.sh "no" "response_groups"

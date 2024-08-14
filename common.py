@@ -253,7 +253,8 @@ HF_MODELS_DICT = {
     # 'vitmsn': ['ViTMSNModel', 'facebook/vit-msn-small']
     'mobilenetv3': ['timm_mobilenetv3', '', 'flatten'],
     'CLIP': ['CLIPModel', 'openai/clip-vit-base-patch32', None],
-    'PLIP': ['CLIPModel', 'vinid/plip', None],
+    # 'PLIP': ['CLIPModel', 'vinid/plip', None],
+    'PLIP': ['CLIPModel', './vinid_plip', None],
     'ProvGigaPath': ['timm_ProvGigaPath', '', None],
     'CONCH': ['CONCH', '', None]
 }

@@ -1,7 +1,5 @@
 
 import sys,os,glob,shutil
-import idr_torch
-
 from collections import defaultdict
 
 class BKTree:
@@ -67,7 +65,7 @@ def longestCommonSubsequence(text1: str, text2: str) -> int:
         return dp_matrix[len_text1][len_text2]
 
 
-if __name__ == '__main__':
+def clean_data():
 
     # Usage
     bk_tree = BKTree(levenshtein)
@@ -100,4 +98,61 @@ if __name__ == '__main__':
                 print(k, vv)
                 os.system('rm "{}/{}.h5"'.format(patches_dir, vv))
                 removed_cases.append((k, vv))
+
+
+
+def debug():
+    import sys,os,glob
+    import pandas as pd
+    from natsort import natsorted
+    import numpy as np
+
+    # project = 'Ken'
+    # data_dir = '/Volumes/Jiang_Lab/Data/COMPASS_NGS_Cases' 
+    # postfix = '.ndpi'
+    # files = natsorted(glob.glob(os.path.join(data_dir, '**/*{}'.format(postfix))))
+
+    directory = '/Volumes/COMPASS_NGS_Cases'
+    files = []
+    for filepath in glob.glob(directory + '/**/*', recursive=True):
+        if os.path.isfile(filepath):
+            files.append((filepath, os.path.splitext(filepath)[1], os.path.getsize(filepath)))
+    newdf = pd.DataFrame(files, columns=['OriginalPath', 'FileExt', 'FileSize'])
+    # newdf = newdf[newdf['FileExt'].isin(['.ndpi', '.svs', '.tif', '.tiff'])].reset_index(drop=True)
+    newdf = newdf[newdf['FileExt']=='.ndpi'].reset_index(drop=True)
+    prefixes = []
+    for f in newdf['OriginalPath'].values:
+        prefix = os.path.splitext(f.replace('/Volumes/COMPASS_NGS_Cases/', '').replace('/', '_'))[0]
+        prefix = prefix.replace(' ', '_')
+        prefix = prefix.replace(',', '_')
+        prefix = prefix.replace('&', '_')
+        prefix = prefix.replace('+', '_')
+        prefixes.append(prefix)
+    newdf['Prefix'] = prefixes
+    
+    df = newdf
+    size_df = df['FileSize'].value_counts()
+
+    df = df.drop_duplicates('FileSize', keep='first')
+    df.to_excel('/Users/zhongz2/down/KenData_20240814.xlsx')
+
+    df = df.sort_values('Prefix').reset_index(drop=True)
+
+    indices = np.arange(len(df))
+    index_splits = np.array_split(indices, indices_or_sections=50)
+
+    for pi in range(len(index_splits)):
+        subdf = df.iloc[index_splits[pi]] 
+        for _, row in subdf.iterrows():
+            os.system('cp -RL "{}" "{}{}"'.format(row['OriginalPath'], row['Prefix'], row['FileExt'])) 
+        os.system(f'python anonymize-slide3.py *.ndpi')
+        os.system(f'rsync -avh *.ndpi helix.nih.gov:/data/Jiang_Lab/Data/COMPASS_NGS_Cases_20240814/')
+        os.system('rm -rf *.ndpi')
+
+
+
+
+
+
+
 
