@@ -139,7 +139,7 @@ def debug():
     df = df.sort_values('Prefix').reset_index(drop=True)
 
     indices = np.arange(len(df))
-    index_splits = np.array_split(indices, indices_or_sections=50)
+    index_splits = np.array_split(indices, indices_or_sections=6)
 
     for pi in range(len(index_splits)):
         subdf = df.iloc[index_splits[pi]] 

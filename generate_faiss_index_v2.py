@@ -264,12 +264,18 @@ def merge_background_samples_for_deployment_v2():
         #     version = 'V3'
         #     version = 'V4' # 20240805 using 10000 samples for training
         for project_name in ['KenData', 'ST', 'TCGA-COMBINED']:
+            if project_name == 'TCGA-COMBINED':
+                version = 'V5'
             filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
             if project_name in data[method] or not os.path.exists(filename):
                 continue
             with open(filename, 'rb') as fp:
-                data1 = pickle.load(fp)   
-            data[method][project_name] = data1[method][project_name]['embeddings']
+                data1 = pickle.load(fp)
+            if project_name == 'TCGA-COMBINED':
+                embeddings = data1[method][project_name]['embeddings']
+                data[method][project_name] = embeddings[np.random.randint(0, len(embeddings), 10000), :]
+            else:
+                data[method][project_name] = data1[method][project_name]['embeddings']
         data[method]['ALL'] = np.concatenate([
             vv for kk, vv in data[method].items() 
         ])
@@ -357,6 +363,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     import pymysql
     import numpy as np
     import json
+    import pandas as pd
 
     project_names = ['TCGA-COMBINED', 'KenData', 'ST'] # get_project_names()
 
@@ -376,7 +383,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
         '(rowid BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, '\
             'project_id INT NOT NULL, '\
                 'svs_prefix_id INT NOT NULL, svs_prefix VARCHAR(1024) NOT NULL, '\
-                    'scale FLOAT NOT NULL, patch_size_vis_level SMALLINT NOT NULL, note TEXT);'
+                    'scale FLOAT NOT NULL, patch_size_vis_level SMALLINT NOT NULL, external_link VARCHAR(2048), note TEXT);'
     cur.execute(sql_command)
     sql_command = f'CREATE TABLE IF NOT EXISTS project_table_{version} '\
         '(rowid BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, '\
@@ -390,6 +397,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     case_uuids = {}
     with open(f'{data_root}/assets/metadata.repository.2024-08-13.json', 'r') as fp:
         case_uuids = {item['file_name'].replace('.svs', ''): item['associated_entities'][0]['case_id'] for item in json.load(fp)}
+    ST_df = pd.read_excel('/mnt/hidare-efs/data_20240208/ST_list_cancer.xlsx')
 
     all_items = []
     project_items = []
@@ -413,13 +421,18 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
                 scale = 1.0
                 patch_size_vis_level = 256
             note = all_notes[svs_prefix] if svs_prefix in all_notes else ''
-            if 'TCGA' == svs_prefix[:4] and svs_prefix in case_uuids:
-                note = f'Link: <a href=\"https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}\" target=\"_blank\">{svs_prefix}</a>\n\n' + note
-            all_items.append((proj_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, note))
+            # if 'TCGA' == svs_prefix[:4] and svs_prefix in case_uuids:
+            #     note = f'Link: <a href=\"https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}\" target=\"_blank\">{svs_prefix}</a>\n\n' + note
+            external_link = ''
+            if project_name == 'ST':
+                external_link = df.loc[df['ID']==svs_prefix, 'Source'].values[0]
+            elif project_name == 'TCGA-COMBINED':
+                external_link = f'https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}' if svs_prefix in case_uuids else ''
+            all_items.append((proj_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, external_link, note))
     cur.executemany(f"INSERT INTO project_table_{version} (project_id, project_name) VALUES (%s, %s)",
                     project_items)
     conn.commit()
-    cur.executemany(f"INSERT INTO image_table_{version} (project_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, note) VALUES (%s, %s, %s, %s, %s, %s)",
+    cur.executemany(f"INSERT INTO image_table_{version} (project_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, external_link, note) VALUES (%s, %s, %s, %s, %s, %s, %s)",
                     all_items)
     conn.commit()
 
@@ -860,5 +873,19 @@ def main():
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
     save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
+    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
+
+    version = 'V5'
+    project_name='TCGA-COMBINED'
+    backbone='PLIP'
+    dim2=256
+    BEST_SPLIT=3
+    BEST_EPOCH=66
+    num_selected_train_samples = 500
+    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
+    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
+        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
+            num_selected_train_samples=num_selected_train_samples)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
