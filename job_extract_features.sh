@@ -3,9 +3,9 @@
 ##SBATCH --job-name fe
 #SBATCH --partition=gpu
 #SBATCH --mail-type=FAIL
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=32gb
-#SBATCH --ntasks-per-core=1
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64gb
+##SBATCH --ntasks-per-core=1
 #SBATCH --time=108:00:00
 
 
@@ -45,6 +45,9 @@ DATA_VERSION=${2}
 PATCH_SIZE=${3}
 MODEL_NAME=${4}
 TCGA_ROOT_DIR=${5}
+START_IDX=${6}
+END_IDX=${7}
+BATCH_SIZE=${8}
 
 IMAGE_EXT=".svs"
 DIR_TO_COORDS=${TCGA_ROOT_DIR}/${PROJ_NAME}_${PATCH_SIZE}
@@ -61,9 +64,11 @@ srun python extract_features.py \
 --data_slide_dir ${DATA_DIRECTORY} \
 --csv_path ${CSV_FILE_NAME} \
 --feat_dir ${FEATURES_DIRECTORY} \
---batch_size 256 \
+--batch_size ${BATCH_SIZE} \
 --slide_ext ${IMAGE_EXT} \
---model_name ${MODEL_NAME}
+--model_name ${MODEL_NAME} \
+--start_idx ${START_IDX} \
+--end_idx ${END_IDX}
 
 
 exit;
@@ -149,13 +154,32 @@ DATA_VERSION=generated7
 PATCH_SIZE=256
 TCGA_ROOT_DIR=/data/zhongz2
 
-for MODEL_NAME in "CONCH"; do
-sbatch --job-name=$MODEL_NAME --gres=gpu:v100x:1,lscratch:32 \
+# for MODEL_NAME in "CONCH"; do
+# sbatch --job-name=$MODEL_NAME --gres=gpu:v100x:1,lscratch:32 \
+#   --ntasks=16 --ntasks-per-node=1 \
+#     job_extract_features.sh \
+#     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
+# done
+MODEL_NAME="CONCH"
+sbatch --job-name=0_1600 --gres=gpu:v100x:1,lscratch:32 \
   --ntasks=16 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
-done
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 1600 512
 
+sbatch --job-name=1600_3200 --gres=gpu:v100x:1,lscratch:32 \
+  --ntasks=16 --ntasks-per-node=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 1600 3200 512
+
+sbatch --job-name=3200_4800 --gres=gpu:v100x:1,lscratch:32 \
+  --ntasks=16 --ntasks-per-node=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 3200 4800 512
+
+sbatch --job-name=4800_6400 --gres=gpu:v100x:1,lscratch:32 \
+  --ntasks=16 --ntasks-per-node=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 4800 6400 512
 
 
 PROJ_NAME="ST_SPOT"

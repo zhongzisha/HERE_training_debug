@@ -35,7 +35,7 @@ exit;
 
 DATA_DIRECTORY=/data/zhongz2/KenData_20240814/svs
 PRESET=KenData
-sbatch --nodes=16 --ntasks-per-node=1 \
+sbatch --nodes=32 --ntasks-per-node=1 \
   --cpus-per-task=2 --partition=quick \
   --gres=lscratch:64 --mem=32gb --time=04:00:00 \
   job_create_patches.sh ${DATA_DIRECTORY} ${PRESET}

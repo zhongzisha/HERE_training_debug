@@ -25,6 +25,7 @@ CSV_FILENAME="/data/zhongz2/${PROJ_NAME}/40x_items_to_be_converted_1.csv"
 CSV_FILENAME="/data/zhongz2/${PROJ_NAME}/40x_items_to_be_converted_2.csv"
 CSV_FILENAME="/data/zhongz2/${PROJ_NAME}/40x_items_to_be_converted_3.csv"
 CSV_FILENAME="/data/zhongz2/${PROJ_NAME}/40x_items_to_be_converted_4.csv"
+CSV_FILENAME="/data/zhongz2/${PROJ_NAME}/40x_items_to_be_converted_5.csv"
 SAVE_ROOT="/data/zhongz2/${PROJ_NAME}/images_20x/"
 IMAGE_EXT=".ndpi"
 
@@ -39,7 +40,7 @@ exit;
 sbatch --job-name TCGA --partition=multinode --ntasks=32 --time=108:00:00 --gres=lscratch:100 --mem=64gb convert_40x_to_20x_step2.sh
 sbatch --job-name TCGA --partition=quick --ntasks=64 --time=04:00:00 --gres=lscratch:100 --mem=64gb convert_40x_to_20x_step2.sh
 
-sbatch --job-name Ken --partition=quick --ntasks=4 --time=04:00:00 --gres=lscratch:100 --mem=64gb \
+sbatch --job-name Ken --partition=quick --ntasks=32 --time=04:00:00 --gres=lscratch:100 --mem=64gb \
 convert_40x_to_20x_step2_KenData.sh
 
 sbatch --job-name Ken --partition=multinode --ntasks=64 --time=108:00:00 --gres=lscratch:100 --mem=64gb \

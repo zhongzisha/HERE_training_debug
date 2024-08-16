@@ -58,6 +58,8 @@ def main():
     parser.add_argument('--feat_dir', type=str, default='') 
     parser.add_argument('--batch_size', type=int, default=256)
     parser.add_argument('--model_name', type=str, default='resnet18')
+    parser.add_argument('--start_idx', type=int, default=-1)
+    parser.add_argument('--end_idx', type=int, default=-1)
     args = parser.parse_args()
 
     model_name = args.model_name
@@ -105,16 +107,18 @@ def main():
             drop_ids.append(ind)
     if len(drop_ids) > 0:
         df = df.drop(drop_ids)
+    df = df.reset_index(drop=True)
+
+    if args.end_idx > args.start_idx > -1: 
+        df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
 
     indices = np.arange(len(df))
     index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size)
-    print('index_splits', index_splits)
-    print('rank: ', idr_torch.rank)
     print('local rank:', idr_torch.local_rank)
     print('world_size: ', idr_torch.world_size)
     sub_df = df.iloc[index_splits[idr_torch.rank]]
     sub_df = sub_df.reset_index(drop=True)
-    print(idr_torch.rank, idr_torch.local_rank, idr_torch.world_size, sub_df)
+    print(idr_torch.rank, sub_df)
 
     feature_tensors = {}
     def get_activation(name):
@@ -122,10 +126,61 @@ def main():
             feature_tensors[name + '_feat'] = output.detach()
         return hook
 
+
+    config = None
+    transform = None
+    image_processor = None 
+    if model_name == 'mobilenetv3':
+        model = timm.create_model('mobilenetv3_large_100', pretrained=True)
+        config = resolve_data_config({}, model=model)
+        transform = create_transform(**config)
+        model.flatten.register_forward_hook(get_activation('after_flatten'))
+    elif model_name == 'ProvGigaPath':
+        model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+        transform = transforms.Compose(
+            [
+                transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ]
+        )
+    elif model_name == 'CONCH':
+        from conch.open_clip_custom import create_model_from_pretrained
+        model, image_processor = create_model_from_pretrained('conch_ViT-B-16','/data/zhongz2/HUGGINGFACE_HUB_CACHE/CONCH_weights/pytorch_model.bin')
+    else:
+        print('model_params: ', model_params)
+        model = globals()[model_params[0]].from_pretrained(model_params[1])
+        if 'PLIP' in model_name or 'CLIP' in model_name:
+            image_processor = CLIPProcessor.from_pretrained(model_params[1])
+        else:
+            image_processor = AutoImageProcessor.from_pretrained(model_params[1])
+    model = model.to(device)
+    model.eval() 
+
+    def collate_fn2(examples): 
+        pixel_values = torch.stack([transform(example["pixel_values"]) for example in examples])
+        coords = np.vstack([example["coords"] for example in examples])
+        return pixel_values, coords
+
+    def collate_fn(examples):
+        pixel_values = image_processor(images=[example["pixel_values"] for example in examples], return_tensors='pt')
+        coords = np.vstack([example["coords"] for example in examples])
+        return pixel_values['pixel_values'], coords
+
+    def collate_fn_CONCH(examples):
+        pixel_values = torch.stack([image_processor(example["pixel_values"]) for example in examples])
+        coords = np.vstack([example["coords"] for example in examples])
+        return pixel_values, coords
+        
     time.sleep(3)
     for index, row in sub_df.iterrows():
         slide_file_path = row['DX_filename']
         svs_prefix = os.path.basename(slide_file_path).replace(args.slide_ext, '')
+        final_feat_filename = os.path.join(args.feat_dir, 'pt_files', svs_prefix + '.pt')
+        if os.path.exists(final_feat_filename):
+            continue
+
         slide_file_path = os.path.join(args.data_slide_dir, svs_prefix+ args.slide_ext)
 
         h5_file_path = os.path.join(args.data_h5_dir, 'patches', svs_prefix + '.h5')
@@ -149,52 +204,6 @@ def main():
         slide = openslide.open_slide(local_svs_filename)
         time.sleep(1)
         print('extract features')
-
-        config = None
-        transform = None
-        image_processor = None 
-        if model_name == 'mobilenetv3':
-            model = timm.create_model('mobilenetv3_large_100', pretrained=True)
-            config = resolve_data_config({}, model=model)
-            transform = create_transform(**config)
-            model.flatten.register_forward_hook(get_activation('after_flatten'))
-        elif model_name == 'ProvGigaPath':
-            model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
-            transform = transforms.Compose(
-                [
-                    transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
-                    transforms.CenterCrop(224),
-                    transforms.ToTensor(),
-                    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-                ]
-            )
-        elif model_name == 'CONCH':
-            from conch.open_clip_custom import create_model_from_pretrained
-            model, image_processor = create_model_from_pretrained('conch_ViT-B-16','/data/zhongz2/HUGGINGFACE_HUB_CACHE/CONCH_weights/pytorch_model.bin')
-        else:
-            print('model_params: ', model_params)
-            model = globals()[model_params[0]].from_pretrained(model_params[1])
-            if 'PLIP' in model_name or 'CLIP' in model_name:
-                image_processor = CLIPProcessor.from_pretrained(model_params[1])
-            else:
-                image_processor = AutoImageProcessor.from_pretrained(model_params[1])
-        model = model.to(device)
-        model.eval() 
-
-        def collate_fn2(examples): 
-            pixel_values = torch.stack([transform(example["pixel_values"]) for example in examples])
-            coords = np.vstack([example["coords"] for example in examples])
-            return pixel_values, coords
-
-        def collate_fn(examples):
-            pixel_values = image_processor(images=[example["pixel_values"] for example in examples], return_tensors='pt')
-            coords = np.vstack([example["coords"] for example in examples])
-            return pixel_values['pixel_values'], coords
-
-        def collate_fn_CONCH(examples):
-            pixel_values = torch.stack([image_processor(example["pixel_values"]) for example in examples])
-            coords = np.vstack([example["coords"] for example in examples])
-            return pixel_values, coords
 
         dataset = PatchDatasetV2(slide, coords, patch_level, patch_size)
         kwargs = {'num_workers': 0, 'pin_memory': True, 'shuffle': False}
@@ -233,7 +242,7 @@ def main():
                 mode = 'a'
         time_elapsed = time.time() - time_start
         print('\ncomputing features for {} took {} s'.format(output_path, time_elapsed))
-        del model
+        # del model
         gc.collect() 
 
         with h5py.File(output_path, "r") as file:
