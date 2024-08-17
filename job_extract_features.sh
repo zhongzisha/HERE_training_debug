@@ -162,25 +162,14 @@ TCGA_ROOT_DIR=/data/zhongz2
 # done
 MODEL_NAME="CONCH"
 sbatch --job-name=0_1600 --gres=gpu:v100x:1,lscratch:32 \
-  --ntasks=16 --ntasks-per-node=1 \
+  --ntasks=1 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 1600 512
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 60 512
 
 sbatch --job-name=1600_3200 --gres=gpu:v100x:1,lscratch:32 \
-  --ntasks=16 --ntasks-per-node=1 \
+  --ntasks=8 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 1600 3200 512
-
-sbatch --job-name=3200_4800 --gres=gpu:v100x:1,lscratch:32 \
-  --ntasks=16 --ntasks-per-node=1 \
-    job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 3200 4800 512
-
-sbatch --job-name=4800_6400 --gres=gpu:v100x:1,lscratch:32 \
-  --ntasks=16 --ntasks-per-node=1 \
-    job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 4800 6400 512
-
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 60 200 512 
 
 PROJ_NAME="ST_SPOT"
 DATA_VERSION=generated7

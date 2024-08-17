@@ -22,9 +22,13 @@ srun python gen_big_images_dzi.py "${1}" "${2}"
 
 exit; 
 
-sbatch --partition=multinode --mem=64G --time=108:00:00 --gres=lscratch:20 --cpus-per-task=1 --nodes=8 --ntasks-per-node=1 gen_big_images_dzi.sh \
-/data/zhongz2/tcga/TCGA-ALL2_256/svs \
-/data/zhongz2/tcga/TCGA-ALL2_256/dzi_images
+sbatch --partition=multinode --mem=64G --time=108:00:00 --gres=lscratch:20 \
+    --cpus-per-task=1 --nodes=8 --ntasks-per-node=1 gen_big_images_dzi.sh \
+    /data/zhongz2/tcga/TCGA-ALL2_256/svs \
+    /data/zhongz2/tcga/TCGA-ALL2_256/dzi_images
 
-
+sbatch --partition=multinode --mem=64G --time=108:00:00 --gres=lscratch:20 \
+    --cpus-per-task=1 --nodes=8 --ntasks-per-node=1 gen_big_images_dzi.sh \
+    /data/zhongz2/KenData_20240814_256/svs \
+    /data/Jiang_Lab/Data/Zisha_Zhong/KenData_20240814_dzi_images
 

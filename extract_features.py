@@ -72,7 +72,7 @@ def main():
         DX_filenames = sorted(glob.glob(os.path.join(args.data_slide_dir, '*{}*'.format(args.slide_ext))))
         df = pd.DataFrame({'DX_filename': DX_filenames})
     else:
-        if 'xlsx' in csv_path:
+        if 'xlsx' in csv_path: 
             df = pd.read_excel(csv_path, low_memory=False)
         else:
             df = pd.read_csv(csv_path, low_memory=False)
@@ -109,7 +109,9 @@ def main():
         df = df.drop(drop_ids)
     df = df.reset_index(drop=True)
 
-    if args.end_idx > args.start_idx > -1: 
+    if args.end_idx > args.start_idx > -1:
+        if  args.end_idx >= len(df):
+            args.end_idx = len(df)
         df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
 
     indices = np.arange(len(df))

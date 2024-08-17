@@ -41,5 +41,17 @@ sbatch --nodes=32 --ntasks-per-node=1 \
   job_create_patches.sh ${DATA_DIRECTORY} ${PRESET}
 
 
+# 
+DATA_DIRECTORY=/data/zhongz2/KenData_20240814_256/preset_KenData_256_orignalcode/svs
+PRESET=KenData5
+sbatch --nodes=32 --ntasks-per-node=1 \
+  --cpus-per-task=2 --partition=quick \
+  --gres=lscratch:64 --mem=32gb --time=04:00:00 \
+  job_create_patches.sh ${DATA_DIRECTORY} ${PRESET}
 
-
+DATA_DIRECTORY=/data/zhongz2/KenData_20240814_256/preset_KenData_256_orignalcode/preset_KenData5_256_orignalcode/svs
+PRESET=KenData6
+sbatch --nodes=16 --ntasks-per-node=1 \
+  --cpus-per-task=2 --partition=quick \
+  --gres=lscratch:64 --mem=32gb --time=04:00:00 \
+  job_create_patches.sh ${DATA_DIRECTORY} ${PRESET}

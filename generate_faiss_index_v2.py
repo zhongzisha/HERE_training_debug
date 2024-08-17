@@ -122,7 +122,7 @@ def add_feats_to_faiss(project_name='KenData', backbone='ProvGigaPath', HERE_ckp
         done = True
         for proj_id, project_name in enumerate(project_names):
             save_filename = f'{faiss_bins_dir}/all_data_feat_before_attention_feat_faiss_{faiss_type}_{project_name}_{prefix}{backbone}.bin'
-            if project_name == 'KenData' and faiss_type == 'IndexFlatL2':
+            if 'KenData' in project_name and faiss_type == 'IndexFlatL2':
                 continue
             if project_name == 'TCGA-COMBINED' and faiss_type == 'IndexFlatL2':
                 continue
@@ -156,7 +156,7 @@ def add_feats_to_faiss(project_name='KenData', backbone='ProvGigaPath', HERE_ckp
             binarizer.train(train_data_float32)
 
         for proj_id, project_name in enumerate(project_names):
-            if project_name == 'KenData' and (faiss_type == 'IndexFlatL2' or faiss_type == 'IndexFlatIP'):
+            if 'KenData' in project_name and (faiss_type == 'IndexFlatL2' or faiss_type == 'IndexFlatIP'):
                 continue
             if project_name == 'TCGA-COMBINED' and (faiss_type == 'IndexFlatL2' or faiss_type == 'IndexFlatIP'):
                 continue
@@ -247,11 +247,6 @@ def merge_background_samples_for_deployment_v2():
     import os
     import pickle
     import numpy as np
-    # with open('randomly_1000_data_with_ProvGigaPath.pkl', 'rb') as fp:
-    #     data = pickle.load(fp)
-    # del data['ProvGigaPath']
-    # del data['HERE_PLIP']['KenData']
-    # del data['HERE_PLIP']['ST']
     data = {}
     for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP']:
         if method not in data:
@@ -263,7 +258,7 @@ def merge_background_samples_for_deployment_v2():
         # if method == 'HERE_CONCH':
         #     version = 'V3'
         #     version = 'V4' # 20240805 using 10000 samples for training
-        for project_name in ['KenData', 'ST', 'TCGA-COMBINED']:
+        for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED']:
             if project_name == 'TCGA-COMBINED':
                 version = 'V5'
             filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
@@ -271,7 +266,7 @@ def merge_background_samples_for_deployment_v2():
                 continue
             with open(filename, 'rb') as fp:
                 data1 = pickle.load(fp)
-            if project_name == 'TCGA-COMBINED':
+            if project_name == 'TCGA-COMBINED' or project_name == 'KenData_20240814':
                 embeddings = data1[method][project_name]['embeddings']
                 data[method][project_name] = embeddings[np.random.randint(0, len(embeddings), 10000), :]
             else:
@@ -279,7 +274,7 @@ def merge_background_samples_for_deployment_v2():
         data[method]['ALL'] = np.concatenate([
             vv for kk, vv in data[method].items() 
         ])
-    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH.pkl', 'wb') as fp:
+    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH_20240814.pkl', 'wb') as fp:
         pickle.dump(data, fp)
 
 
@@ -287,7 +282,7 @@ def merge_background_samples_for_deployment_v2():
 
 def get_all_scales_20240813():
 
-    project_names = ['TCGA-COMBINED', 'KenData', 'ST'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
 
     all_results = {}
     image_ext = '.svs'
@@ -345,7 +340,7 @@ def get_all_scales_20240813():
     save_dir = f'/data/zhongz2/temp_20240801/'
     os.makedirs(save_dir, exist_ok=True)
     import pickle
-    with open(f'{save_dir}/all_scales_20240813.pkl', 'wb') as fp:  # TCGA-COMBINED
+    with open(f'{save_dir}/all_scales_20240813_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
         pickle.dump(all_results, fp)
 
 
@@ -365,10 +360,11 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     import json
     import pandas as pd
 
-    project_names = ['TCGA-COMBINED', 'KenData', 'ST'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
 
     data_root = 'data_HiDARE_PLIP_20240208'
     version = '20240812' # for TCGA-COMBINED
+    version = '20240814' # for KenData_20240814
 
     DB_USER = "hidare_app"
     DB_PASSWORD = "ykYGt*Lcs^2Fma94"
@@ -390,7 +386,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
             'project_id INT NOT NULL, project_name VARCHAR(256) NOT NULL);'
     cur.execute(sql_command)
 
-    with open(f'{data_root}/assets/all_scales_20240813.pkl', 'rb') as fp:
+    with open(f'{data_root}/assets/all_scales_20240813_newKenData.pkl', 'rb') as fp:
         all_scales = pickle.load(fp) # proj_name+svs_prefix
     with open(f'{data_root}/assets/all_notes_all.pkl', 'rb') as fp:
         all_notes = pickle.load(fp) # svs_prefix
@@ -420,12 +416,12 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
             else:
                 scale = 1.0
                 patch_size_vis_level = 256
-            note = all_notes[svs_prefix] if svs_prefix in all_notes else ''
+            note = all_notes[svs_prefix] if svs_prefix in all_notes else svs_prefix
             # if 'TCGA' == svs_prefix[:4] and svs_prefix in case_uuids:
             #     note = f'Link: <a href=\"https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}\" target=\"_blank\">{svs_prefix}</a>\n\n' + note
             external_link = ''
             if project_name == 'ST':
-                external_link = df.loc[df['ID']==svs_prefix, 'Source'].values[0]
+                external_link = ST_df.loc[ST_df['ID']==svs_prefix, 'Source'].values[0]
             elif project_name == 'TCGA-COMBINED':
                 external_link = f'https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}' if svs_prefix in case_uuids else ''
             all_items.append((proj_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, external_link, note))
@@ -786,6 +782,21 @@ def main():
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
     save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
+    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
+
+
+    version = 'V6'
+    project_name='KenData_20240814'
+    backbone='CONCH'
+    dim2=256
+    BEST_SPLIT=3
+    BEST_EPOCH=53
+    num_selected_train_samples = 500
+    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
+    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
+        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
+            num_selected_train_samples=num_selected_train_samples)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
     version = 'V4'
