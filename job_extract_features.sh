@@ -36,7 +36,7 @@ else
     module load cuDNN/8.9.2/CUDA-12
     module load gcc/11.3.0   
 fi
-export OMP_NUM_THREADS=4
+export OMP_NUM_THREADS=8
 
 
 # 20221220
@@ -160,16 +160,26 @@ TCGA_ROOT_DIR=/data/zhongz2
 #     job_extract_features.sh \
 #     ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
 # done
-MODEL_NAME="CONCH"
-sbatch --job-name=0_1600 --gres=gpu:v100x:1,lscratch:32 \
-  --ntasks=1 --ntasks-per-node=1 \
+MODEL_NAME="ProvGigaPath"
+sbatch --job-name=p1 --gres=gpu:v100x:1,lscratch:32 \
+  --nodes=8 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 60 512
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 2500 512
 
-sbatch --job-name=1600_3200 --gres=gpu:v100x:1,lscratch:32 \
+sbatch --job-name=p2 --gres=gpu:v100x:1,lscratch:32 \
+  --ntasks=4 --ntasks-per-node=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 2500 5000 768 
+
+sbatch --job-name=p3 --gres=gpu:v100x:1,lscratch:32 \
+  --ntasks=12 --ntasks-per-node=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 4500 9000 768 
+
+sbatch --job-name=p4 --gres=gpu:v100x:1,lscratch:32 \
   --ntasks=8 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 60 200 512 
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 4500 9000 768 
 
 PROJ_NAME="ST_SPOT"
 DATA_VERSION=generated7

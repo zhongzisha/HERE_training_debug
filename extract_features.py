@@ -105,14 +105,17 @@ def main():
         svs_prefix = os.path.basename(f).replace(args.slide_ext, '')
         if svs_prefix in existed_prefixes or svs_prefix not in h5_prefixes:
             drop_ids.append(ind)
+    print('before0', len(df))
     if len(drop_ids) > 0:
         df = df.drop(drop_ids)
     df = df.reset_index(drop=True)
+    print('before', len(df))
 
     if args.end_idx > args.start_idx > -1:
         if  args.end_idx >= len(df):
             args.end_idx = len(df)
         df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
+    print('after', len(df))
 
     indices = np.arange(len(df))
     index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size)
@@ -120,7 +123,7 @@ def main():
     print('world_size: ', idr_torch.world_size)
     sub_df = df.iloc[index_splits[idr_torch.rank]]
     sub_df = sub_df.reset_index(drop=True)
-    print(idr_torch.rank, sub_df)
+    print(idr_torch.rank, sub_df['DX_filename'].values[0])
 
     feature_tensors = {}
     def get_activation(name):
@@ -208,7 +211,7 @@ def main():
         print('extract features')
 
         dataset = PatchDatasetV2(slide, coords, patch_level, patch_size)
-        kwargs = {'num_workers': 0, 'pin_memory': True, 'shuffle': False}
+        kwargs = {'num_workers': os.cpu_count(), 'pin_memory': True, 'shuffle': False}
         if transform is not None:
             loader = DataLoader(dataset=dataset, batch_size=args.batch_size, **kwargs, collate_fn=collate_fn2)
         else:

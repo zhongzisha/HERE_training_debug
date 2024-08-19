@@ -261,6 +261,8 @@ def merge_background_samples_for_deployment_v2():
         for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED']:
             if project_name == 'TCGA-COMBINED':
                 version = 'V5'
+            if project_name == 'KenData_20240814':
+                version = 'V6'
             filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
             if project_name in data[method] or not os.path.exists(filename):
                 continue
@@ -875,15 +877,18 @@ def main():
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
-    version = 'V4'
-    project_name='ST'
+    version = 'V6'
+    project_name='KenData_20240814'
     backbone='PLIP'
     dim2=256
     BEST_SPLIT=3
     BEST_EPOCH=66
+    num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
     save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
+    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
+        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
+            num_selected_train_samples=num_selected_train_samples)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
     version = 'V5'
