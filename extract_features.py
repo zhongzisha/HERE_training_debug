@@ -1,4 +1,4 @@
-import sys, os, glob, shutil
+import sys, os, glob, shutil, json
 import pdb
 import cv2
 import numpy as np
@@ -47,6 +47,91 @@ import PIL
 PIL.Image.MAX_IMAGE_PIXELS = 933120000
 from PIL import ImageFile
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+
+
+def load_cfg_from_json(json_file):
+    with open(json_file, "r", encoding="utf-8") as reader:
+        text = reader.read()
+    return json.loads(text)
+
+def load_model_config_from_hf(model_id: str):
+    cached_file = '/data/zhongz2/HUGGINGFACE_HUB_CACHE/ProvGigaPath/config.json'
+
+    hf_config = load_cfg_from_json(cached_file)
+    if 'pretrained_cfg' not in hf_config:
+        # old form, pull pretrain_cfg out of the base dict
+        pretrained_cfg = hf_config
+        hf_config = {}
+        hf_config['architecture'] = pretrained_cfg.pop('architecture')
+        hf_config['num_features'] = pretrained_cfg.pop('num_features', None)
+        if 'labels' in pretrained_cfg:  # deprecated name for 'label_names'
+            pretrained_cfg['label_names'] = pretrained_cfg.pop('labels')
+        hf_config['pretrained_cfg'] = pretrained_cfg
+
+    # NOTE currently discarding parent config as only arch name and pretrained_cfg used in timm right now
+    pretrained_cfg = hf_config['pretrained_cfg']
+    pretrained_cfg['hf_hub_id'] = model_id  # insert hf_hub id for pretrained weight load during model creation
+    pretrained_cfg['source'] = 'hf-hub'
+
+    # model should be created with base config num_classes if its exist
+    if 'num_classes' in hf_config:
+        pretrained_cfg['num_classes'] = hf_config['num_classes']
+
+    # label meta-data in base config overrides saved pretrained_cfg on load
+    if 'label_names' in hf_config:
+        pretrained_cfg['label_names'] = hf_config.pop('label_names')
+    if 'label_descriptions' in hf_config:
+        pretrained_cfg['label_descriptions'] = hf_config.pop('label_descriptions')
+
+    model_args = hf_config.get('model_args', {})
+    model_name = hf_config['architecture']
+    return pretrained_cfg, model_name, model_args
+
+from timm.layers import set_layer_config
+from timm.models import is_model, model_entrypoint, load_checkpoint
+
+def split_model_name_tag(model_name: str, no_tag: str = ''):
+    model_name, *tag_list = model_name.split('.', 1)
+    tag = tag_list[0] if tag_list else no_tag
+    return model_name, tag
+
+from urllib.parse import urlsplit
+
+def parse_model_name(model_name: str):
+    if model_name.startswith('hf_hub'):
+        # NOTE for backwards compat, deprecate hf_hub use
+        model_name = model_name.replace('hf_hub', 'hf-hub')
+    parsed = urlsplit(model_name)
+    assert parsed.scheme in ('', 'timm', 'hf-hub')
+    if parsed.scheme == 'hf-hub':
+        # FIXME may use fragment as revision, currently `@` in URI path
+        return parsed.scheme, parsed.path
+    else:
+        model_name = os.path.split(parsed.path)[-1]
+        return 'timm', model_name
+
+
+def create_model():
+    model_name = 'hf_hub:prov-gigapath/prov-gigapath'
+    model_source, model_name = parse_model_name(model_name)
+    pretrained_cfg, model_name, model_args = load_model_config_from_hf(model_name)
+    kwargs = {}
+    if model_args:
+        for k, v in model_args.items():
+            kwargs.setdefault(k, v)
+    create_fn = model_entrypoint(model_name)
+    with set_layer_config(scriptable=None, exportable=None, no_jit=None):
+        model = create_fn(
+            pretrained=False,
+            pretrained_cfg=pretrained_cfg,
+            pretrained_cfg_overlay=None,
+            **kwargs
+        )
+    load_checkpoint(model, '/data/zhongz2/HUGGINGFACE_HUB_CACHE/ProvGigaPath/pytorch_model.bin')
+
+    return model
+
 
 
 def main():
@@ -141,7 +226,8 @@ def main():
         transform = create_transform(**config)
         model.flatten.register_forward_hook(get_activation('after_flatten'))
     elif model_name == 'ProvGigaPath':
-        model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+        # model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+        model = create_model()  # timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
         transform = transforms.Compose(
             [
                 transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
