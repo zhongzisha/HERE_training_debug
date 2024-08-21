@@ -162,19 +162,19 @@ TCGA_ROOT_DIR=/data/zhongz2
 # done
 MODEL_NAME="ProvGigaPath"
 sbatch --job-name=p1 --gres=gpu:v100x:1,lscratch:32 \
-  --nodes=4 --ntasks-per-node=1 \
+  --nodes=8 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 1000 768
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 100 768
 
 sbatch --job-name=p2 --gres=gpu:v100x:1,lscratch:32 \
   --ntasks=4 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 1000 2000 768 
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 30 60 768 
 
 sbatch --job-name=p3 --gres=gpu:v100x:1,lscratch:32 \
   --ntasks=4 --ntasks-per-node=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 2000 3000 768 
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 60 100 768 
 
 PROJ_NAME="ST_SPOT"
 DATA_VERSION=generated7
