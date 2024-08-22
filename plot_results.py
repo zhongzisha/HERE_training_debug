@@ -216,7 +216,8 @@ def plot_search_time_tcga_ncidata():
     sns.despine(top=False, right=False)
 
     root = '/Volumes/data-1/temp_20240801'
-    save_root = '/Users/zhongz2/down/temp_20240801/hashing_comparison'
+    root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
+    save_root = '/Users/zhongz2/down/temp_20240801/hashing_comparison2'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -350,8 +351,8 @@ def plot_search_time_tcga_ncidata():
         'PanNuke': ['Neoplastic', 'Inflammatory', 'Connective', 'Dead', 'Epithelial'],
         'Kather100K': ['Adipose', 'Background', 'Debris', 'Lymphocytes', 'Mucus', 'Muscle', 'Mucosa', 'Stroma', 'Adeno epithelium']
     }
-    fe_methods = ['HiDARE_PLIP']
-    fe_label_names = ['HERE_PLIP']
+    fe_methods = ['HiDARE_CONCH']
+    fe_label_names = ['HERE_CONCN']
     palette = sns.color_palette('colorblind')
     for name in ['Acc', 'Percision']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
@@ -510,17 +511,17 @@ def plot_search_time_tcga_ncidata():
 
 
             if True:
-                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_TCGA_binary_search_times.pkl','rb') as fp:
+                with open(f'{root}/bcss_512_0.8_HiDARE_CONCH_0_feats_TCGA_binary_search_times.pkl','rb') as fp:
                     data1 = pickle.load(fp)
-                with open(f'{root}/bcss_512_0.8_HiDARE_PLIP_0_feats_NCIData_binary_search_times.pkl','rb') as fp:
+                with open(f'{root}/bcss_512_0.8_HiDARE_CONCH_0_feats_NCIData_binary_search_times.pkl','rb') as fp:
                     data2 = pickle.load(fp)
-                with open(f'{root}/kather100k_HiDARE_PLIP_0_feats_binary_search_times.pkl', 'rb') as fp:
+                with open(f'{root}/kather100k_HiDARE_CONCH_0_feats_binary_search_times.pkl', 'rb') as fp:
                     data3 = pickle.load(fp)
-                with open(f'{root}/bcss_256_0.5_HiDARE_PLIP_0_feats_binary_search_times.pkl', 'rb') as fp:
+                with open(f'{root}/bcss_256_0.5_HiDARE_CONCH_0_feats_binary_search_times.pkl', 'rb') as fp:
                     data4 = pickle.load(fp)
-                with open(f'{root}/NuCLS_HiDARE_PLIP_0_feats_binary_search_times.pkl', 'rb') as fp:
+                with open(f'{root}/NuCLS_HiDARE_CONCH_0_feats_binary_search_times.pkl', 'rb') as fp:
                     data5 = pickle.load(fp)
-                with open(f'{root}/PanNuke_HiDARE_PLIP_0_feats_binary_search_times.pkl', 'rb') as fp:
+                with open(f'{root}/PanNuke_HiDARE_CONCH_0_feats_binary_search_times.pkl', 'rb') as fp:
                     data6 = pickle.load(fp)
                 all_search_times = {
                     'TCGA': {k.replace('faiss_', ''): v for k,v in data1['search_times'].items()},

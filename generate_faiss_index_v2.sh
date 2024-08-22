@@ -53,6 +53,15 @@ sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=300G \
     generate_faiss_index_v2.sh TCGA-COMBINED CONCH 1
 
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=300G \
+    generate_faiss_index_v2.sh KenData_20240814 PLIP 1
+
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
+    generate_faiss_index_v2.sh TCGA-COMBINED PLIP 1
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
+    generate_faiss_index_v2.sh KenData_20240814 ProvGigaPath 1
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
+    generate_faiss_index_v2.sh TCGA-COMBINED ProvGigaPath 1
 
 
 

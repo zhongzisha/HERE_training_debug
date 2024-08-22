@@ -153,6 +153,19 @@ def debug():
 
 
 
+# 20240822, size:
+# TCGA-COMBINED: 11738 cases, 12948744442485 bytes
+# KenData_20240814: 11232 cases, 7830359369696
+# ST: 132 cases
+
+# total: 18.898484824768275 ~= 19 TB
+# total: 23102 cases
+
+
+
+
+
+
 
 
 

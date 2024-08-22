@@ -31,6 +31,7 @@ EXP_NAME=${1}
 METHOD=${2}
 EPOCH_NUM=${3}
 HIDARE_CHECKPOINT=${4}
+BACKBONE=${5}
 
 echo $*
 echo "Ready?! Go!"
@@ -41,7 +42,7 @@ if [ $EXP_NAME == "BCSS" ]; then
     for RATIO in 0.8 0.5; do
       EXP_NAME1=bcss_${PATCH_SIZE}_${RATIO}
       DATA_ROOT=/data/zhongz2/temp11/bcss_${PATCH_SIZE}_256_${RATIO}_50_False
-      SAVE_ROOT=/data/zhongz2/temp_20240801
+      SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
       python extract_features_patch_retrieval_eval.py \
         --exp_name "${EXP_NAME1}" \
         --method_name "${METHOD}" \
@@ -50,7 +51,8 @@ if [ $EXP_NAME == "BCSS" ]; then
         --codebook_semantic ../search/SISH/checkpoints/codebook_semantic.pt \
         --checkpoint ../search/SISH/checkpoints/model_9.pt \
         --save_filename ${SAVE_ROOT}/${EXP_NAME1}_${METHOD}_${EPOCH_NUM}_feats.pkl \
-        --hidare_checkpoint ${HIDARE_CHECKPOINT}
+        --hidare_checkpoint ${HIDARE_CHECKPOINT} \
+        --backbone ${BACKBONE}
 
     done
   done
@@ -62,13 +64,13 @@ else
 
   if [ $EXP_NAME == "PanNuke" ]; then
     DATA_ROOT=/data/zhongz2/temp_PanNuke/
-    SAVE_ROOT=/data/zhongz2/temp_20240801
+    SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   elif [ $EXP_NAME == "NuCLS" ]; then
     DATA_ROOT=/data/zhongz2/temp_NuCLS/
-    SAVE_ROOT=/data/zhongz2/temp_20240801
+    SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   elif [ $EXP_NAME == "kather100k" ]; then
     DATA_ROOT=/data/zhongz2/temp10
-    SAVE_ROOT=/data/zhongz2/temp_20240801
+    SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   fi
   echo ${EXP_NAME} ${DATA_ROOT} ${SAVE_ROOT}
 
@@ -80,7 +82,8 @@ else
     --codebook_semantic ../search/SISH/checkpoints/codebook_semantic.pt \
     --checkpoint ../search/SISH/checkpoints/model_9.pt \
     --save_filename ${SAVE_ROOT}/${EXP_NAME}_${METHOD}_${EPOCH_NUM}_feats.pkl \
-    --hidare_checkpoint ${HIDARE_CHECKPOINT}
+    --hidare_checkpoint ${HIDARE_CHECKPOINT} \
+    --backbone ${BACKBONE}
 fi
 
 exit
@@ -141,7 +144,7 @@ PATCH_SIZE=512
 RATIO=0.8
 EXP_NAME1=bcss_${PATCH_SIZE}_${RATIO}
 DATA_ROOT=/data/zhongz2/temp11/bcss_${PATCH_SIZE}_256_${RATIO}_50_False
-SAVE_ROOT=/data/zhongz2/temp_20240801
+SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
 python extract_features_patch_retrieval_eval.py \
   --exp_name "${EXP_NAME1}" \
   --method_name "${METHOD}" \
@@ -164,7 +167,7 @@ PATCH_SIZE=512
 RATIO=0.8
 EXP_NAME1=bcss_${PATCH_SIZE}_${RATIO}
     DATA_ROOT=/data/zhongz2/temp10
-    SAVE_ROOT=/data/zhongz2/temp_20240801
+    SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   python extract_features_patch_retrieval_eval.py \
     --exp_name "${EXP_NAME}" \
     --method_name "${METHOD}" \
@@ -182,15 +185,16 @@ EPOCH_NUM=0
 hidare_method_postfix="ProvGigaPath"
 BEST_SPLIT=1
 BEST_EPOCH=39
+BACKBONE="ProvGigaPath"
 HIDARE_CHECKPOINT=/data/zhongz2/temp29/debug/results/ngpus2_accum4_backbone${hidare_method_postfix}_dropout0.25/split_${BEST_SPLIT}/snapshot_${BEST_EPOCH}.pt
 sbatch --job-name ${METHOD} --time=108:00:00 --mem=100G --cpus-per-task=4 --partition=gpu --gres=gpu:v100x:1 \
-      job_BCSS_PLIP_Retrained.sh ${EXP_NAME} ${METHOD} ${EPOCH_NUM} ${HIDARE_CHECKPOINT}
+      job_BCSS_PLIP_Retrained.sh ${EXP_NAME} ${METHOD} ${EPOCH_NUM} ${HIDARE_CHECKPOINT} ${BACKBONE}
 done
 done
 
 # submit HERE jobs
-for EXP_NAME in "BCSS" "NuCLS" "PanNuke" "kather100k"; do 
-for hidare_method_postfix in "mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH"; do
+for EXP_NAME in "BCSS" "NuCLS" "PanNuke" "kather100k"; do  # "BCSS" "NuCLS" "PanNuke" 
+for hidare_method_postfix in "CONCH"; do  # "mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH"
   if [ ${hidare_method_postfix} == "mobilenetv3" ]; then
       BEST_SPLIT=3
       BEST_EPOCH=32
@@ -216,7 +220,7 @@ for hidare_method_postfix in "mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH";
   METHOD="HiDARE_${hidare_method_postfix}"
   EPOCH_NUM=0  # this is for check PLIP_Retrained*
 sbatch --job-name ${METHOD} --time=108:00:00 --mem=100G --cpus-per-task=4 --partition=gpu --gres=gpu:v100x:1 \
-      job_BCSS_PLIP_Retrained.sh ${EXP_NAME} ${METHOD} ${EPOCH_NUM} ${HIDARE_CHECKPOINT}
+      job_BCSS_PLIP_Retrained.sh ${EXP_NAME} ${METHOD} ${EPOCH_NUM} ${HIDARE_CHECKPOINT} ${hidare_method_postfix}
 
 
 done

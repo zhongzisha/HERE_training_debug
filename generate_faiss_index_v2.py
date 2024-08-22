@@ -345,7 +345,7 @@ def get_all_scales_20240813():
 
             slide.close()
 
-    save_dir = f'/data/zhongz2/temp_20240801/'
+    save_dir = f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
     os.makedirs(save_dir, exist_ok=True)
     import pickle
     with open(f'{save_dir}/all_scales_20240813_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
@@ -804,7 +804,7 @@ if __name__ == '__main__':
         num_selected_train_samples = 500
 
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -823,7 +823,7 @@ def main():
     BEST_SPLIT=3
     BEST_EPOCH=53
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
@@ -836,7 +836,7 @@ def main():
     BEST_EPOCH=53
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -851,7 +851,7 @@ def main():
     num_selected_train_samples = 500
     bigmem = 1
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -867,7 +867,7 @@ def main():
     BEST_SPLIT=3
     BEST_EPOCH=53
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
@@ -879,7 +879,7 @@ def main():
     BEST_EPOCH=53
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -894,7 +894,7 @@ def main():
     BEST_SPLIT=1
     BEST_EPOCH=39
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
@@ -906,7 +906,7 @@ def main():
     BEST_EPOCH=39
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -921,7 +921,7 @@ def main():
     BEST_EPOCH=39
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -936,7 +936,7 @@ def main():
     BEST_SPLIT=3
     BEST_EPOCH=66
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
     add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 
@@ -948,7 +948,7 @@ def main():
     BEST_EPOCH=66
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
@@ -962,7 +962,7 @@ def main():
     BEST_EPOCH=66
     num_selected_train_samples = 500
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/zhongz2/temp_20240801/faiss_related{version}'
+    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)

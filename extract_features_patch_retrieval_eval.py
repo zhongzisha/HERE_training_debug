@@ -260,6 +260,8 @@ def get_args():
                         help="do hash evaluation on the given features")
     parser.add_argument("--action", type=str, default="",
                         help="action")
+    parser.add_argument("--backbone", type=str, default="",
+                        help="action")
     return parser.parse_args()
 
 
@@ -1271,7 +1273,7 @@ def build_faiss_indexes(feats, Y):
     ITQ_Dims = [32, 64, 128]
     Ms = [8, 16, 32]
     nlists = [128, 256]
-    faiss_types = [('IndexFlatIP', None)]
+    faiss_types = [('IndexFlatIP', None), ('IndexFlatL2', None)]
     faiss_types.extend(
         [(f'IndexBinaryFlat_ITQ{dd}_LSH', dd) for dd in ITQ_Dims])
     for m in Ms:
@@ -1377,18 +1379,23 @@ def get_results_v5_hash_evaluation(args):
 
     faiss_indexes, faiss_index_times = build_faiss_indexes(feats, Y)
 
-    # if True:
-    #     project_name = 'Kather100K'
-    #     faiss_bins_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240802_hidare/kather_faiss_bins'
-    #     os.makedirs(faiss_bins_dir, exist_ok=True)
-    #     for faiss_type, index in faiss_indexes.items():
-    #         save_filename = f'{faiss_bins_dir}/all_data_feat_before_attention_feat_faiss_{faiss_type}_{project_name}.bin'
-    #         if 'Binary' in faiss_type:
-    #             with open(save_filename, 'wb') as fp:
-    #                 pickle.dump({'binarizer': index['binarizer'],
-    #                              'index': faiss.serialize_index_binary(index['index'])}, fp)
-    #         else:
-    #             faiss.write_index(index['index'], save_filename)
+    if True:
+        print('save faiss indexes ...')
+        prefix = 'HERE_'
+        project_name = args.exp_name
+        faiss_bins_dir = os.path.join(os.path.dirname(args.save_filename), 'faiss_bins')
+        os.makedirs(faiss_bins_dir, exist_ok=True)
+        backbone = args.backbone
+        for faiss_type, index in faiss_indexes.items():
+            save_filename = f'{faiss_bins_dir}/all_data_feat_before_attention_feat_faiss_{faiss_type}_{project_name}_{prefix}{backbone}.bin'
+            if os.path.exists(save_filename):
+                continue
+            if 'Binary' in faiss_type:
+                with open(save_filename, 'wb') as fp:
+                    pickle.dump({'binarizer': index['binarizer'],
+                                 'index': faiss.serialize_index_binary(index['index'])}, fp)
+            else:
+                faiss.write_index(index['index'], save_filename)
 
     patch_names = data['patch_names']
     topk_MV = 5
@@ -1418,7 +1425,7 @@ def get_results_v5_hash_evaluation(args):
                 tempdist, I = faiss_index['index'].search(query_embedding_binary, topk_MV*2)
             elif 'HNSW' in faiss_type:
                 tempdist, I = faiss_index['index'].search(query_embedding, topk_MV*2)
-            elif faiss_type == 'IndexFlatIP':
+            elif faiss_type == 'IndexFlatIP' or faiss_type == 'IndexFlatL2':
                 tempdist, I = faiss_index['index'].search(query_embedding, topk_MV*2)
             else:
                 raise ValueError("error")
@@ -1526,7 +1533,7 @@ def get_results_v7_hash_evaluation():
     import numpy as np
     import time
 
-    args = SimpleNamespace(**{'exp_name': 'bcss_512_0.8', 'save_filename': '/data/zhongz2/temp_20240801/bcss_512_0.8_HiDARE_PLIP_0_feats.pkl'})
+    args = SimpleNamespace(**{'exp_name': 'bcss_512_0.8', 'save_filename': '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/bcss_512_0.8_HiDARE_CONCH_0_feats.pkl'})
 
     if 'bcss' in args.exp_name:
         bcss_root = '/data/zhongz2/0_Public-data-Amgad2019_0.25MPP/'
@@ -1571,35 +1578,33 @@ def get_results_v7_hash_evaluation():
     
     feats = X / np.linalg.norm(X, axis=1)[:, None]
     Y = np.stack(data['Y'])
+    print('feats', feats.shape)
 
     # faiss_indexes, faiss_index_times = build_faiss_indexes(feats, Y)
     faiss_index_times = None
-    tcga_names = ["TCGA-ACC", "TCGA-BLCA", "TCGA-BRCA", "TCGA-CESC", "TCGA-CHOL",
-                "TCGA-COAD", "TCGA-DLBC", "TCGA-ESCA", "TCGA-GBM", "TCGA-HNSC",
-                "TCGA-KICH", "TCGA-KIRC", "TCGA-KIRP", "TCGA-LGG", "TCGA-LIHC",
-                "TCGA-LUAD", "TCGA-LUSC", "TCGA-MESO", "TCGA-OV", "TCGA-PAAD",
-                "TCGA-PCPG", "TCGA-PRAD", "TCGA-READ", "TCGA-SARC", "TCGA-SKCM",
-                "TCGA-STAD", "TCGA-TGCT", "TCGA-THCA", "TCGA-THYM", "TCGA-UCEC",
-                "TCGA-UCS", "TCGA-UVM"]
-    tcga_names = ['TCGA-COMBINED']
-    faiss_bin_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/search_results_v2/faiss_bins'
+    faiss_bin_dir = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_relatedV6/faiss_bins'
 
     faiss_ITQ_ds = [32, 64, 128]
     faiss_Ms = [8, 16, 32]
     faiss_nlists = [128, 256]
-    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names}
+    runs = {'NCIData': ['KenData_20240814'], 'TCGA': ['TCGA-COMBINED']}
+    prefix = 'HERE_'
+    backbone = 'CONCH'
     for Key, project_names in runs.items():   
         print('begin ', Key, '='*80)     
         print('loading faiss indexes')    
-        faiss_indexes = {'faiss_IndexFlatIP': {}}
+        faiss_indexes = {'faiss_IndexFlatIP': {}, 'faiss_IndexFlatL2': {}}
         for project_name in project_names:  # only ST support IndexFlatIP search
             faiss_indexes['faiss_IndexFlatIP'][project_name] = \
                 faiss.read_index(
-                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
+                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}_{prefix}{backbone}.bin")
+            faiss_indexes['faiss_IndexFlatL2'][project_name] = \
+                faiss.read_index(
+                    f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexFlatL2_{project_name}_{prefix}{backbone}.bin")
         for dd in faiss_ITQ_ds:
             faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = {}
             for project_name in project_names:
-                with open(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
+                with open(f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}_{prefix}{backbone}.bin", 'rb') as fp:
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name] = pickle.load(
                         fp)
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'] = \
@@ -1611,7 +1616,7 @@ def get_results_v7_hash_evaluation():
                 for project_name in project_names:
                     faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'][project_name] = \
                         faiss.read_index(
-                            f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
+                            f"{faiss_bin_dir}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}_{prefix}{backbone}.bin")
 
         patch_names = data['patch_names']
         topk_MV = 5
@@ -1636,6 +1641,8 @@ def get_results_v7_hash_evaluation():
             # for ind in range(len(Y)):
             search_time = 0
             iii = 0
+            # for iiiii, project_name in enumerate(project_names):
+            #     print(faiss_type, faiss_index[project_name].d)
             for iii, ind in enumerate(indices):
                 # # D, I = index.search(feats1[ind][None, :], k=10)
                 # tempdist = distances[iii, :]
@@ -1645,7 +1652,10 @@ def get_results_v7_hash_evaluation():
                 t_search_start = time.time()
                 query_embedding = feats[ind].reshape(1, -1)
                 query_embedding_binary = None
-        
+
+                # print('query_embedding', query_embedding)
+                # print('query_embedding', query_embedding.shape)
+
                 for iiiii, project_name in enumerate(project_names):
                     if 'Binary' in faiss_type and 'ITQ' in faiss_type:
                         query_embedding_binary = faiss_index[project_name]['binarizer'].sa_encode(query_embedding)
@@ -1653,7 +1663,7 @@ def get_results_v7_hash_evaluation():
                         tempdist, I = faiss_index[project_name]['index'].search(query_embedding_binary, topk_MV*2)
                     elif 'HNSW' in faiss_type:
                         tempdist, I = faiss_index[project_name].search(query_embedding, topk_MV*2)
-                    elif 'IndexFlatIP' in faiss_type:
+                    elif 'IndexFlatIP' in faiss_type or 'IndexFlatL2' in faiss_type: 
                         tempdist, I = faiss_index[project_name].search(query_embedding, topk_MV*2)
                     else:
                         raise ValueError("error")
@@ -1674,7 +1684,7 @@ def get_results_v7_hash_evaluation():
                     ntotal += faiss_index[project_name]['index'].ntotal
                 elif 'HNSW' in faiss_type:
                     ntotal += faiss_index[project_name].ntotal
-                elif 'IndexFlatIP' in faiss_type:
+                elif 'IndexFlatIP' in faiss_type or 'IndexFlatL2' in faiss_type:
                     ntotal += faiss_index[project_name].ntotal
                 else:
                     raise ValueError("error")
@@ -1687,31 +1697,37 @@ def get_results_v7_hash_evaluation():
 
     all_total_rows = {}
     all_sizes = {}
-    runs = {'NCIData': ['KenData'], 'TCGA': tcga_names, 'TransNEO': ['TransNEO'], 'METABRIC': ['METABRIC'], 'ST': ['ST'], 'Kather100K': ['Kather100K']}
+    runs = {'NCIData': ['KenData_20240814'], 'TCGA': ['TCGA-COMBINED'], 'ST': ['ST'], 'Kather100K': ['kather100k']}
     for Key, project_names in runs.items():
         if Key in all_total_rows:
             print(f'{Key} existed, skip')
             continue
         if Key == 'Kather100K':
-            faiss_bin_dir1 = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/kather_faiss_bins'
+            faiss_bin_dir1 = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_bins'
         else:
             faiss_bin_dir1 = faiss_bin_dir
         total_size = {}
         if 'faiss_indexes' in locals() or 'faiss_indexes' in globals():
             del faiss_indexes
-        faiss_indexes = {'faiss_IndexFlatIP': {}}
+        faiss_indexes = {'faiss_IndexFlatIP': {}, 'faiss_IndexFlatL2': {}}
         total_size['faiss_IndexFlatIP'] = 0
+        total_size['faiss_IndexFlatL2'] = 0
         for project_name in project_names:  # only ST support IndexFlatIP search
             faiss_indexes['faiss_IndexFlatIP'][project_name] = \
                 faiss.read_index(
-                    f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
-            total_size['faiss_IndexFlatIP'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}.bin")
+                    f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}_{prefix}{backbone}.bin")
+            total_size['faiss_IndexFlatIP'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatIP_{project_name}_{prefix}{backbone}.bin")
+
+            faiss_indexes['faiss_IndexFlatL2'][project_name] = \
+                faiss.read_index(
+                    f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatL2_{project_name}_{prefix}{backbone}.bin")
+            total_size['faiss_IndexFlatL2'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexFlatL2_{project_name}_{prefix}{backbone}.bin")
         for dd in faiss_ITQ_ds:
             faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = {}
             total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] = 0
             for project_name in project_names:
-                total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin")
-                with open(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}.bin", 'rb') as fp:
+                total_size[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}_{prefix}{backbone}.bin")
+                with open(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexBinaryFlat_ITQ{dd}_LSH_{project_name}_{prefix}{backbone}.bin", 'rb') as fp:
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name] = pickle.load(
                         fp)
                     faiss_indexes[f'faiss_IndexBinaryFlat_ITQ{dd}_LSH'][project_name]['index'] = \
@@ -1722,10 +1738,10 @@ def get_results_v7_hash_evaluation():
                 faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = {}
                 total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] = 0
                 for project_name in project_names:
-                    total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
+                    total_size[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'] += os.path.getsize(f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}_{prefix}{backbone}.bin")
                     faiss_indexes[f'faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8'][project_name] = \
                         faiss.read_index(
-                            f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}.bin")
+                            f"{faiss_bin_dir1}/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m{m}_IVFPQ_nlist{nlist}_m8_{project_name}_{prefix}{backbone}.bin")
         all_sizes[Key] = total_size
         # get number of rows
         total_rows = {}
@@ -1737,7 +1753,7 @@ def get_results_v7_hash_evaluation():
                     ntotal += faiss_index[project_name]['index'].ntotal
                 elif 'HNSW' in faiss_type:
                     ntotal += faiss_index[project_name].ntotal
-                elif 'IndexFlatIP' in faiss_type:
+                elif 'IndexFlatIP' in faiss_type or 'IndexFlatL2' in faiss_type:
                     ntotal += faiss_index[project_name].ntotal
                 else:
                     raise ValueError("error")
@@ -1745,7 +1761,7 @@ def get_results_v7_hash_evaluation():
         
         all_total_rows[Key] = total_rows
 
-    with open('/data/zhongz2/temp_20240801/faiss_bins_count_and_size.pkl', 'wb') as fp:
+    with open('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_bins_count_and_size.pkl', 'wb') as fp:
         pickle.dump({'all_sizes': all_sizes, 'all_total_rows': all_total_rows}, fp)
 
 
@@ -1766,7 +1782,7 @@ if __name__ == '__main__':
             extract_feats_Yottixel(args)   # 1024
         elif args.method_name == 'RetCCL':
             extract_feats_RetCCL(args)   # 1024
-        elif args.method_name in ['HiDARE_mobilenetv3', 'HiDARE_CLIP', 'HiDARE_PLIP', 'HiDARE_PLIP_RetrainedV14', 'HiDARE_ProvGigaPath']:  # with different backbone
+        elif args.method_name in ['HiDARE_mobilenetv3', 'HiDARE_CLIP', 'HiDARE_PLIP', 'HiDARE_PLIP_RetrainedV14', 'HiDARE_ProvGigaPath', 'HiDARE_CONCH']:  # with different backbone
             extract_feats_HiDARE_new(args)   # 1024
         elif args.method_name == 'MobileNetV3':
             extract_feats_MobileNetV3(args)   # 1280

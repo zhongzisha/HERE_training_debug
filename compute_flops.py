@@ -49,7 +49,12 @@ class Model(nn.Module):
             self.backbone_model = timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
         elif backbone == 'CONCH':
             from conch.open_clip_custom import create_model_from_pretrained 
-            self.backbone_model, image_processor = create_model_from_pretrained('conch_ViT-B-16','/data/zhongz2/HUGGINGFACE_HUB_CACHE/CONCH_weights/pytorch_model.bin')
+            self.backbone_model, image_processor = create_model_from_pretrained('conch_ViT-B-16','./CONCH_weights_pytorch_model.bin')
+        elif backbone == 'UNI':
+            self.backbone_model = timm.create_model(
+                "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+            )
+            self.backbone_model.load_state_dict(torch.load("./UNI_pytorch_model.bin", map_location="cpu"), strict=True)
         self.attention_net = nn.Sequential(*[
             nn.Linear(BACKBONE_DICT[backbone], 256), 
             nn.ReLU(), 
@@ -64,6 +69,8 @@ class Model(nn.Module):
             x = self.backbone_model.encode_image(x, proj_contrast=False, normalize=False)
         elif self.backbone == 'PLIP':
             x = self.backbone_model.get_image_features(x)
+        elif self.backbone == 'UNI':
+            x = self.backbone_model(x)
         x_path = x.unsqueeze(0)
         x = self.attention_net(x_path)
         return x
@@ -72,7 +79,7 @@ class Model(nn.Module):
 fp = open('/data/zhongz2/temp29/flops_test.txt', 'w')
 x = torch.randn(1, 3, 224, 224)
 total_flops = {}
-for backbone in ['PLIP', 'CONCH', 'ProvGigaPath']:
+for backbone in ['PLIP', 'CONCH', 'ProvGigaPath', 'UNI']:
     model = Model(backbone)
     model.eval()
     with torch.no_grad():
