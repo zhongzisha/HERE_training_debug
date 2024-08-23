@@ -9,12 +9,12 @@ from matplotlib.backends.backend_pdf import PdfPages
 from common import PAN_CANCER_SITES, CLASSIFICATION_DICT, REGRESSION_LIST
 
 COMMON_COLORS = {
-    'mobilenetv3': 'Orange',
-    'MobileNetV3': 'Orange',
+    'mobilenetv3': 'orange',
+    'MobileNetV3': 'orange',
     'CLIP': 'Green',
-    'PLIP': 'Blue',
-    'ProvGigaPath': 'Yellow',
-    'CONCH': 'Gray'
+    'PLIP': 'gray',
+    'ProvGigaPath': 'purple',
+    'CONCH': 'blue'
 }
 
 def set_box_color(bp, color):
@@ -359,15 +359,15 @@ def main():
     task_types = ['cls', 'reg']
     accum_iters = [4]
     network_dims = {   # only for TCGA-ALL2
-        'mobilenetv3': 1280,
-        'CLIP': 512,
+        # 'mobilenetv3': 1280,
+        # 'CLIP': 512,
         'PLIP': 512,
         'ProvGigaPath': 1536,
         'CONCH': 512
     }
 
     sub_epochs = [1]
-    save_root = '/Users/zhongz2/down/figures_20240801_e50'
+    save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
