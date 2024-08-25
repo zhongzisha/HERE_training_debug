@@ -374,10 +374,10 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     version = '20240812' # for TCGA-COMBINED
     version = '20240814' # for KenData_20240814
 
-    DB_USER = "hidare_app"
-    DB_PASSWORD = "ykYGt*Lcs^2Fma94"
-    DB_HOST = "curate-dev.c44ls5tcbypz.us-east-1.rds.amazonaws.com"
-    DB_DATABASE = "hidare-dev"
+    DB_USER = os.environ['HERE_DB_USER']
+    DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
+    DB_HOST = os.environ['HERE_DB_HOST']
+    DB_DATABASE = os.environ['HERE_DB_DATABASE']
 
     conn = pymysql.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, database=DB_DATABASE)
     conn.autocommit = False
@@ -401,7 +401,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     case_uuids = {}
     with open(f'{data_root}/assets/metadata.repository.2024-08-13.json', 'r') as fp:
         case_uuids = {item['file_name'].replace('.svs', ''): item['associated_entities'][0]['case_id'] for item in json.load(fp)}
-    ST_df = pd.read_excel('/mnt/hidare-efs/data_20240208/ST_list_cancer.xlsx')
+    ST_df = pd.read_excel(f'{data_root}/assets/ST_list_cancer.xlsx')
 
     all_items = []
     project_items = []
@@ -409,7 +409,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
         project_items.append((proj_id, project_name))
         print(f'begin {project_name}')
         patches_dir = os.path.join(
-            data_root, 'all_patches', project_name, 'patches')
+            data_root, 'assets', 'all_patches', project_name, 'patches')
 
         h5filenames = sorted(glob.glob(patches_dir + '/*.h5'))
 
@@ -453,7 +453,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     for proj_id, project_name in enumerate(project_names):
         print(f'begin {project_name}')
         patches_dir = os.path.join(
-            data_root, 'all_patches', project_name, 'patches')
+            data_root, 'assets', 'all_patches', project_name, 'patches')
 
         h5filenames = sorted(glob.glob(patches_dir + '/*.h5'))
 
@@ -492,10 +492,10 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
 def prepare_hidare_mysqldb():
     import pymysql 
 
-    DB_USER = "hidare_app"
-    DB_PASSWORD = "ykYGt*Lcs^2Fma94"
-    DB_HOST = "curate-dev.c44ls5tcbypz.us-east-1.rds.amazonaws.com"
-    DB_DATABASE = "hidare-dev"
+    DB_USER = os.environ['HERE_DB_USER']
+    DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
+    DB_HOST = os.environ['HERE_DB_HOST']
+    DB_DATABASE = os.environ['HERE_DB_DATABASE']
 
     conn = pymysql.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, database=DB_DATABASE)
     conn.autocommit = False
@@ -568,10 +568,10 @@ def add_ST_data_to_mysqldb():
     df = pd.read_excel('/mnt/hidare-efs/data_20240208/ST_list_cancer.xlsx')
     all_prefixes = df['ID'].values.tolist()
 
-    DB_USER = "hidare_app"
-    DB_PASSWORD = "ykYGt*Lcs^2Fma94"
-    DB_HOST = "curate-dev.c44ls5tcbypz.us-east-1.rds.amazonaws.com"
-    DB_DATABASE = "hidare-dev"
+    DB_USER = os.environ['HERE_DB_USER']
+    DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
+    DB_HOST = os.environ['HERE_DB_HOST']
+    DB_DATABASE = os.environ['HERE_DB_DATABASE']
 
     conn = pymysql.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, database=DB_DATABASE)
     conn.autocommit = False

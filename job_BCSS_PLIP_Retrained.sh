@@ -41,7 +41,7 @@ if [ $EXP_NAME == "BCSS" ]; then
   for PATCH_SIZE in 512 256; do
     for RATIO in 0.8 0.5; do
       EXP_NAME1=bcss_${PATCH_SIZE}_${RATIO}
-      DATA_ROOT=/data/zhongz2/temp11/bcss_${PATCH_SIZE}_256_${RATIO}_50_False
+      DATA_ROOT=/data/zhongz2/temp_BCSS/bcss_${PATCH_SIZE}_256_${RATIO}_50_False
       SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
       python extract_features_patch_retrieval_eval.py \
         --exp_name "${EXP_NAME1}" \
@@ -69,7 +69,7 @@ else
     DATA_ROOT=/data/zhongz2/temp_NuCLS/
     SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   elif [ $EXP_NAME == "kather100k" ]; then
-    DATA_ROOT=/data/zhongz2/temp10
+    DATA_ROOT=/data/zhongz2/temp_kather100k
     SAVE_ROOT=/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801
   fi
   echo ${EXP_NAME} ${DATA_ROOT} ${SAVE_ROOT}
