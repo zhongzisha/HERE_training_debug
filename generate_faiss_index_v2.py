@@ -562,10 +562,12 @@ def add_ST_data_to_mysqldb():
     root = '/mnt/hidare-efs/data/differential_results/ST/20231030v2_ST/PanCancer2GPUsFP/shared_attention_imagenetmobilenetv3/split3_e1_h224_density_vis/feat_before_attention_feat/test/'
     root = '/mnt/hidare-efs/data_20240208/differential_analysis/20240202v4_ST/PanCancer2GPUsFP/shared_attention_imagenetPLIP/split1_e95_h224_density_vis/feat_before_attention_feat/test'
     root = '/mnt/hidare-efs/data_20240208/ST_kmeans_clustering/'
+    root = '/mnt/hidare-efs/data/HERE_assets/assets/ST_kmeans_clustering/'
+
     all_prefixes = [os.path.basename(f).replace(
         '.tsv', '') for f in sorted(glob.glob(f'{root}/vst_dir/*.tsv'))]
     
-    df = pd.read_excel('/mnt/hidare-efs/data_20240208/ST_list_cancer.xlsx')
+    df = pd.read_excel(f'{root}/../ST_list_cancer.xlsx')
     all_prefixes = df['ID'].values.tolist()
 
     DB_USER = os.environ['HERE_DB_USER']
@@ -776,6 +778,151 @@ def add_ST_data_to_mysqldb():
                                     f'INSERT INTO cluster_result_table{version} (zscore, pvalue, pvalue_corrected, cohensd, c_id, gene_id) VALUES (%s, %s, %s, %s, %s, %s)',
                                     list(dff.itertuples(index=False, name=None)))
                                 conn.commit()
+
+
+
+def generate_ST_vst_for_visualization():
+
+    import os,h5py,glob,time,pickle
+    import numpy as np
+    import openslide
+    import base64
+    import pandas as pd
+    import json
+    import matplotlib.pyplot as plt
+
+    # from https://github.com/mahmoodlab/CLAM
+    def _assertLevelDownsamples(slide):
+        level_downsamples = []
+        dim_0 = slide.level_dimensions[0]
+
+        for downsample, dim in zip(slide.level_downsamples, slide.level_dimensions):
+            estimated_downsample = (dim_0[0] / float(dim[0]), dim_0[1] / float(dim[1]))
+            level_downsamples.append(estimated_downsample) if estimated_downsample != (
+                downsample, downsample) else level_downsamples.append((downsample, downsample))
+
+        return level_downsamples
+
+    ST_DIR = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240202/differential_results/20240202v4_ST/PanCancer2GPUsFP/shared_attention_imagenetPLIP/split1_e95_h224_density_vis/feat_before_attention_feat/test'
+    svs_dir = os.path.join(ST_DIR, 'svs')
+    vst_dir = os.path.join(ST_DIR, 'vst_dir')
+    vst_dir_db = os.path.join(ST_DIR, 'vst_dir_db')
+    os.makedirs(vst_dir_db, exist_ok=True)
+    spatial_dir = os.path.join(ST_DIR, 'spatial')
+    gene_data_dir = os.path.join(ST_DIR, 'gene_data')
+
+    project_name = 'ST'
+
+    allfeats_dir, image_ext, svs_dir, patches_dir = get_allfeats_dir(project_name)
+
+    h5filenames = [f for f in sorted(glob.glob(patches_dir + '/*.h5')) if not os.path.exists(os.path.join(vst_dir_db, os.path.basename(f).replace('.h5', '_original_VST.db')))]
+
+    if 'idr_torch' in globals():
+        index_splits = np.array_split(
+            np.arange(len(h5filenames)), indices_or_sections=idr_torch.world_size)
+
+        h5filenames_sub = [h5filenames[i] for i in index_splits[idr_torch.rank]]
+    else:
+        h5filenames_sub = h5filenames
+
+    for _, h5filename in enumerate(h5filenames_sub):
+        svs_prefix = os.path.basename(h5filename).replace('.h5', '')
+        slide_name = svs_prefix
+        vst_filename_db = f'{vst_dir_db}/{slide_name}.db'
+        vst_filename_db_VST = f'{vst_dir_db}/{slide_name}_original_VST.db'
+        if os.path.exists(vst_filename_db_VST) and os.path.exists(vst_filename_db):
+            continue
+        
+        gene_data_filename = f'{gene_data_dir}/{slide_name}_gene_data.pkl'
+        vst_filename = f'{vst_dir}/{slide_name}.tsv'
+        svs_filename = f'{svs_dir}/{slide_name}.svs'
+        if not os.path.exists(svs_filename):
+            prefix1 = slide_name.replace('10x_', '')
+            svs_filename = f'{svs_dir}/{prefix1}.svs'
+
+        if not os.path.exists(gene_data_filename):
+            continue
+        if not os.path.exists(vst_filename):
+            continue
+        if not os.path.exists(svs_filename):
+            continue
+
+        with open(gene_data_filename, 'rb') as fp:
+            gene_data_dict = pickle.load(fp)
+
+        coord_df = gene_data_dict['coord_df']
+        counts_df = gene_data_dict['counts_df']
+        barcode_col_name = gene_data_dict['barcode_col_name']
+        Y_col_name = gene_data_dict['Y_col_name']
+        X_col_name = gene_data_dict['X_col_name']
+        mpp = gene_data_dict['mpp']
+
+        vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
+        vst = vst.subtract(vst.mean(axis=1), axis=0)
+        vst = vst.T
+        vst.index.name = '__barcode'
+        vst.columns = [n.upper() for n in vst.columns]
+
+        coord_df1 = coord_df.rename(columns={barcode_col_name: '__barcode', X_col_name: 'X', Y_col_name: 'Y'}).set_index('__barcode')
+        coord_df1 = coord_df1.loc[vst.index.values]
+        st_XY = coord_df1[['X', 'Y']].values 
+
+        st_patch_size = int(pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
+
+        if '10x_' in slide_name:
+            with open('{}/10x/{}/spatial/scalefactors_json.json'.format(spatial_dir, slide_name.replace('10x_', '')), 'r') as fp:
+                spot_size = float(json.load(fp)['spot_diameter_fullres'])
+        elif 'TNBC_' in slide_name:
+            with open('{}/TNBC/{}/spatial/scalefactors_json.json'.format(spatial_dir, slide_name), 'r') as fp:
+                spot_size = float(json.load(fp)['spot_diameter_fullres'])
+        else:
+            spot_size = st_patch_size
+
+        slide = openslide.open_slide(svs_filename)
+        dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]
+        if dimension[0] > 100000 or dimension[1] > 100000:
+            vis_level = 2
+        else:
+            vis_level = 1
+        if len(slide.level_dimensions) == 1:
+            vis_level = 0
+
+        level_downsamples = _assertLevelDownsamples(slide)
+        slide.close()
+
+        downsample = level_downsamples[vis_level]
+        scale = 1 / downsample[0]
+        circle_radius = int(spot_size * scale * 0.5)
+        st_XY_for_shown = (st_XY * scale).astype(np.int32)
+
+        if os.path.exists(vst_filename_db_VST):
+            continue
+
+        vst1 = vst.copy()
+        vst1 = vst1.astype('float32')
+        vst1[['__spot_X', '__spot_Y']] = st_XY.astype('uint16')
+        st_XY_upperleft = st_XY - st_patch_size//2
+        vst1[['__upperleft_X', '__upperleft_Y']] = st_XY_upperleft.astype('uint16')
+        vst1.to_parquet(vst_filename_db_VST, engine='fastparquet')
+        del vst1
+
+        if os.path.exists(vst_filename_db):
+            continue
+
+        low_percentile = vst.quantile(0.01)
+        high_percentile = vst.quantile(0.99)
+
+        vst = vst.apply(lambda col: col.clip(lower=low_percentile[col.name], upper=high_percentile[col.name]))
+        vst = 255 * (vst - low_percentile) / (high_percentile - low_percentile)
+        vst = vst.astype(np.uint8)
+
+        vst[['__coordX', '__coordY']] = st_XY_for_shown
+        vst['__circle_radius'] = circle_radius
+        vst['__st_patch_size'] = st_patch_size
+        vst['__circle_radius'] = vst['__circle_radius'].astype('uint16')
+        vst['__st_patch_size'] = vst['__st_patch_size'].astype('uint16')
+        vst.to_parquet(vst_filename_db, engine='fastparquet')
+
 
 
 if __name__ == '__main__':
