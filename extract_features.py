@@ -168,6 +168,13 @@ def main():
     else:
         df['slide_id'] = df['slide_id'].astype(str)
 
+    print('before', len(df))
+    if args.end_idx > args.start_idx > -1:
+        if  args.end_idx >= len(df):
+            args.end_idx = len(df)
+        df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
+    print('after', len(df))
+
     os.makedirs(args.feat_dir, exist_ok=True)
     os.makedirs(os.path.join(args.feat_dir, 'pt_files'), exist_ok=True)
     os.makedirs(os.path.join(args.feat_dir, 'h5_files'), exist_ok=True)
@@ -195,12 +202,6 @@ def main():
         df = df.drop(drop_ids)
     df = df.reset_index(drop=True)
     print('before', len(df))
-
-    if args.end_idx > args.start_idx > -1:
-        if  args.end_idx >= len(df):
-            args.end_idx = len(df)
-        df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
-    print('after', len(df))
 
     indices = np.arange(len(df))
     index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size)
@@ -239,6 +240,12 @@ def main():
     elif model_name == 'CONCH':
         from conch.open_clip_custom import create_model_from_pretrained
         model, image_processor = create_model_from_pretrained('conch_ViT-B-16','/data/zhongz2/HUGGINGFACE_HUB_CACHE/CONCH_weights/pytorch_model.bin')
+    elif model_name == 'UNI':
+        model = timm.create_model(
+            "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+        )
+        model.load_state_dict(torch.load("./UNI_pytorch_model.bin", map_location="cpu", weights_only=True), strict=True)
+        transform = create_transform(**resolve_data_config(model.pretrained_cfg, model=model))
     else:
         print('model_params: ', model_params)
         model = globals()[model_params[0]].from_pretrained(model_params[1])
@@ -316,6 +323,8 @@ def main():
                 if model_name == 'mobilenetv3':
                     output = model(images)
                     features = feature_tensors.get('after_flatten_feat').cpu().numpy().reshape((len(coords), -1))
+                elif model_name == 'UNI':
+                    features = model(images).detach().cpu().numpy().reshape((len(coords), -1))
                 elif model_name == 'ProvGigaPath':
                     features = model(images).detach().cpu().numpy().reshape((len(coords), -1))
                 elif model_name == 'CONCH':

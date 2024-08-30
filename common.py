@@ -257,7 +257,8 @@ HF_MODELS_DICT = {
     # 'PLIP': ['CLIPModel', 'vinid/plip', None],
     'PLIP': ['CLIPModel', './vinid_plip', None],
     'ProvGigaPath': ['timm_ProvGigaPath', '', None],
-    'CONCH': ['CONCH', '', None]
+    'CONCH': ['CONCH', '', None],
+    'UNI': ['UNI', '', None]
 }
 
 

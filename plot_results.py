@@ -15,11 +15,15 @@ def main_20240708_encoder_comparision():
     import os
     import matplotlib.pyplot as plt
     import seaborn as sns
+    from matplotlib.cbook import get_sample_data
+    from matplotlib.offsetbox import (AnnotationBbox, DrawingArea, OffsetImage,
+                                    TextArea)
+    from matplotlib.patches import Circle
     # sns.set_theme(style="whitegrid")
 
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
-    save_root = '/Users/zhongz2/down/temp_20240823/encoder_comparison'
+    save_root = '/Users/zhongz2/down/temp_20240830/encoder_comparison'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -131,6 +135,9 @@ def main_20240708_encoder_comparision():
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH']
         all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
+        all_df1 = all_df.copy()
+        all_df1['score1'] = np.log(all_df1['score'] - 30)
+        all_df1['score2'] = all_df1['score']
 
         plt.close()
         font_size = 30
@@ -138,7 +145,8 @@ def main_20240708_encoder_comparision():
         plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
         # plt.tick_params(pad = 10)
         fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df, x="method", y="score", hue="method", palette=palette, legend=False)
+        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
         g.tick_params(pad=10)
         g.set_xlabel("")
         g.set_ylabel("Overall ranking")
@@ -158,7 +166,33 @@ def main_20240708_encoder_comparision():
         all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
         plt.close()
 
-
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
+        g.set_ylim([30, 38])
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        g.set_ylabel("Overall ranking")
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        for ci, tick_label in enumerate(g.get_xticklabels()):
+            tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        plt.close()
 
         # from compute_flops.py
         total_params_and_flops = {'PLIP': (151277313, 4413615360), 'CONCH': (395232769, 17738386944), 'ProvGigaPath': (1134953984, 228217640448), 'UNI': (303350784, 61603111936), 'Yottixel': (7978856, 2865546752), 'SISH': (7978856, 2865546752), 'MobileNetV3': (5483032, 225436416), 'HIPT': (21665664, 4607954304), 'CLIP': (151277313, 4413615360), 'RetCCL': (23508032, 4109464576)}
@@ -167,6 +201,30 @@ def main_20240708_encoder_comparision():
         all_df2 = all_df2.loc[all_df['method'].values]
         all_df2.index.name = 'method'
         all_df2 = all_df2[all_df2.index.isin(selected_methods)].reset_index()
+        all_df2 = all_df.merge(all_df2, left_on='method', right_on='method')
+
+        COMMON_COLORS = {
+            'mobilenetv3': 'orange',
+            'MobileNetV3': 'orange',
+            'CLIP': 'Green',
+            'PLIP': 'gray',
+            'ProvGigaPath': 'purple',
+            'CONCH': 'blue'
+        }
+        specific_colors = []
+        color_ind = 0
+        for color_ind, method_name in enumerate(all_df2['method'].values.tolist()):
+            if method_name in COMMON_COLORS:
+                specific_colors.append(COMMON_COLORS[method_name])
+            else:
+                specific_colors.append(palette[color_ind])
+        all_df2['color'] = specific_colors
+        # marker size
+        all_df2['marker_size'] = 10*all_df2['NumParams']/all_df2['NumParams'].min()
+        # all_df2['marker_size'] = [7, 4.5, 2, 0.5, 0.5, 0.5, 1, 2, 1]
+        # all_df2['marker_size'] = all_df2['marker_size'] * 30
+
+
 
         plt.close()
         font_size = 30
@@ -174,7 +232,7 @@ def main_20240708_encoder_comparision():
         plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
         # plt.tick_params(pad = 10)
         fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df2, x="method", y="FLOPs", hue="method", palette=palette, legend=False)
+        g=sns.barplot(all_df2, x="method", y="FLOPs", hue="method", palette=palette, legend=False) 
         g.tick_params(pad=10)
         g.set_xlabel("")
         g.set_ylabel(r"Total FLOPs ($\times 10^{11}$)")
@@ -194,6 +252,88 @@ def main_20240708_encoder_comparision():
         plt.savefig(os.path.join(save_root, f'flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
         all_df2.to_csv(os.path.join(save_root, f'flops_{name1}.csv'))
+        plt.close()
+
+
+        
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        # g=sns.scatterplot(all_df2, x="FLOPs", y="score", hue="method", palette=palette, legend=False)
+        # g=sns.scatterplot(all_df2, x="FLOPs", y="score", hue="method", palette=all_df2['color'].values.tolist(), legend=False)
+        g=sns.scatterplot(all_df2, x="FLOPs", y="score", hue="method", palette=[palette[0] for _ in range(len(all_df2))], legend=False)
+        g.tick_params(pad=10)
+        g.set_ylabel("Overall scores")
+        g.set_xlabel(r"Total FLOPs")
+        g.ticklabel_format(style='sci', axis='x')
+        g.set_ylim([30, 38])
+        # g.set_yticklabels([30, 31, 32, 33, 34, 35, 36, 37, 38])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        # g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        # g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
+
+        # mobilenetv3_4 32 26.966785516013267
+        # CLIP_4 97 26.463153515114186
+        # PLIP_4 66 29.2551421379361
+        # ProvGigaPath_4 39 33.241507276672884
+        # CONCH_4 53 34.164964506392046
+        all_df2['marker_size_by_tcga_scores'] = [v*10 for v in [
+            33.241507276672884, 34.164964506392046, 29.2551421379361,
+            15, 15, 10, 10, 10, 10
+        ]]
+        for scatters in g.collections:
+            # scatters.set_sizes(all_df2['marker_size'].values.tolist()) 
+            scatters.set_sizes(all_df2['marker_size_by_tcga_scores'].values.tolist()) 
+
+        # ['ProvGigaPath',
+        # 'CONCH',
+        # 'PLIP',
+        # 'Yottixel',
+        # 'SISH',
+        # 'MobileNetV3',
+        # 'HIPT',
+        # 'CLIP',
+        # 'RetCCL']
+
+        all_df2['x'] = [0.55*228217640448, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944]
+        all_df2['y'] = [37.098852, 35.521479+0.6, 35.521479, 35.521479-0.6, 32.989012, 32.989012-0.6, 32.989012-1.2, 32.989012-1.8, 32.989012-2.4]
+        for row_ind, row in all_df2.iterrows():
+            # offsetbox = TextArea(row['method'], textprops={'fontsize': 14})
+            # ab = AnnotationBbox(offsetbox, (row['FLOPs'], row['score']),
+            #                     xybox=(20, -20),
+            #                     xycoords='data',
+            #                     boxcoords="offset points",
+            #                     arrowprops=dict(arrowstyle="->"))
+            # g.add_artist(ab)
+            # g.text(x, row['score'], row['method'], size=24)
+            cc = 'black'
+            tt = row['method']
+            if tt == 'ProvGigaPath':
+                cc = COMMON_COLORS[tt]
+                tt = '{}\n    ({:.3f})'.format(tt, 33.241507276672884)
+            if tt == 'CONCH':
+                cc = COMMON_COLORS[tt]
+                tt = '{} ({:.3f})'.format(tt, 34.164964506392046)
+            if tt == 'PLIP':
+                cc = COMMON_COLORS[tt]
+                tt = '{} ({:.3f})'.format(tt, 29.2551421379361)
+            g.annotate(tt, color=cc, size=18, xy=(row['FLOPs'], row['score']), ha='left', va='center', xytext=(row['x'], row['y']), \
+                 arrowprops=dict(facecolor='black', width=1, headwidth=4, shrink=0.15))
+
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        # all_df2.to_csv(os.path.join(save_root, f'flops_{name1}.csv'))
         plt.close()
 
 
@@ -930,7 +1070,6 @@ def plot_violin():
     final_df['cluster_label'] = cluster_labels
     final_df1 = pd.concat([final_df, vst2], axis=1)
     final_df1.to_excel('final_data.xlsx')
-
 
 
 if __name__ == '__main__':

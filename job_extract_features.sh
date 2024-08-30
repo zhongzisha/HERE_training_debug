@@ -27,7 +27,7 @@ fi
 fi
 
 if [ "$CLUSTER_NAME" == "FRCE" ]; then
-    source $FRCE_DATA_ROOT/anaconda3/bin/activate th21_ds
+    source $FRCE_DATA_ROOT/anaconda3/bin/activate th23
     module load cuda/11.8
     module load cudnn/8.8.3-cuda11 
 else
@@ -79,14 +79,73 @@ PATCH_SIZE=256
 # MODEL_NAME=CONCH
 # MODEL_NAME=ProvGigaPath
 MODEL_NAME=PLIP
+MODEL_NAME=UNI
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \
   --nodes=8 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR}
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 6000 768
 
+#FRCE
+PROJ_NAME="TCGA-ALL2"
+DATA_VERSION=generated7
+PATCH_SIZE=256
+# MODEL_NAME=CONCH
+# MODEL_NAME=ProvGigaPath
+MODEL_NAME=PLIP
+MODEL_NAME=UNI
+TCGA_ROOT_DIR=/mnt/gridftp/zhongz2/tcga
 
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 6000 6500 512
+
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 6500 7000 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 7000 7500 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 7500 8000 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 8000 8500 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 8500 9000 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 9000 9500 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 9500 10000 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 10000 10500 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 10500 11000 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 11000 11500 512
+sbatch  --partition=gpu --gres=gpu:1 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 11500 12000 512
 
 
 PROJ_NAME="KenData"
