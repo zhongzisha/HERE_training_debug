@@ -757,10 +757,18 @@ def step2(args, df, labels_dict, save_root4, file_inds_dict, save_root1, save_ro
     print(X0.shape)
     print(Y0.shape)
 
+
     is_reduced_sample = False
     kmeans0_Y = None
-    X = X0
-    Y = Y0
+    if False:  # len(X0) > 30000:  # downsample the data
+        print('too many samples, subsample it')
+        kmeans0 = cluster.KMeans(n_clusters=10000, n_init='auto', random_state=42)
+        kmeans0_Y = kmeans0.fit_predict(X0)
+        X = kmeans0.cluster_centers_
+        is_reduced_sample = True
+    else:
+        X = X0
+        Y = Y0
 
     all_params = []
     for feature_normalization_type in ['meanstd']: 

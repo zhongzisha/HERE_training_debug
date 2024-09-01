@@ -59,7 +59,7 @@ fi
 CSV_FILE_NAME=None
 FEATURES_DIRECTORY=${DIR_TO_COORDS}/feats/${MODEL_NAME}   ###!!! take care of this
 
-srun python extract_features.py \
+python extract_features.py \
 --data_h5_dir ${DIR_TO_COORDS} \
 --data_slide_dir ${DATA_DIRECTORY} \
 --csv_path ${CSV_FILE_NAME} \
@@ -83,9 +83,15 @@ MODEL_NAME=UNI
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 
 sbatch --gres=gpu:v100x:1,lscratch:32 \
-  --nodes=8 \
+  --nodes=1 \
     job_extract_features.sh \
-    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 6000 768
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 0 4000 768
+sbatch --gres=gpu:v100x:1,lscratch:32 \
+  --nodes=1 \
+    job_extract_features.sh \
+    ${PROJ_NAME} ${DATA_VERSION} ${PATCH_SIZE} ${MODEL_NAME} ${TCGA_ROOT_DIR} 4000 6000 768
+
+# 4000-6000
 
 #FRCE
 PROJ_NAME="TCGA-ALL2"

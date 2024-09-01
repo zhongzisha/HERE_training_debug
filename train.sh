@@ -9,7 +9,7 @@
 #SBATCH --ntasks-per-core=1
 #SBATCH --time=108:00:00
 
-if [ "1" == "1" ]; then
+if [ "0" == "1" ]; then
   module load CUDA/11.3.0
   module load cuDNN/8.2.1/CUDA-11.3
   export NCCL_ROOT=/data/zhongz2/nccl_2.15.5-1+cuda11.0_x86_64
@@ -21,7 +21,7 @@ if [ "1" == "1" ]; then
   source /data/zhongz2/venv_py38_hf2/bin/activate
 fi 
 if [ "1" == "1" ]; then
-    source /data/zhongz2/anaconda3/bin/activate th21
+    source /data/zhongz2/anaconda3/bin/activate th24
 fi
 export OMP_NUM_THREADS=4
 
@@ -104,7 +104,7 @@ fi
 
 BACKBONES=("PLIP")
 BACKBONES=("mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH")
-
+BACKBONES=("UNI")
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 DROPOUT=0.25
 

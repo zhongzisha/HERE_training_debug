@@ -39,7 +39,6 @@ from timm.data.transforms_factory import create_transform
 import gc
 import clip
 import socket
-from datetime import datetime
 from common import HF_MODELS_DICT
 from dataset import PatchDatasetV2
 from utils import save_hdf5
@@ -133,8 +132,43 @@ def create_model():
     return model
 
 
+def submitjob():
 
-def main():
+    import os, time
+    import numpy as np
+    step = 10
+    startidx = 0
+    endidx = 3000
+    startidx = 3000
+    endidx = 6000
+    startidx = 6000
+    endidx = 12000
+    startidx = 0
+    endidx = 550
+    if os.environ['CLUSTER_NAME'] == 'Biowulf':
+        tcga_root = '/data/zhongz2/tcga'
+        gres = '--gres=gpu:v100x:1,lscratch:32'
+    else:
+        tcga_root = '/mnt/gridftp/zhongz2/tcga'
+        gres = '--partition=gpu --gres=gpu:1'
+    if False:
+        for start in np.arange(startidx, endidx, step):
+            cmd = f"""
+            sbatch {gres} --nodes=1 job_extract_features.sh \
+            TCGA-ALL2 generated7 256 UNI {tcga_root} {start} {start+step} 512
+            """
+            os.system(cmd)
+            time.sleep(np.random.randint(low=0,high=5))
+    if True:
+        for start in np.arange(startidx, endidx, step):
+            cmd = f"""
+            sbatch {gres} --nodes=1 job_extract_features.sh \
+            METABRIC generated7 256 UNI {tcga_root} {start} {start+step} 512
+            """
+            os.system(cmd)
+            time.sleep(np.random.randint(low=0,high=5))
+
+def get_args():
     parser = argparse.ArgumentParser(description='Feature Extraction')
     parser.add_argument('--data_h5_dir', type=str, default='')  
     parser.add_argument('--data_slide_dir', type=str, default='')  
@@ -146,6 +180,59 @@ def main():
     parser.add_argument('--start_idx', type=int, default=-1)
     parser.add_argument('--end_idx', type=int, default=-1)
     args = parser.parse_args()
+    return args
+
+def generate_csv_path():
+    import glob,os
+    import numpy as np
+    import pandas as pd
+    import argparse
+
+    proj_root = '/mnt/gridftp/zhongz2/tcga/TCGA-ALL2_256/' 
+    args = get_args()
+    args.data_slide_dir = f'{proj_root}/svs'
+    args.feat_dir = f'{proj_root}/feats/UNI/'
+    args.data_h5_dir = f'{proj_root}'
+    args.slide_ext = '.svs'
+    args.start_idx = 6000
+    args.end_idx = 12000
+
+    proj_root = '/data/zhongz2/tcga/TCGA-ALL2_256/'
+    args = get_args()
+    args.data_slide_dir = f'{proj_root}/svs'
+    args.feat_dir = f'{proj_root}/feats/UNI/'
+    args.data_h5_dir = f'{proj_root}'
+    args.slide_ext = '.svs'
+    args.start_idx = 0
+    args.end_idx = 12000
+
+    DX_filenames = sorted(glob.glob(os.path.join(args.data_slide_dir, '*{}*'.format(args.slide_ext))))
+    df = pd.DataFrame({'DX_filename': DX_filenames})
+
+    print('before', len(df))
+    if args.end_idx > args.start_idx > -1:
+        if  args.end_idx >= len(df):
+            args.end_idx = len(df)
+        df = df.iloc[np.arange(args.start_idx, args.end_idx)].reset_index(drop=True)
+    print('after', len(df))
+
+    dest_files = os.listdir(os.path.join(args.feat_dir, 'pt_files'))
+    existed_prefixes = set([os.path.basename(f).replace('.pt', '') for f in dest_files])
+    h5_prefixes = set([os.path.basename(f).replace('.h5', '') for f in glob.glob(os.path.join(args.data_h5_dir, 'patches',  '*.h5'))])
+
+    drop_ids = []
+    for ind, f in enumerate(df['DX_filename'].values):
+        svs_prefix = os.path.basename(f).replace(args.slide_ext, '')
+        if svs_prefix in existed_prefixes or svs_prefix not in h5_prefixes:
+            drop_ids.append(ind)
+    print('before0', len(df))
+    if len(drop_ids) > 0:
+        df = df.drop(drop_ids)
+    df = df.reset_index(drop=True)
+    df.to_csv('remaining.csv')
+
+def main():
+    args = get_args()
 
     model_name = args.model_name
     model_params = HF_MODELS_DICT[model_name] if model_name in HF_MODELS_DICT else None
@@ -187,6 +274,9 @@ def main():
         local_temp_dir = os.path.join('/tmp/', os.environ['USER'], model_name, str(idr_torch.rank), str(idr_torch.local_rank))
     else:
         local_temp_dir = os.path.join(os.environ['HOME'], model_name, str(idr_torch.rank), str(idr_torch.local_rank))
+    if os.path.isdir(local_temp_dir):
+        shutil.rmtree(local_temp_dir, ignore_errors=True)
+        time.sleep(1)
     os.makedirs(local_temp_dir, exist_ok=True)
     dest_files = os.listdir(os.path.join(args.feat_dir, 'pt_files'))
     existed_prefixes = set([os.path.basename(f).replace('.pt', '') for f in dest_files])
@@ -201,6 +291,9 @@ def main():
     if len(drop_ids) > 0:
         df = df.drop(drop_ids)
     df = df.reset_index(drop=True)
+    if len(df) == 0:        
+        print('all done')
+        sys.exit(0)
     print('before', len(df))
 
     indices = np.arange(len(df))
@@ -209,6 +302,9 @@ def main():
     print('world_size: ', idr_torch.world_size)
     sub_df = df.iloc[index_splits[idr_torch.rank]]
     sub_df = sub_df.reset_index(drop=True)
+    if len(sub_df) == 0:
+        print('all done')
+        sys.exit(0)
     print(idr_torch.rank, sub_df['DX_filename'].values[0])
 
     feature_tensors = {}
@@ -285,7 +381,7 @@ def main():
         if not os.path.exists(h5_file_path):
             continue
 
-        local_temp_dir1 = os.path.join(local_temp_dir, datetime.now().strftime(format='%Y%m%d%H%M%S'))
+        local_temp_dir1 = os.path.join(local_temp_dir, str(np.random.randint(1e5) + np.random.randint(1e10)))
         os.makedirs(local_temp_dir1, exist_ok=True)
 
         local_svs_filename = os.path.join(local_temp_dir1, svs_prefix + args.slide_ext)
@@ -304,7 +400,7 @@ def main():
         print('extract features')
 
         dataset = PatchDatasetV2(slide, coords, patch_level, patch_size)
-        kwargs = {'num_workers': os.cpu_count(), 'pin_memory': True, 'shuffle': False}
+        kwargs = {'num_workers': 4, 'pin_memory': True, 'shuffle': False}
         if transform is not None:
             loader = DataLoader(dataset=dataset, batch_size=args.batch_size, **kwargs, collate_fn=collate_fn2)
         else:
