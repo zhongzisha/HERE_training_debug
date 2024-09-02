@@ -36,6 +36,9 @@ from transformers import ResNetModel, BeitModel, BitModel, ConvNextModel, CvtMod
 import timm
 from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
+from timm.layers import set_layer_config
+from timm.models import is_model, model_entrypoint, load_checkpoint
+from urllib.parse import urlsplit
 import gc
 import clip
 import socket
@@ -87,15 +90,12 @@ def load_model_config_from_hf(model_id: str):
     model_name = hf_config['architecture']
     return pretrained_cfg, model_name, model_args
 
-from timm.layers import set_layer_config
-from timm.models import is_model, model_entrypoint, load_checkpoint
 
 def split_model_name_tag(model_name: str, no_tag: str = ''):
     model_name, *tag_list = model_name.split('.', 1)
     tag = tag_list[0] if tag_list else no_tag
     return model_name, tag
 
-from urllib.parse import urlsplit
 
 def parse_model_name(model_name: str):
     if model_name.startswith('hf_hub'):
@@ -138,35 +138,30 @@ def submitjob():
     import numpy as np
     step = 10
     startidx = 0
-    endidx = 3000
-    startidx = 3000
-    endidx = 6000
-    startidx = 6000
-    endidx = 12000
-    startidx = 0
-    endidx = 550
+    endidx = 200
     if os.environ['CLUSTER_NAME'] == 'Biowulf':
+        project_name = 'TCGA-ALL2'
         tcga_root = '/data/zhongz2/tcga'
+        project_name = 'KenData_20240814'
+        tcga_root = '/data/zhongz2/'
+        project_name = 'ST'
+        tcga_root = '/data/zhongz2/'
         gres = '--gres=gpu:v100x:1,lscratch:32'
     else:
+        project_name = 'TCGA-ALL2'
         tcga_root = '/mnt/gridftp/zhongz2/tcga'
+        project_name = 'KenData_20240814'
+        tcga_root = '/mnt/gridftp/zhongz2/'
         gres = '--partition=gpu --gres=gpu:1'
-    if False:
-        for start in np.arange(startidx, endidx, step):
-            cmd = f"""
-            sbatch {gres} --nodes=1 job_extract_features.sh \
-            TCGA-ALL2 generated7 256 UNI {tcga_root} {start} {start+step} 512
-            """
-            os.system(cmd)
-            time.sleep(np.random.randint(low=0,high=5))
     if True:
         for start in np.arange(startidx, endidx, step):
             cmd = f"""
             sbatch {gres} --nodes=1 job_extract_features.sh \
-            METABRIC generated7 256 UNI {tcga_root} {start} {start+step} 512
+            {project_name} generated7 256 UNI {tcga_root} {start} {start+step} 512
             """
             os.system(cmd)
             time.sleep(np.random.randint(low=0,high=5))
+    # TransNEO, METABRIC
 
 def get_args():
     parser = argparse.ArgumentParser(description='Feature Extraction')
@@ -198,6 +193,15 @@ def generate_csv_path():
     args.end_idx = 12000
 
     proj_root = '/data/zhongz2/tcga/TCGA-ALL2_256/'
+    args = get_args()
+    args.data_slide_dir = f'{proj_root}/svs'
+    args.feat_dir = f'{proj_root}/feats/UNI/'
+    args.data_h5_dir = f'{proj_root}'
+    args.slide_ext = '.svs'
+    args.start_idx = 0
+    args.end_idx = 12000
+
+    proj_root = '/data/zhongz2/KenData_20240814_256/'
     args = get_args()
     args.data_slide_dir = f'{proj_root}/svs'
     args.feat_dir = f'{proj_root}/feats/UNI/'

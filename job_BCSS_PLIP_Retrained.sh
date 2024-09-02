@@ -179,8 +179,8 @@ EXP_NAME1=bcss_${PATCH_SIZE}_${RATIO}
     --hidare_checkpoint ${HIDARE_CHECKPOINT}
 
 # submit jobs
-for EXP_NAME in "BCSS" "NuCLS" "PanNuke" "kather100k"; do 
-for METHOD in "Yottixel" "RetCCL" "MobileNetV3" "DenseNet121" "CLIP" "PLIP" "HIPT" "ProvGigaPath" "CONCH"; do
+for EXP_NAME in "BCSS" "NuCLS" "PanNuke" "kather100k"; do # "BCSS" "NuCLS" "PanNuke" "kather100k"
+for METHOD in "UNI"; do # "Yottixel" "RetCCL" "MobileNetV3" "DenseNet121" "CLIP" "PLIP" "HIPT" "ProvGigaPath" "CONCH" "UNI"
 EPOCH_NUM=0
 hidare_method_postfix="ProvGigaPath"
 BEST_SPLIT=1
@@ -194,7 +194,7 @@ done
 
 # submit HERE jobs
 for EXP_NAME in "BCSS" "NuCLS" "PanNuke" "kather100k"; do  # "BCSS" "NuCLS" "PanNuke" 
-for hidare_method_postfix in "CONCH"; do  # "mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH"
+for hidare_method_postfix in "UNI"; do  # "mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH", "UNI"
   if [ ${hidare_method_postfix} == "mobilenetv3" ]; then
       BEST_SPLIT=3
       BEST_EPOCH=32
@@ -214,6 +214,10 @@ for hidare_method_postfix in "CONCH"; do  # "mobilenetv3" "CLIP" "PLIP" "ProvGig
   if [ ${hidare_method_postfix} == "CONCH" ]; then
       BEST_SPLIT=3
       BEST_EPOCH=53
+  fi
+  if [ ${hidare_method_postfix} == "UNI" ]; then
+      BEST_SPLIT=3
+      BEST_EPOCH=58
   fi
   HIDARE_CHECKPOINT=/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone${hidare_method_postfix}_dropout0.25/split_${BEST_SPLIT}/snapshot_${BEST_EPOCH}.pt
   

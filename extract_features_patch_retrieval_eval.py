@@ -484,6 +484,12 @@ def extract_feats_HiDARE_new(args):
     elif model_name == 'CONCH':
         from conch.open_clip_custom import create_model_from_pretrained
         feature_extractor, image_processor = create_model_from_pretrained('conch_ViT-B-16','./CONCH_weights_pytorch_model.bin')
+    elif model_name == 'UNI':
+        feature_extractor = timm.create_model(
+            "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+        )
+        feature_extractor.load_state_dict(torch.load("./UNI_pytorch_model.bin", map_location="cpu"), strict=True)
+        transform = create_transform(**resolve_data_config(feature_extractor.pretrained_cfg, model=feature_extractor))
     else:
         print('model_params: ', model_params)
         feature_extractor = globals()[model_params[0]].from_pretrained(model_params[1])
@@ -548,6 +554,8 @@ def extract_feats_HiDARE_new(args):
                 batch_feats = feature_extractor(batch_images).detach()
             elif model_name == 'CONCH':
                 batch_feats = feature_extractor.encode_image(batch_images, proj_contrast=False, normalize=False).detach()
+            elif model_name == 'UNI':
+                batch_feats = feature_extractor(batch_images).detach()
             else: # CLIP, PLIP
                 if transform is not None:
                     batch_feats = feature_extractor.encode_image(batch_images).detach()
@@ -952,6 +960,60 @@ def extract_feats_ProvGigaPath(args):
     with open(args.save_filename, 'wb') as fp:
         pickle.dump({'X': X, 'Y': Y, 'patch_names': patch_names,
                     'feat_extract_time': feat_extract_time}, fp)
+
+
+
+def extract_feats_UNI(args):
+
+    device = torch.device(
+        "cuda") if torch.cuda.is_available() else torch.device('cpu')
+
+    config = None
+    transform = None
+    image_processor = None
+    # model_name = args.method_name
+    # model_params = HF_MODELS_DICT[model_name] if model_name in HF_MODELS_DICT else None
+
+    feature_extractor = timm.create_model(
+            "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+        )
+    feature_extractor.load_state_dict(torch.load("./UNI_pytorch_model.bin", map_location="cpu"), strict=True)
+    transform = create_transform(**resolve_data_config(feature_extractor.pretrained_cfg, model=feature_extractor))
+    feature_extractor = feature_extractor.to(device)
+    feature_extractor.eval()
+
+    time.sleep(np.random.randint(1, 5))
+    dataset = PatchDataset(args.patch_label_file, args.patch_data_path)
+
+    def collate_fn(examples):
+        pixel_values = image_processor(images=[example[0] for example in examples], return_tensors='pt')
+        labels = np.vstack([example[1] for example in examples])
+        return pixel_values['pixel_values'], labels
+
+    def collate_fn2(examples):
+        pixel_values = torch.stack([transform(example[0]) for example in examples])
+        labels = np.vstack([example[1] for example in examples])
+        return pixel_values, labels
+
+    kwargs = {'num_workers': 8, 'pin_memory': True, 'shuffle': False}
+    dataloader = DataLoader(dataset=dataset, batch_size=64, **kwargs, collate_fn=collate_fn2)
+
+    X = []
+    t_enc_start = time.time()
+    with torch.no_grad():
+        for batch_index, (batch_images, batch_labels) in enumerate(tqdm(dataloader)):
+            batch_images = batch_images.to(device)
+            batch_feats = feature_extractor(batch_images).detach().cpu().numpy()
+            X.append(batch_feats)
+    
+    feat_extract_time = time.time() - t_enc_start
+    Y = dataset.labels
+    patch_names = [os.path.basename(patch_name).split(".")[0] for patch_name in dataset.patch_names]
+    with open(args.save_filename, 'wb') as fp:
+        pickle.dump({'X': X, 'Y': Y, 'patch_names': patch_names,
+                    'feat_extract_time': feat_extract_time}, fp)
+
+
 
 
 def extract_feats_CONCH(args):
@@ -1794,6 +1856,8 @@ if __name__ == '__main__':
             extract_feats_ProvGigaPath(args)
         elif 'CONCH' in args.method_name:
             extract_feats_CONCH(args)
+        elif 'UNI' in args.method_name:
+            extract_feats_UNI(args)
         elif args.method_name == 'HIPT':
             extract_feats_HIPT(args)   # 384
     else:
@@ -1804,6 +1868,6 @@ if __name__ == '__main__':
     if not os.path.exists(save_filename.replace('.pkl', '.csv')):
         get_results_v4(args) 
 
-    if not os.path.exists(args.save_filename.replace('.pkl', '_binary_search_times.pkl')):
+    if 'HiDARE' in args.method_name and not os.path.exists(args.save_filename.replace('.pkl', '_binary_search_times.pkl')):
         get_results_v5_hash_evaluation(args)
 

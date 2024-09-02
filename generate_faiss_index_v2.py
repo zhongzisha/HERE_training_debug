@@ -221,49 +221,15 @@ def add_feats_to_faiss(project_name='KenData', backbone='ProvGigaPath', HERE_ckp
             gc.collect()
 
 
-
-def merge_background_samples_for_deployment():
-    import pickle
-    import numpy as np
-    with open('randomly_1000_data_with_ProvGigaPath.pkl', 'rb') as fp:
-        data = pickle.load(fp)
-    del data['ProvGigaPath']
-    del data['HERE_PLIP']['KenData']
-    del data['HERE_PLIP']['ST']
-    for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP']:
-        if method not in data:
-            data[method] = {}
-        version = 'V4'
-        # if method == 'HERE_ProvGigaPath':
-        #     version = 'V2'
-        #     version = 'V4'
-        # if method == 'HERE_CONCH':
-        #     version = 'V3'
-        #     version = 'V4' # 20240805 using 10000 samples for training
-        for project_name in ['KenData', 'ST']:
-            if project_name in data[method]:
-                continue
-            with open(f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl', 'rb') as fp:
-                data1 = pickle.load(fp)   
-            data[method][project_name] = data1[method][project_name]['embeddings']
-    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH.pkl', 'wb') as fp:
-        pickle.dump(data, fp)
-
 def merge_background_samples_for_deployment_v2():
     import os
     import pickle
     import numpy as np
     data = {}
-    for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP']:
+    for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 'HERE_UNI']:
         if method not in data:
             data[method] = {}
         version = 'V4'
-        # if method == 'HERE_ProvGigaPath':
-        #     version = 'V2'
-        #     version = 'V4'
-        # if method == 'HERE_CONCH':
-        #     version = 'V3'
-        #     version = 'V4' # 20240805 using 10000 samples for training
         for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED']:
             if project_name == 'TCGA-COMBINED':
                 version = 'V5'
@@ -943,6 +909,9 @@ if __name__ == '__main__':
     elif backbone == 'PLIP':
         BEST_SPLIT=3
         BEST_EPOCH=66
+    elif backbone == 'UNI':
+        BEST_SPLIT=3
+        BEST_EPOCH=58
     else:
         raise ValueError("wrong backbone")
     
@@ -955,163 +924,8 @@ if __name__ == '__main__':
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
         backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
             num_selected_train_samples=num_selected_train_samples)
+            
     add_feats_to_faiss(project_name=project_name, backbone=backbone, \
         HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename, \
             bigmem=bigmem)
-
-
-
-
-def main():     
-    version = 'V4'
-    project_name='KenData'
-    backbone='CONCH'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=53
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-
-    version = 'V6'
-    project_name='KenData_20240814'
-    backbone='CONCH'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=53
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-    version = 'V6'
-    project_name='KenData_20240814'
-    backbone='CONCH'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=53
-    num_selected_train_samples = 500
-    bigmem = 1
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename,
-        bigmem=bigmem)
-
-
-
-    version = 'V4'
-    project_name='ST'
-    backbone='CONCH'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=53
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-    version = 'V5'
-    project_name='TCGA-COMBINED'
-    backbone='CONCH'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=53
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-
-    # HERE_ProvGigaPath
-    version = 'V4'
-    project_name='KenData'
-    backbone='ProvGigaPath'
-    dim2=256
-    BEST_SPLIT=1
-    BEST_EPOCH=39
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-    version = 'V6'
-    project_name='KenData_20240814'
-    backbone='ProvGigaPath'
-    dim2=256
-    BEST_SPLIT=1
-    BEST_EPOCH=39
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-
-    version = 'V5'
-    project_name='TCGA-COMBINED'
-    backbone='ProvGigaPath'
-    dim2=256
-    BEST_SPLIT=1
-    BEST_EPOCH=39
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-
-    # HERE_PLIP
-    version = 'V4'
-    project_name='KenData'
-    backbone='PLIP'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=66
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-    version = 'V6'
-    project_name='KenData_20240814'
-    backbone='PLIP'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=66
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
-
-    version = 'V5'
-    project_name='TCGA-COMBINED'
-    backbone='PLIP'
-    dim2=256
-    BEST_SPLIT=3
-    BEST_EPOCH=66
-    num_selected_train_samples = 500
-    HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
-    save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
-    train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
-        backbone=backbone, dim2=dim2, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, version=version, \
-            num_selected_train_samples=num_selected_train_samples)
-    add_feats_to_faiss(project_name=project_name, backbone=backbone, HERE_ckpt_filename=HERE_ckpt_filename, save_dir=save_dir, train_data_filename=train_data_filename)
 

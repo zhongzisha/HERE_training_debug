@@ -8,13 +8,20 @@ import matplotlib.colors as mcolors
 from matplotlib.backends.backend_pdf import PdfPages
 from common import PAN_CANCER_SITES, CLASSIFICATION_DICT, REGRESSION_LIST
 
+morandi_colors = [
+    '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+    '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+    '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+    ]
+
 COMMON_COLORS = {
     'mobilenetv3': 'orange',
     'MobileNetV3': 'orange',
     'CLIP': 'Green',
     'PLIP': 'gray',
     'ProvGigaPath': 'purple',
-    'CONCH': 'blue'
+    'CONCH': 'blue',
+    'UNI': morandi_colors[-1]
 }
 
 def set_box_color(bp, color):
@@ -28,7 +35,7 @@ def shorten_prefix2(prefix):
     prefix = prefix.replace('imagenet', '').replace('_adam_None_weighted_ce_', '').replace(
         '_wd1e-4_reguNone1e-4_25632', '')
     prefix = prefix.replace('mobilenetv38', 'MobileNetV3')
-    for pp in ['CLIP', 'PLIP', 'ProvGigaPath', 'CONCH', 'MobileNetV3', 'mobilenetv3']: 
+    for pp in ['CLIP', 'PLIP', 'ProvGigaPath', 'CONCH', 'MobileNetV3', 'mobilenetv3', 'UNI']: 
         prefix = prefix.replace(f'{pp}_4', pp)
         prefix = prefix.replace(f'{pp}_8', pp)
     return prefix
@@ -274,10 +281,19 @@ TCGA-ALL2, best_epoch: 53, best_split: 3, mean value: [34.16496451],
  [34.04463461]
  [35.49385124]
  [34.36209713]]
+
+begin UNI
+TCGA-ALL2, best_epoch: 58, best_split: 3, mean value: [33.65394501], 
+[[33.28786349]
+ [33.84315466]
+ [33.62571556]
+ [33.92088263]
+ [33.59210872]]
 """
 def check_best_split_v2():
     results_dir = 'results_20240724_e100'
-    for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH']: 
+    # for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH']: 
+    for backbone in ['UNI']: 
         print(f'\nbegin {backbone}')
         for proj_name in ['TCGA-ALL2']:
             task_types = ['cls', 'reg']
@@ -363,12 +379,14 @@ def main():
         # 'CLIP': 512,
         'PLIP': 512,
         'ProvGigaPath': 1536,
-        'CONCH': 512
+        'CONCH': 512,
+        'UNI': 1024
     }
 
     sub_epochs = [1]
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
+    save_root = '/Users/zhongz2/down/figures_20240902_e100_top4' # Add UNI 
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
