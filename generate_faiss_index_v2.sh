@@ -50,6 +50,10 @@ sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --nta
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
     generate_faiss_index_v2.sh KenData_20240814 UNI 0
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
+    generate_faiss_index_v2.sh TCGA-COMBINED UNI 0
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
+    generate_faiss_index_v2.sh ST UNI 0
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=500G \
     generate_faiss_index_v2.sh KenData_20240814 CONCH 1

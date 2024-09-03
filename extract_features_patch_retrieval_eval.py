@@ -1844,7 +1844,7 @@ if __name__ == '__main__':
             extract_feats_Yottixel(args)   # 1024
         elif args.method_name == 'RetCCL':
             extract_feats_RetCCL(args)   # 1024
-        elif args.method_name in ['HiDARE_mobilenetv3', 'HiDARE_CLIP', 'HiDARE_PLIP', 'HiDARE_PLIP_RetrainedV14', 'HiDARE_ProvGigaPath', 'HiDARE_CONCH']:  # with different backbone
+        elif args.method_name in ['HiDARE_mobilenetv3', 'HiDARE_CLIP', 'HiDARE_PLIP', 'HiDARE_PLIP_RetrainedV14', 'HiDARE_ProvGigaPath', 'HiDARE_CONCH', 'HiDARE_UNI']:  # with different backbone
             extract_feats_HiDARE_new(args)   # 1024
         elif args.method_name == 'MobileNetV3':
             extract_feats_MobileNetV3(args)   # 1280

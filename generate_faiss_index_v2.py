@@ -229,14 +229,13 @@ def merge_background_samples_for_deployment_v2():
     for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 'HERE_UNI']:
         if method not in data:
             data[method] = {}
-        version = 'V4'
+        version = 'V6'
         for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED']:
-            if project_name == 'TCGA-COMBINED':
-                version = 'V5'
-            if project_name == 'KenData_20240814':
-                version = 'V6'
             filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
             if project_name in data[method] or not os.path.exists(filename):
+                print('wrong')
+                import pdb
+                pdb.set_trace()
                 continue
             with open(filename, 'rb') as fp:
                 data1 = pickle.load(fp)

@@ -21,8 +21,11 @@ def main():
         h5filename = row['h5filename']
         j = int(float(row['j']))
 
-        local_temp_dir = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], str(idr_torch.rank),
+        if 'CLUSTER_NAME' in os.environ:
+            local_temp_dir = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], str(idr_torch.rank),
                                       str(idr_torch.local_rank))
+        else: 
+            local_temp_dir = './tmp'
         os.makedirs(local_temp_dir, exist_ok=True)
 
         svs_prefix = get_svs_prefix(svs_filename)

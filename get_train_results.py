@@ -21,7 +21,7 @@ COMMON_COLORS = {
     'PLIP': 'gray',
     'ProvGigaPath': 'purple',
     'CONCH': 'blue',
-    'UNI': morandi_colors[-1]
+    'UNI': '#008080',# '#029370', morandi_colors[-1]
 }
 
 def set_box_color(bp, color):
