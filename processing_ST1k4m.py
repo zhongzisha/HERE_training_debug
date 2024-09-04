@@ -139,18 +139,61 @@ def main():
     df1['DX_filename'] = DX_filenames
     df1['spot_size'] = spot_sizes
 
+
+    import sys,os,glob,shutil,json
+    import numpy as np
+    import openslide
+    import pandas as pd
+
+    from matplotlib import pyplot as plt
+    import PIL
+    PIL.Image.MAX_IMAGE_PIXELS = 1266016250
+    from PIL import Image, ImageFile
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+    root = '/data/zhongz2/ST_20240903'
+    df = pd.read_csv(f'{root}/ST1K4M.csv')
+    df1 = pd.read_csv(f'{root}/PreviousST.csv')
     # check identical files
     identical_files = {}
     for _, row in df1.iterrows():
         p1, size1, h1, w1 = row['slide_id'], row['FileSize'], row['original_height'], row['original_width']
+        slide1 = openslide.open_slide(os.path.join(root, 'svs', p1+'.svs'))
         for _, row1 in df.iterrows():
             p2, size2, h2, w2 = row1['slide'], row1['FileSize'], row1['original_height'], row1['original_width']
             if size1 == size2 and h1 == h2 and w1 == w2: 
-                if p1 in identical_files:
-                    identical_files[p1].append(p2)
-                else:
-                    identical_files[p1] = [p2]
+                # randomly read 5 times
+                slide2 = openslide.open_slide(os.path.join(root, 'svs', 'ST1K4M_'+clear_prefix(p2)+'.svs'))
+                is_the_same = [False for _ in range(5)]
+                for i in range(5):
+                    x = np.random.randint(20, w1 - 20)
+                    y = np.random.randint(20, h1 - 20) 
+                    patch1 = np.array(slide1.read_region(location=(x, y), level=0, size=(10, 10)))
+                    patch2 = np.array(slide2.read_region(location=(x, y), level=0, size=(10, 10)))
+                    if np.all(patch1==patch2):
+                        is_the_same[i] = True
+                if np.all(is_the_same):
+                    if p1 in identical_files:
+                        identical_files[p1].append(p2)
+                    else:
+                        identical_files[p1] = [p2]
 
+    save_root = '/data/zhongz2/temp29/check_st1k4m'
+    if os.path.isdir(save_root):
+        shutil.rmtree(save_root, ignore_errors=True)
+        
+    os.makedirs(save_root, exist_ok=True)
+    for k, v in identical_files.items():
+        num_ims = 1 + len(v)
+        plt.close()
+        fig, axes = plt.subplots(nrows=1, ncols=num_ims)
+        im = Image.open(os.path.join(root, 'thumbnails', k+'.jpg'))
+        i = 0
+        axes[i].imshow(im)
+        for ii, prefix in enumerate(v):
+            im = Image.open(os.path.join(root, 'thumbnails', 'ST1K4M_' +clear_prefix(prefix)+'.jpg'))
+            axes[ii + 1].imshow(im)
+        plt.savefig(os.path.join(save_root, k+'.jpg'))
+        plt.close()
 
 
 

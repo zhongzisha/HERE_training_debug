@@ -9,6 +9,7 @@
 
 # 20240708  added CONCH
 def main_20240708_encoder_comparision():
+
     import numpy as np
     import pandas as pd
     import pickle
@@ -160,8 +161,8 @@ def main_20240708_encoder_comparision():
         print(name1, g.get_yticklabels())
         g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
         g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        for ci, tick_label in enumerate(g.get_xticklabels()):
-            tick_label.set_color(palette[ci])
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
@@ -254,8 +255,8 @@ def main_20240708_encoder_comparision():
         g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
         g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
         
-        for ci, tick_label in enumerate(g.get_xticklabels()):
-            tick_label.set_color(palette[ci])
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
@@ -383,7 +384,7 @@ def main_20240708_encoder_comparision():
                 x="label", y=name, hue="method", hue_order=hue_order,
                 errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
             )
-            sns.despine(top=False, right=False, left=False, bottom=False, ax=g.ax)
+            sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
@@ -518,7 +519,7 @@ def main_20240708_encoder_comparision():
                 x="label", y=name, hue="method", hue_order=hue_order,
                 errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
             )
-            sns.despine(top=False, right=False, left=False, bottom=False, ax=g.ax)
+            sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
@@ -762,8 +763,8 @@ def plot_search_time_tcga_ncidata():
             # g.legend.set_title("")
             g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
             g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-            for ci, tick_label in enumerate(g.get_xticklabels()):
-                tick_label.set_color(palette[ci])
+            # for ci, tick_label in enumerate(g.get_xticklabels()):
+            #     tick_label.set_color(palette[ci])
             # plt.tight_layout()
             plt.savefig(os.path.join(save_root, f'{fe_method}_{name1}_binary_ranking.png'), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, f'{fe_method}_{name1}_binary_ranking.svg'), bbox_inches='tight', transparent=True, format='svg')
@@ -788,7 +789,7 @@ def plot_search_time_tcga_ncidata():
                     aspect=1.5
                 )
                 # g.despine(top=False, right=False, left=False, bottom=False)
-                sns.despine(top=False, right=False, left=False, bottom=False, ax=g.ax)
+                sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
                 g.ax.set_ylim(ylims[dataset_names1[di]])
                 g.set_axis_labels("", name1 if 'mAP' not in name1 else 'Average precision')
                 # g.legend.set_title("")
@@ -821,7 +822,7 @@ def plot_search_time_tcga_ncidata():
                 )
                 g.ax.yaxis.tick_right()
                 # g.despine(top=False, right=False, left=False, bottom=False)
-                sns.despine(top=False, right=False, left=False, bottom=False, ax=g.ax)
+                sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
                 g.ax.set_ylim(ylims[dataset_names1[di]])
 
                 g.ax.yaxis.set_label_position("right")
@@ -1079,6 +1080,8 @@ def Fig3():
     from statsmodels.stats.multitest import multipletests
     from scipy.stats import ranksums, wilcoxon
     import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    import matplotlib.colors
     import matplotlib.lines
     from matplotlib.transforms import Bbox, TransformedBbox
     from matplotlib.legend_handler import HandlerBase
@@ -1124,6 +1127,51 @@ def Fig3():
     zscores = res.statistic 
     reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
     HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
+
+
+    def hex_to_rgb(value):
+        """Convert a hex color to an RGB tuple."""
+        value = value.lstrip('#')
+        return tuple(int(value[i:i+2], 16)/255. for i in (0, 2, 4))
+    # groups = ['structure']
+    COLOR_PALETTES={
+        'structure': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell type':  [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell shape': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cytoplasm': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'label': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ]
+    }
+
+    for k,v in COLOR_PALETTES.items():
+        newv = []
+        for vv in v:
+            if isinstance(vv, str) and '#' in vv:
+                newv.append(hex_to_rgb(vv))
+            else:
+                newv.append(vv)
+        # newv = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in newv]
+        COLOR_PALETTES[k] = newv
+
 
     save_root = '/Users/zhongz2/down/temp_20240904/Fig3_4'
     if os.path.exists(save_root):
@@ -1199,6 +1247,83 @@ def Fig3():
                 plt.savefig(f'{save_root}/overall_histplot_{method_name}.svg', bbox_inches='tight', transparent=True, format='svg')
                 df2.to_excel(f'{save_root}/overall_histplot_{method_name}.xlsx')
                 plt.close()
+        # HERE histogram
+        if True:
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+
+            alpha = 0.7
+            palette0 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
+            palette1 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+
+            g=sns.histplot(data=df2, y='HERE', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax, color=palette0)
+            g=sns.histplot(data=df2, y='PLIP', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax, color=palette1)
+            plt.xticks([0,10,20,30,40,50])
+            plt.ylim([0.5, 5.5])  
+            g.set(yticklabels=[])
+            g.set(ylabel=None)
+            g.set(xlabel='count')
+
+            plt.savefig(f'{save_root}/overall_histplot.png', bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(f'{save_root}/overall_histplot.svg', bbox_inches='tight', transparent=True, format='svg')
+            df2.to_excel(f'{save_root}/overall_histplot.xlsx')
+            plt.close()
+
+        # HERE histogram (group plot)
+        if True:
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+
+            alpha = 0.7
+            palette0 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
+            palette1 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+
+            v0 = np.histogram(df2['HERE'].values, bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5])[0][::-1]
+            v1 = np.histogram(df2['PLIP'].values, bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5])[0][::-1]
+            court0 = np.arange(len(v0))
+            court1 = np.arange(len(v1))
+            method0 = ['HERE' for _ in range(len(v0))]
+            method1 = ['PLIP' for _ in range(len(v1))]
+            df4 = pd.DataFrame({'count': np.concatenate([v0, v1]), 'court': np.concatenate([court0, court1])})
+            df4['method'] = method0 + method1
+            g=sns.catplot(data=df4, x='court', y="count", hue="method", kind="bar", palette=[palette0, palette1], ax=ax, height=6,legend=False)
+            # g=sns.barplot(df4, x="count", y="court", hue="method", palette=[palette0, palette1], ax=ax, legend=False)
+            # g=sns.histplot(data=df2, y='HERE', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax, color=palette0)
+            # plt.xticks([0,10,20,30,40,50])
+            plt.yticks([0, 10, 20, 30, 40, 50])
+            # plt.ylim([0.5, 5.5])  
+            # g.set(yticklabels=[])
+            # g.set(ylabel=None)
+            # g.set(xlabel='count')
+            # g.set(yticklabels=[0, 10, 20, 30, 40, 50])
+            # g.set(xticklabels=[5, 4, 3, 2, 1])
+            g.ax.yaxis.tick_right()
+            # g.despine(top=False, right=False, left=False, bottom=False)
+            sns.despine(top=False, right=False, left=False, bottom=False, ax=g.ax)
+
+            g.ax.yaxis.set_label_position("right")
+            g.set_axis_labels("", "count")
+            # g.legend.set_title("")
+            # g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center", rotation_mode='anchor')
+            g.ax.set_yticklabels(['0', '10', '20', '30', '40', '50'], rotation=90, ha="center", va="top", rotation_mode='anchor')
+            # g.ax.set_xticklabels(['5', '4', '3', '2', '1'], rotation=90, ha="right", va='center', rotation_mode='anchor')
+            g.set(xticklabels=[])
+
+            plt.savefig(f'{save_root}/overall_histplot_group.png', bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(f'{save_root}/overall_histplot_group.svg', bbox_inches='tight', transparent=True, format='svg')
+            # df2.to_excel(f'{save_root}/overall_histplot_group.xlsx')
+            plt.close()
+
 
 
     groups = ['label', 'cell_type', 'pattern2']
@@ -1206,11 +1331,6 @@ def Fig3():
     for col in groups:
         print(col, '='*20)
         print(df[col].value_counts())
-
-    def hex_to_rgb(value):
-        """Convert a hex color to an RGB tuple."""
-        value = value.lstrip('#')
-        return tuple(int(value[i:i+2], 16)/255. for i in (0, 2, 4))
 
     groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label']
     group_names = {
@@ -1220,45 +1340,7 @@ def Fig3():
         'cytoplasm': 'cytoplasm',
         'label': 'tissue composition'
     }
-    # groups = ['structure']
-    COLOR_PALETTES={
-        'structure': [
-            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
-            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
-            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
-        ],
-        'cell type':  [
-            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
-            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
-            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
-        ],
-        'cell shape': [
-            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
-            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
-            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
-        ],
-        'cytoplasm': [
-            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
-            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
-            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
-        ],
-        'label': [
-            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
-            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
-            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
-        ]
-    }
-
-    for k,v in COLOR_PALETTES.items():
-        newv = []
-        for vv in v:
-            if isinstance(vv, str) and '#' in vv:
-                newv.append(hex_to_rgb(vv))
-            else:
-                newv.append(vv)
-        # newv = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in newv]
-        COLOR_PALETTES[k] = newv
-
+    
     # df = df[df['label'].notna()].reset_index(drop=True)
     hue_orders = {}
     for expname in ['overall']: #, 'R0_vs_R2R4']:
@@ -1288,6 +1370,9 @@ def Fig3():
                 palette = [COLOR_PALETTES[group][i] for i in range(num_group)]
             else:
                 palette = [COLOR_PALETTES[group][-i-1] for i in range(num_group)]
+
+            alpha = 0.7
+            palette = [np.array(pp)*alpha+(1-alpha) for pp in palette]
 
             if 'HERE' in df1.columns:
                 sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
