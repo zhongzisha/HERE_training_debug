@@ -550,9 +550,8 @@ def plot_search_time_tcga_ncidata():
     # sns.set_theme(style="whitegrid")
     sns.despine(top=False, right=False)
 
-    root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
-    save_root = '/Users/zhongz2/down/temp_20240801/hashing_comparison2'
+    save_root = '/Users/zhongz2/down/temp_20240902/hashing_comparison2'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -689,7 +688,7 @@ def plot_search_time_tcga_ncidata():
     fe_methods = ['HiDARE_CONCH']
     fe_label_names = ['HERE_CONCN']
     palette = sns.color_palette('colorblind')
-    for name in ['Acc', 'Percision']:
+    for name in ['Percision']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         hue_orders = {}
         for fe_method in fe_methods:
@@ -930,6 +929,558 @@ def plot_search_time_tcga_ncidata():
                     df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}.csv'))
                     plt.close()
 
+                # log-scale
+                for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
+
+                    font_size = 30
+                    figure_height = 7
+                    figure_width = 7
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    plt.tick_params(pad = 10)
+                    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+
+                    g=sns.barplot(data=df3, y='method', x=proj_name, errorbar=None, palette='colorblind', hue='method', legend=False)
+                    g.set_xscale("log")
+                    # g.despine(top=False, right=False, left=False, bottom=False)
+                    sns.despine(top=False, right=False, bottom=False, left=False, ax=g)
+                    plt.ylabel(None)
+                    plt.xlabel('Search time (s)')
+                    g.set_yticklabels([])
+                    # for ci, tick_label in enumerate(g.axes.get_yticklabels()):
+                    #     tick_label.set_color(palette[ci])
+                    plt.title(proj_name, fontsize=font_size)
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+                    df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.csv'))
+                    plt.close()
+
+                # broken
+                for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
+
+                    plt.close()
+                    font_size = 30
+                    figure_height = 7
+                    figure_width = 7
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    plt.tick_params(pad = 10)
+                    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(figure_width, figure_height))
+                    fig.subplots_adjust(hspace=0.1)  # adjust space between Axes
+                    pts = df3[proj_name].values[::-1]
+                    x = np.arange(len(pts))
+                    palette1=sns.color_palette('colorblind')
+                    palette2 = [palette1[i] for i in range(len(pts))][::-1]
+                    ax1.barh(x, pts, color=palette2)
+                    ax2.barh(x, pts, color=palette2)
+                    # zoom-in / limit the view to different portions of the data
+                    if proj_name == 'TCGA':
+                        ax1.set_xlim(0, 0.8)  # most of the data 
+                        ax2.set_xlim(20, 45)  # outliers only
+                        ax2.set_xticks([20, 30, 40], ['20', '30', '40'])
+                    elif proj_name == 'NCIData':
+                        ax1.set_xlim(0, 0.4)  # most of the data
+                        ax1.set_xticks([0, 0.3], ['0', '0.3'])
+                        ax2.set_xlim(20, 31)  # outliers only
+                        ax2.set_xticks([20, 25, 30], ['20', '25', '30'])
+                    elif proj_name == 'Kather100K':
+                        ax1.set_xlim(0, 0.0005)  # most of the data
+                        ax1.set_xticks([0, 0.0003], ['0', '3e-3'])
+                        ax2.set_xlim(0.005, 0.015)  # outliers only
+                        ax2.set_xticks([0.005, 0.01, 0.015], ['5e-3', '0.01', '0.015'])
+                    # hide the spines between ax and ax2
+                    ax1.spines.right.set_visible(False)
+                    ax2.spines.left.set_visible(False)
+                    ax1.yaxis.tick_left()
+                    ax1.tick_params(labelleft=False)  # don't put tick labels at the top
+                    ax2.yaxis.tick_right()
+
+                    d = 0.5  # proportion of vertical to horizontal extent of the slanted line
+                    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12, linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+                    ax1.plot([1, 1], [0, 1], transform=ax1.transAxes, **kwargs)
+                    ax2.plot([0, 0], [1, 0], transform=ax2.transAxes, **kwargs)
+
+                    # plt.title(proj_name, fontsize=font_size)
+                    # plt.ylabel(None)
+                    # plt.xlabel('Search time (s)')
+                    fig.text(0.5, -0.0005, 'Search time (s)', ha='center')
+                    fig.text(0.5, 0.9, proj_name, ha='center')
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.png'), bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.svg'), bbox_inches='tight', transparent=True, format='svg')
+                    df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.csv'))
+                    plt.close()
+
+
+
+
+
+def Fig3():
+
+    # 20240831 update different colors for R0 vs R2|R4, HERE_CONCH
+    import os
+    import numpy as np
+    import pandas as pd
+    # from matplotlib import pyplot as plt
+    import seaborn as sns
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums, wilcoxon
+    import matplotlib.pyplot as plt
+    import matplotlib.lines
+    from matplotlib.transforms import Bbox, TransformedBbox
+    from matplotlib.legend_handler import HandlerBase
+    from matplotlib.image import BboxImage
+    from matplotlib.patches import Circle
+    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                    AnnotationBbox)
+    from matplotlib.cbook import get_sample_data
+
+    def cohend(d1, d2) -> pd.Series:
+        # calculate the size of samples
+        n1, n2 = len(d1), len(d2)
+        # calculate the variance of the samples
+        s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+        # calculate the pooled standard deviation
+        s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+        # calculate the means of the samples
+        u1, u2 = np.mean(d1, axis=0), np.mean(d2, axis=0)
+        # return the effect size
+        return (u1 - u2) / s
+
+
+    # excel_filename = '/Users/zhongz2/down/HERE/Tables/refined.xlsx'
+    # df = pd.read_excel(excel_filename, index_col=0)
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0426.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0507.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0508.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0522.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0831.xlsx'
+    df = pd.read_excel(excel_filename)
+
+    if 'AdaptiveHERE' not in df.columns:
+        # get Adaptive HERE score
+        df['AdaptiveHERE'] = df[['r0', 'r2', 'r4']].fillna(-1).max(axis=1)
+        df.to_excel(excel_filename)
+
+    df['r2_r4'] = df[['r2', 'r4']].fillna(-1).max(axis=1)
+
+    compared_method = 'AdapHERECONCH'
+    data0 = df[[compared_method]]
+    data1 = df[['WebPLIP']]
+    res = ranksums(data1, data0)
+    zscores = res.statistic 
+    reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
+    HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
+
+    save_root = '/Users/zhongz2/down/temp_20240902/Fig3_4'
+    if os.path.exists(save_root):
+        os.system('rm -rf "{}"'.format(save_root))
+    os.makedirs(save_root, exist_ok=True)
+
+    if True: # box plot
+        df2 = df[[compared_method, 'WebPLIP']].rename(columns={compared_method: 'HERE', 'WebPLIP': 'PLIP'})
+        df3 = pd.melt(df2, value_vars=['PLIP', 'HERE'], var_name='method', value_name='score')
+        df3['court'] = [i for i in range(len(df2))] + [i for i in range(len(df2))]
+
+        if True: 
+            U, pvalue = wilcoxon(df2['PLIP'].values, df2['HERE'].values, alternative='two-sided')
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+
+            num_group = 1
+            palette = [(0, 0, 0), (0, 0, 0)]
+            g=sns.boxplot(data=df3, x="method", y="score", showfliers=False, palette=palette, ax=ax) 
+            g.set(ylabel=None)
+            g.set(xlabel=None)
+
+            for i,box in enumerate([p for p in g.patches if not p.get_label()]): 
+                color = box.get_facecolor()
+                box.set_edgecolor(color)
+                box.set_facecolor((0, 0, 0, 0))
+                # iterate over whiskers and median lines
+                # for j in range(5*i,5*(i+1)):
+                #     g.lines[j].set_color(color) 
+            plt.ylim([0.5, 5.5])  
+            plt.yticks(ticks=[1, 2, 3, 4, 5], labels=['(dissimilar) 1', '(slightly dissimilar) 2', '(similar) 3', '(highly similar) 4', '(indistinguishable) 5'])
+            sns.despine(top=False, right=False, bottom=False, left=False, ax=g)
+            # g=sns.stripplot(data=df3, x="method", y="score", legend=False, marker="$\circ$", ec="face", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+            g=sns.stripplot(data=df3, x="method", y="score", legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+            g.set(ylabel='Expert score')
+            g.set(xlabel=None)
+            for i in range(1):
+                for p1, p2 in zip(g.collections[i].get_offsets().data, g.collections[i+num_group].get_offsets().data):
+                    plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='gray', alpha=0.5)
+            plt.text(0, 5.15, 'P={:.2e}'.format(pvalue), fontsize=30, color=(0, 0, 0))
+            plt.savefig(f'{save_root}/overall_boxplot.png', bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(f'{save_root}/overall_boxplot.svg', bbox_inches='tight', transparent=True, format='svg')
+            df3.to_excel(f'{save_root}/overall_boxplot.xlsx')
+            plt.close()
+
+        # HERE histogram
+        if True:
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+
+            # g=sns.histplot(data=df3, y='score', hue='method', multiple="dodge", bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8)
+            # plt.xticks([0,10,20,30,40])
+            g=sns.histplot(data=df2, y='HERE', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax)
+            plt.xticks([0,10,20,30,40,50])
+            plt.ylim([0.5, 5.5])  
+            g.set(yticklabels=[])
+            g.set(ylabel=None)
+            g.set(xlabel='count')
+
+            plt.savefig(f'{save_root}/overall_histplot.png', bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(f'{save_root}/overall_histplot.svg', bbox_inches='tight', transparent=True, format='svg')
+            df2.to_excel(f'{save_root}/overall_histplot.xlsx')
+            plt.close()
+
+
+    groups = ['label', 'cell_type', 'pattern2']
+    groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'scattered large cells']
+    for col in groups:
+        print(col, '='*20)
+        print(df[col].value_counts())
+
+    def hex_to_rgb(value):
+        """Convert a hex color to an RGB tuple."""
+        value = value.lstrip('#')
+        return tuple(int(value[i:i+2], 16)/255. for i in (0, 2, 4))
+
+    groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label']
+    group_names = {
+        'structure': 'tissue structure',
+        'cell type': 'cell type',
+        'cell shape': 'cellular shape',
+        'cytoplasm': 'cytoplasm',
+        'label': 'tissue composition'
+    }
+    # groups = ['structure']
+    COLOR_PALETTES={
+        'structure': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell type':  [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell shape': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cytoplasm': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'label': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ]
+    }
+
+    for k,v in COLOR_PALETTES.items():
+        newv = []
+        for vv in v:
+            if isinstance(vv, str) and '#' in vv:
+                newv.append(hex_to_rgb(vv))
+            else:
+                newv.append(vv)
+        # newv = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in newv]
+        COLOR_PALETTES[k] = newv
+
+    # df = df[df['label'].notna()].reset_index(drop=True)
+    hue_orders = {}
+    for expname in ['overall']: #, 'R0_vs_R2R4']:
+        if expname == 'overall':
+            df1 = df[['WebPLIP', compared_method] + groups].rename(columns={'WebPLIP': 'PLIP', compared_method: 'HERE'})
+            df2 = pd.melt(df1, value_vars=['PLIP','HERE'], id_vars=groups, var_name='method', value_name='score')
+        else:
+            df1 = df[df['r2_r4']>0][['r0', 'r2_r4'] + groups].rename(columns={'r0': 'R0', 'r2_r4':'R2(R4)'})
+            df2 = pd.melt(df1, value_vars=['R0','R2(R4)'], id_vars=groups, var_name='method', value_name='score')
+        df2['court'] = [i for i in range(len(df1))] + [i for i in range(len(df1))]
+
+        hue_orders[expname] = {}
+        for group in groups:
+            df3 = df2.copy()
+            # if group == 'pattern2':
+            #     df3 = df2[df2['pattern2'].isin(['nest', 'glandular', 'sheets', 'spindle', 'papillary'])].reset_index(drop=True)
+            
+            if False:
+                valid_labels = []
+                for group_label in df3[group].value_counts().index.values:
+                    if min(df3[df3[group]==group_label]['method'].value_counts()) > 2:
+                        valid_labels.append(group_label)
+                df3 = df3[df3[group].isin(valid_labels)].reset_index(drop=True)
+
+            num_group = len(df3[group].value_counts())
+            if expname == 'overall':
+                palette = [COLOR_PALETTES[group][i] for i in range(num_group)]
+            else:
+                palette = [COLOR_PALETTES[group][-i-1] for i in range(num_group)]
+
+            if 'HERE' in df1.columns:
+                sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
+                hue_order = sorted_HERE.index.values
+            else:
+                hue_order = sorted(df3[group].value_counts().index.values)
+            hue_orders[expname][group] = hue_order
+            if group == 'label' and expname != 'overall':
+                hue_order = hue_orders['overall'][group]
+            if expname == 'overall':
+                # df4 = df3[group].value_counts().loc[hue_order].reset_index()
+                # print('df4', df4)
+                # df4 = pd.concat([df4.iloc[range(0, len(df4), 2), :], df4.iloc[range(1, len(df4), 2), :]], axis=0).reset_index(drop=True)
+                # df4 = df4.set_index(group)
+                df4 = df3[group].value_counts().loc[hue_order].reset_index()
+                # pie chart
+                # plt.rcParams['font.family'] = 'Heiti TC'  # 替换为你选择的字体
+                total = df4['count'].sum()
+
+                def fmt(x):
+                    # return '{:.1f}%\n(n={:.0f})'.format(x, total*x/100)
+                    return '{:.0f}'.format(total*x/100)
+
+                if True:
+                    font_size = 30
+                    figure_height = 9
+                    figure_width = 9
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    plt.tick_params(pad = 10)
+                    fig, ax = plt.subplots(figsize=(figure_width, figure_height), frameon=False)
+                    labels=df4[group].values
+                    print('df4', df4)
+                    palette1 = [(1, 1, 1) for _ in range(len(palette))]
+                    # pie_patches, pie_texts, pie_autotexts = ax.pie(df4['count'].values, autopct=fmt, colors=palette)
+                    pie_patches, pie_texts, pie_autotexts = ax.pie(df4['count'].values, autopct=fmt, colors=palette1, radius=1, textprops={'fontsize': 50})
+                    # pie_hander_map = {v: HandlerLineImage("/Users/zhongz2/down/hidare_evaluation_from_Jinlin/png_for_shown/1035409-1.png") for v in pie_patches}
+                    # plt.legend(handles=pie_patches, labels=['' for _ in range(len(pie_patches))], handler_map=pie_hander_map)
+                    bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+                    kw = dict(arrowprops=dict(arrowstyle="->"), bbox=bbox_props, zorder=0, va="center")
+                    kw1 = dict(bbox=bbox_props, zorder=0, va="center")
+                    for i, (p, label) in enumerate(zip(pie_patches, labels)):
+                        ang = (p.theta2 - p.theta1)/2. + p.theta1
+                        print(label)
+                        y = np.sin(np.deg2rad(ang))
+                        x = np.cos(np.deg2rad(ang))
+                        horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
+                        connectionstyle = f"angle,angleA=0,angleB={ang}"
+                        kw["arrowprops"].update({"connectionstyle": connectionstyle})
+                        # Annotate the 2nd position with another image (a Grace Hopper portrait)
+
+                        arr_img = plt.imread("/Users/zhongz2/down/hidare_evaluation_from_Jinlin/allpng_for_shown/p256/{}.png".format(df[df[group]==label]['query'].values[0]), format='png')
+                        imagebox = OffsetImage(arr_img, zoom=0.6)
+                        imagebox.image.axes = ax
+                        ab = AnnotationBbox(imagebox, xy=(x,y),
+                                            xybox=(1.3*np.sign(x), 1.35*y),
+                                            # xycoords='data',
+                                            # boxcoords="offset points",
+                                            pad=0.01,
+                                            # arrowprops=dict(
+                                            #     arrowstyle="->",
+                                            #     connectionstyle=connectionstyle)
+                                            )
+                        ax.add_artist(ab)
+                        # text_anno = ax.annotate(labels[i], xy=(x, y), 
+                        #                         xytext=(1.55*np.sign(x), 1.35*y), 
+                        #                         horizontalalignment=horizontalalignment, **kw1)
+                        text_anno = ax.annotate(labels[i], xy=(x, y), 
+                                                xytext=(1.55*np.sign(x), 1.35*y), 
+                                                horizontalalignment=horizontalalignment,
+                                                fontsize=50)
+                        extent = text_anno.get_window_extent() # [[xmin, ymin], [xmax, ymax]]
+
+                        p.set_linewidth(2)
+                        p.set_edgecolor('black')
+
+
+                    # plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05))
+                    # plt.title(group_names[group]) 
+                    plt.savefig(f'{save_root}/pie_{group}_{expname}.png', bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(f'{save_root}/pie_{group}_{expname}.svg', bbox_inches='tight', transparent=True, format='svg')
+                    plt.close()
+
+                # df4 = df4.reset_index()
+                # df4.columns=['', group]
+                df4['color'] = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in palette]
+                df4.to_excel(f'{save_root}/count_forPieChart_{group}_{expname}.xlsx')
+
+            # boxplot-v2 (20240522)
+            if True:
+                font_size = 18
+                figure_height = 7
+                figure_width = 7
+                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                plt.tick_params(pad = 10)
+                fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                ax = plt.gca()
+                g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=palette, ax=ax, order=hue_order, legend=False)
+                # if group=='structure':
+                #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+                # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+                # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+                g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
+                g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+                g.set(ylabel=None)
+                g.set(xlabel=None)
+                g.ax.set(ylim=[0.5, 5.5])  
+                g.ax.set(yticks=[1, 2, 3, 4, 5])
+                plt.ylim([0.5, 5.5])
+                plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
+                # plt.yticks(np.arange(0.5, 5.5, 0.5))
+                sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
+                # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                #     order=hue_order)
+                g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                    marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                    order=hue_order)
+                g.set(ylabel='Expert score')
+                # g.set(xlabel=group_names[group])
+                g.set(xlabel=None)
+                # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+                # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+                # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+                # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+                # connect line
+                if False:
+                    for i in range(num_group):
+                        for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+                            plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+                plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.png', bbox_inches='tight', transparent=True, format='png')
+                plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.svg', bbox_inches='tight', transparent=True, format='svg')
+                plt.close()
+
+                if group=='structure': # for the legend
+                    font_size = 18
+                    figure_height = 7
+                    figure_width = 7
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    print(plt.rcParams)
+                    plt.tick_params(pad = 10)
+                    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                    ax = plt.gca()
+                    g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=palette, ax=ax, order=hue_order)
+                    # if group=='structure':
+                    #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+                    # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+                    # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+                    g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+                    g.set(ylabel=None)
+                    g.set(xlabel=None)
+                    plt.ylim([0.5, 5.5])  
+                    plt.yticks(ticks=[1, 2, 3, 4, 5], labels=[1,2,3,4,5])
+                    # plt.yticks(np.arange(0.5, 5.5, 0.5))
+                    sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
+                    # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                    #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                    #     order=hue_order)
+                    g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                        marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                        order=hue_order)
+                    g.set(ylabel='Expert score')
+                    g.set(xlabel=group_names[group])
+                    # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+                    # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+                    # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+                    # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+                    # connect line
+                    if False:
+                        for i in range(num_group):
+                            for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+                                plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+                    plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.png', bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.svg', bbox_inches='tight', transparent=True, format='svg')
+                    plt.close()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+def test_wave_broken_axis():
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from matplotlib.patches import FancyBboxPatch
+
+    # Sample data
+    x = np.arange(10)
+    y = np.random.randint(1, 20, size=10)
+
+    plt.close()
+    fig, (ax, ax2) = plt.subplots(2, 1, sharex=True, figsize=(8, 6), gridspec_kw={'height_ratios': [3, 1]})
+
+    # Plot on the first axis
+    ax.bar(x, y)
+    ax.set_ylim(10, 20)  # Limit for the upper part
+
+    # Plot on the second axis
+    ax2.bar(x, y)
+    ax2.set_ylim(0, 5)  # Limit for the lower part
+
+    # Hide the spines between the two plots
+    ax.spines['bottom'].set_visible(False)
+    ax2.spines['top'].set_visible(False)
+
+    # Add custom sine wave break
+    d = .015  # How big to make the break line
+    kwargs = dict(transform=ax.transAxes, color='k', clip_on=False)
+
+    # Add sine wave patch on the top plot
+    ax.plot((-d, +d), (-d, +d), **kwargs)  # Top-left diagonal line
+    ax.plot((1 - d, 1 + d), (-d, +d), **kwargs)  # Top-right diagonal line
+
+    # Custom sine wave
+    x_sine = np.linspace(-d, d, 100)
+    y_sine = np.sin(5 * np.pi * x_sine) * d  # 5π for a higher frequency
+    ax.add_patch(FancyBboxPatch((1 - d, 0), d * 2, d, boxstyle="round,pad=0", lw=1, color='white'))
+    ax.plot(x_sine + 1 - d, y_sine, **kwargs)
+
+    # Repeat for the bottom plot
+    kwargs.update(transform=ax2.transAxes)  # Switch to the bottom axes
+    ax2.plot((-d, +d), (1 - d, 1 + d), **kwargs)  # Bottom-left diagonal line
+    ax2.plot((1 - d, 1 + d), (1 - d, 1 + d), **kwargs)  # Bottom-right diagonal line
+
+    # Custom sine wave
+    ax2.add_patch(FancyBboxPatch((1 - d, 1 - d), d * 2, d, boxstyle="round,pad=0", lw=1, color='white'))
+    ax2.plot(x_sine + 1 - d, y_sine + 1, **kwargs)
+
+    # Labels and title
+    ax.set_ylabel('Values')
+    ax2.set_xlabel('Categories')
+
+    plt.savefig(os.path.join(save_root, f'test.png'))
+    plt.close()
+
+
+
 
 
 def plot_violin():
@@ -1089,6 +1640,22 @@ def plot_violin():
     final_df['cluster_label'] = cluster_labels
     final_df1 = pd.concat([final_df, vst2], axis=1)
     final_df1.to_excel('final_data.xlsx')
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 if __name__ == '__main__':
