@@ -540,6 +540,7 @@ def main_20240708_encoder_comparision():
 
 
 def plot_search_time_tcga_ncidata():
+
     import sys,os,glob,shutil
     import pandas as pd
     import numpy as np
@@ -906,6 +907,61 @@ def plot_search_time_tcga_ncidata():
                     df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}.csv'))
                     plt.close()
 
+                # broken plots for storage comparison
+                for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
+                    font_size = 30
+                    figure_height = 7
+                    figure_width = 7
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    plt.tick_params(pad = 10)
+
+                    fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, sharey=True, figsize=(figure_width, figure_height))
+                    fig.subplots_adjust(hspace=0.1)  # adjust space between Axes
+                    pts = df1[proj_name].values[::-1]
+                    x = np.arange(len(pts))
+                    palette1=sns.color_palette('colorblind')
+                    palette2 = [palette1[i] for i in range(len(pts))][::-1]
+                    ax1.barh(x, pts, color=palette2)
+                    ax2.barh(x, pts, color=palette2)
+                    # zoom-in / limit the view to different portions of the data
+                    if proj_name == 'TCGA':
+                        ax1.set_xlim(0, 6)  # most of the data 
+                        ax1.set_xticks([0, 1, 2, 3, 4, 5, 6], ['0', '1', '2', '3', '4', '5', '6'])
+                        ax2.set_xlim(100, 155)  # outliers only
+                        ax2.set_xticks([100, 125, 150], ['100', '125', '150'])
+                    elif proj_name == 'NCIData':
+                        ax1.set_xlim(0, 5)  # most of the data
+                        ax1.set_xticks([0, 1, 2, 3, 4, 5], ['0', '1', '2', '3', '4', '5'])
+                        ax2.set_xlim(100, 120)  # outliers only
+                        ax2.set_xticks([100, 110, 120], ['100', '110', '120'])
+                    elif proj_name == 'Kather100K':
+                        ax1.set_xlim(0, 0.005)  # most of the data
+                        ax1.set_xticks([0, 0.003], ['0', '3e-3'])
+                        ax2.set_xlim(0.05, 0.1)  # outliers only
+                        ax2.set_xticks([0.05, 0.075, 0.1], ['0.05', '0.075', '0.01'])
+                    # hide the spines between ax and ax2
+                    ax1.spines.right.set_visible(False)
+                    ax2.spines.left.set_visible(False)
+                    ax1.yaxis.tick_left()
+                    ax1.tick_params(labelleft=False)  # don't put tick labels at the top
+                    ax2.yaxis.tick_right()
+
+                    d = 0.5  # proportion of vertical to horizontal extent of the slanted line
+                    kwargs = dict(marker=[(-1, -d), (1, d)], markersize=12, linestyle="none", color='k', mec='k', mew=1, clip_on=False)
+                    ax1.plot([1, 1], [0, 1], transform=ax1.transAxes, **kwargs)
+                    ax2.plot([0, 0], [1, 0], transform=ax2.transAxes, **kwargs)
+
+                    # plt.title(proj_name, fontsize=font_size)
+                    # plt.ylabel(None)
+                    # plt.xlabel('Search time (s)')
+                    fig.text(0.5, -0.0005, 'Storage size (Gb)', ha='center')
+                    fig.text(0.5, 0.9, proj_name, ha='center')
+
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+                    df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.csv'))
+                    plt.close()
+
                 for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
 
                     font_size = 30
@@ -1069,7 +1125,7 @@ def Fig3():
     reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
     HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
 
-    save_root = '/Users/zhongz2/down/temp_20240902/Fig3_4'
+    save_root = '/Users/zhongz2/down/temp_20240904/Fig3_4'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1120,27 +1176,29 @@ def Fig3():
 
         # HERE histogram
         if True:
-            font_size = 30
-            figure_height = 7
-            figure_width = 7
-            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-            plt.tick_params(pad = 10)
-            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-            ax = plt.gca()
+            for method_name in ['PLIP', 'HERE']:
+                font_size = 30
+                figure_height = 7
+                figure_width = 7
+                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                plt.tick_params(pad = 10)
+                fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                ax = plt.gca()
 
-            # g=sns.histplot(data=df3, y='score', hue='method', multiple="dodge", bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8)
-            # plt.xticks([0,10,20,30,40])
-            g=sns.histplot(data=df2, y='HERE', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax)
-            plt.xticks([0,10,20,30,40,50])
-            plt.ylim([0.5, 5.5])  
-            g.set(yticklabels=[])
-            g.set(ylabel=None)
-            g.set(xlabel='count')
+                # g=sns.histplot(data=df3, y='score', hue='method', multiple="dodge", bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8)
+                # plt.xticks([0,10,20,30,40])
+                g=sns.histplot(data=df2, y=method_name, bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax)
+                plt.xticks([0,10,20,30,40,50])
+                plt.ylim([0.5, 5.5])  
+                g.set(yticklabels=[])
+                g.set(ylabel=None)
+                g.set(xlabel='count')
+                plt.title(method_name)
 
-            plt.savefig(f'{save_root}/overall_histplot.png', bbox_inches='tight', transparent=True, format='png')
-            plt.savefig(f'{save_root}/overall_histplot.svg', bbox_inches='tight', transparent=True, format='svg')
-            df2.to_excel(f'{save_root}/overall_histplot.xlsx')
-            plt.close()
+                plt.savefig(f'{save_root}/overall_histplot_{method_name}.png', bbox_inches='tight', transparent=True, format='png')
+                plt.savefig(f'{save_root}/overall_histplot_{method_name}.svg', bbox_inches='tight', transparent=True, format='svg')
+                df2.to_excel(f'{save_root}/overall_histplot_{method_name}.xlsx')
+                plt.close()
 
 
     groups = ['label', 'cell_type', 'pattern2']
@@ -1288,9 +1346,9 @@ def Fig3():
                                             # xycoords='data',
                                             # boxcoords="offset points",
                                             pad=0.01,
-                                            # arrowprops=dict(
-                                            #     arrowstyle="->",
-                                            #     connectionstyle=connectionstyle)
+                                            arrowprops=dict(
+                                                arrowstyle="->",
+                                                connectionstyle=connectionstyle)
                                             )
                         ax.add_artist(ab)
                         # text_anno = ax.annotate(labels[i], xy=(x, y), 
@@ -1416,10 +1474,61 @@ def Fig3():
 
 
 
+def test_pie_annotation():
 
+    # Image file paths corresponding to each label
+    image_dir = '/Users/zhongz2/down/hidare_evaluation_from_Jinlin/allpng_for_shown/p256/'
+    image_paths = [
+        f'{image_dir}/1035211-1.png',
+        f'{image_dir}/1035526-1.png',
+        f'{image_dir}/1039659-1.png',
+        f'{image_dir}/1040121-1.png',
+        f'{image_dir}/1034344-2.png',
+    ]
 
+    import matplotlib.pyplot as plt
+    from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+    from PIL import Image
+    import numpy as np
 
+    plt.close()
 
+    # Data for the pie chart
+    data = [20, 30, 15, 25, 10]
+    labels = ['A', 'B', 'C', 'D', 'E']
+
+    fig, ax = plt.subplots()
+
+    # Create pie chart
+    wedges, texts, autotexts = ax.pie(data, labels=labels, autopct='%1.1f%%', startangle=140)
+
+    # Customize autotexts (the numbers inside the pie chart)
+    for autotext in autotexts:
+        autotext.set_color('white')
+        autotext.set_weight('bold')
+
+    # Define the radius at which images will be placed
+    image_radius = 1.3
+
+    for i, (p, image_path) in enumerate(zip(wedges, image_paths)):
+        # Calculate the angle and position for each image
+        angle = (p.theta2 - p.theta1) / 2. + p.theta1
+        x = np.cos(np.deg2rad(angle)) * image_radius
+        y = np.sin(np.deg2rad(angle)) * image_radius
+
+        # Load the image
+        img = Image.open(image_path)
+        img.thumbnail((50, 50))
+
+        # Place the image using AnnotationBbox
+        imagebox = OffsetImage(img, zoom=1)
+        ab = AnnotationBbox(imagebox, (x, y), frameon=False)
+        ax.add_artist(ab)
+
+    ax.set_aspect('equal') 
+
+    plt.savefig('/Users/zhongz2/down/debug.png')
+    plt.close()
 
 
 
