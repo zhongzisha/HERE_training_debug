@@ -152,7 +152,7 @@ def main_20240708_encoder_comparision():
         # g.set_yscale("log")
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall ranking")
+        g.set_ylabel("Overall performance")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -180,7 +180,7 @@ def main_20240708_encoder_comparision():
         g.set_ylim([30, 38])
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall ranking")
+        g.set_ylabel("Overall performance")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -437,7 +437,7 @@ def main_20240708_encoder_comparision():
         g=sns.barplot(all_df, x="method", y="score", hue="method", palette=palette, legend=False)
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall ranking")
+        g.set_ylabel("Overall performance")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -759,7 +759,7 @@ def plot_search_time_tcga_ncidata():
             fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
             g=sns.barplot(all_df, x="method", y="score", hue="method", palette='colorblind', legend=False)
             g.set_xlabel("")
-            g.set_ylabel("Overall ranking")
+            g.set_ylabel("Overall performance")
             # g.legend.set_title("")
             g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
             g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -927,19 +927,19 @@ def plot_search_time_tcga_ncidata():
                     # zoom-in / limit the view to different portions of the data
                     if proj_name == 'TCGA':
                         ax1.set_xlim(0, 6)  # most of the data 
-                        ax1.set_xticks([0, 1, 2, 3, 4, 5, 6], ['0', '1', '2', '3', '4', '5', '6'])
+                        ax1.set_xticks([0, 2, 4], ['0', '2', '4'])
                         ax2.set_xlim(100, 155)  # outliers only
                         ax2.set_xticks([100, 125, 150], ['100', '125', '150'])
                     elif proj_name == 'NCIData':
                         ax1.set_xlim(0, 5)  # most of the data
-                        ax1.set_xticks([0, 1, 2, 3, 4, 5], ['0', '1', '2', '3', '4', '5'])
+                        ax1.set_xticks([0, 2, 4], ['0', '2', '4'])
                         ax2.set_xlim(100, 120)  # outliers only
                         ax2.set_xticks([100, 110, 120], ['100', '110', '120'])
                     elif proj_name == 'Kather100K':
                         ax1.set_xlim(0, 0.005)  # most of the data
                         ax1.set_xticks([0, 0.003], ['0', '3e-3'])
                         ax2.set_xlim(0.05, 0.1)  # outliers only
-                        ax2.set_xticks([0.05, 0.075, 0.1], ['0.05', '0.075', '0.01'])
+                        ax2.set_xticks([0.05, 0.075], ['0.05', '0.075'])
                     # hide the spines between ax and ax2
                     ax1.spines.right.set_visible(False)
                     ax2.spines.left.set_visible(False)
@@ -1042,7 +1042,7 @@ def plot_search_time_tcga_ncidata():
                         ax1.set_xlim(0, 0.0005)  # most of the data
                         ax1.set_xticks([0, 0.0003], ['0', '3e-3'])
                         ax2.set_xlim(0.005, 0.015)  # outliers only
-                        ax2.set_xticks([0.005, 0.01, 0.015], ['5e-3', '0.01', '0.015'])
+                        ax2.set_xticks([0.005, 0.01], ['5e-3', '0.01'])
                     # hide the spines between ax and ax2
                     ax1.spines.right.set_visible(False)
                     ax2.spines.left.set_visible(False)
