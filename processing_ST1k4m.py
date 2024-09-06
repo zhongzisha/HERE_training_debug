@@ -12,6 +12,7 @@ import scanpy
 from utils import save_hdf5
 import idr_torch 
 from matplotlib import pyplot as plt
+import time
 
 
 def clear_prefix(prefix):
@@ -397,61 +398,101 @@ def clean_data_merge_previous_data():  # result is all_cleaned_20240904.xlsx
     ]
 
 
-def gen_coords():
+def debug_clean_coords(): # remove some invalid spots
 
     root = '/data/zhongz2/ST_20240903'
     svs_save_dir = os.path.join(root, 'svs')
     patch_save_dir = os.path.join(root, 'patches')
     thumbnail_save_dir = os.path.join(root, 'thumbnails')
+    coord_save_dir = os.path.join(root, 'coords')
+    gene_count_save_dir = os.path.join(root, 'gene_counts')
+    gene_vst_save_dir = os.path.join(root, 'gene_vst')
     save_root = f'{root}/spot_figures/'
     os.makedirs(save_root, exist_ok=True)
     os.makedirs(patch_save_dir, exist_ok=True)
     os.makedirs(thumbnail_save_dir, exist_ok=True)
     os.makedirs(svs_save_dir, exist_ok=True)
+    os.makedirs(coord_save_dir, exist_ok=True)
+    os.makedirs(gene_count_save_dir, exist_ok=True)
+    os.makedirs(gene_vst_save_dir, exist_ok=True)
 
-    # os.makedirs(save_root, exist_ok=True)
-    df = pd.read_excel(f'{root}/all_cleaned_20240904.xlsx')
+    df = pd.read_excel('/data/zhongz2/ST_20240903/all_cleaned_20240904.xlsx', index_col=0)
 
-    existed_prefixes = [os.path.basename(f).replace('.jpg', '') for f in glob.glob(os.path.join(save_root, '*.jpg'))]
-    df = df[~df['slide_id'].isin(existed_prefixes)].reset_index(drop=True)
 
-    indices = np.arange(len(df))
-    index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size) 
-    sub_df = df.iloc[index_splits[idr_torch.rank]]
-    sub_df = sub_df.reset_index(drop=True)
-    cmap = plt.get_cmap("tab10")
-    colors = (np.array(cmap.colors)*255).astype(np.uint8)
-
-    for rowid, row in sub_df.iterrows():
+    for rowid, row in df.iterrows():
         svs_prefix = row['slide_id']
-        if os.path.exists(os.path.join(save_root, f'{svs_prefix}.jpg')):
+        if 'SCLC_' not in svs_prefix:
             continue
+        # if os.path.exists(os.path.join(save_root, f'{svs_prefix}.jpg')):
+        #     continue
         print('begin ', rowid, svs_prefix)
         save_path_hdf5 = os.path.join(patch_save_dir, svs_prefix+'.h5')
         spot_size = row['spot_size']
         patch_size = int(np.ceil(1.1 * spot_size)) # expand some area (10% here)
 
-        slide = openslide.open_slide(row['DX_filename'])
 
+        new_coord_filename = os.path.join(coord_save_dir, svs_prefix+'.csv')
+        new_gene_count_filename = os.path.join(gene_count_save_dir, svs_prefix+'.csv')
+        vst_filename = os.path.join(gene_vst_save_dir, svs_prefix+'.tsv')
         barcode_col_name = row['barcode_col_name']
         X_col_name = row['X_col_name']
         Y_col_name = row['Y_col_name']
         try:
-            barcode_col_name = int(float(barcode_col_name))
+            barcode_col_name = int(float(barcode_col_name)) # read_csv index_col=0
             X_col_name = int(float(X_col_name))
             Y_col_name = int(float(Y_col_name))
         except:
             pass
         
         if isinstance(X_col_name, int):
-            coord_df = pd.read_csv(row['coord_filename'], header=None)
+            coord_df = pd.read_csv(row['coord_filename'], header=None, index_col=0)
         else:
-            coord_df = pd.read_csv(row['coord_filename'])
+            coord_df = pd.read_csv(row['coord_filename'], index_col=0)
 
-        barcodes = coord_df[barcode_col_name].values.tolist()
+        if '.h5' in row['counts_filename']:
+            counts_df = scanpy.read_10x_h5(row['counts_filename']).to_df().T
+        else:
+            counts_df = pd.read_csv(row['counts_filename'], index_col=0, low_memory=False).T
+
+        counts_df = counts_df.astype(np.float32)
+        counts_df = counts_df.fillna(0)
+        counts_df = counts_df.groupby(counts_df.index).sum().T
+
+        invalid_col_index = np.where(counts_df.sum(axis=0) == 0)[0]
+        if len(invalid_col_index):# invalid genes 
+            counts_df = counts_df.drop(columns=counts_df.columns[invalid_col_index])  
+
+        invalid_row_index = np.where((counts_df != 0).sum(axis=1) < 100)[0]
+        if len(invalid_row_index):# invalid spots 
+            counts_df = counts_df.drop(index=counts_df.iloc[invalid_row_index].index)
+
+        if True:
+            counts_df.T.to_csv(new_gene_count_filename, sep='\t')
+
+            joblines = [
+                '#!/bin/bash\nmodule load R\n',
+                'Rscript --vanilla compute_vst.R "{}" "{}"\n\n\n'.format(new_gene_count_filename, vst_filename)
+            ]
+
+            temp_job_filename = f'./job_compute_vst_{rowid}.sh'
+            with open(temp_job_filename, 'w') as fp:
+                fp.writelines(joblines)
+            time.sleep(0.5)
+            os.system(f'bash "{temp_job_filename}"')
+
+        coord_df = coord_df.loc[counts_df.index.values] # only keep those spots with gene counts
+
         stX = coord_df[X_col_name].values.tolist()
         stY = coord_df[Y_col_name].values.tolist()
 
+        results = np.array([stX,stY]).T.astype(np.int32)
+        results[:, 0] -= patch_size//2
+        results[:, 1] -= patch_size//2
+        results = results.astype(np.int32)
+        asset_dict = {'coords': results} 
+
+        slide = openslide.open_slide(row['DX_filename'])
+        patch_level = 0
         level_downsamples = []
         dim_0 = slide.level_dimensions[0]
 
@@ -460,27 +501,6 @@ def gen_coords():
             level_downsamples.append(estimated_downsample) if estimated_downsample != (
                 downsample, downsample) else level_downsamples.append((downsample, downsample))
         level_dim = slide.level_dimensions
-
-        patch_level = 0
-        results = np.array([stX,stY]).T.astype(np.int32)
-        results[:, 0] -= patch_size//2
-        results[:, 1] -= patch_size//2
-        results = results.astype(np.int32)
-        results1 = np.copy(results)
-        results1[:, 0] += patch_size # width
-        results1[:, 1] += patch_size # height
-        invalid_inds = np.concatenate([
-            np.where((results[:,0]<=0)|(results[:,1]<=0))[0],
-            np.where((results1[:,0]>=row['original_width']-1)|(results1[:,1]>=row['original_height']-1))[0]
-        ])
-
-        if len(invalid_inds):
-            results = np.delete(results, np.unique(invalid_inds), axis=0)
-            # remove invalid_coords and create new coord_filename
-            # remove invalid_spots and create new counts_filname
-        del results1
-        asset_dict = {'coords': results}
-
         attr = {'patch_size': patch_size,  # To be considered...
                 'patch_level': patch_level,
                 'downsample': level_downsamples[patch_level],
@@ -493,7 +513,6 @@ def gen_coords():
         save_hdf5(save_path_hdf5, asset_dict, attr_dict, mode='w')
 
         # plot spot figure
-
         W, H = slide.level_dimensions[0]
         img = slide.read_region((0, 0), 0, (W, H)).convert('RGB')
         draw = ImageDraw.Draw(img)
@@ -513,6 +532,153 @@ def gen_coords():
 
         slide.close()
         del img, img2, img3, draw, draw2 
+
+        break
+        
+
+def gen_coords():
+
+    root = '/data/zhongz2/ST_20240903'
+    svs_save_dir = os.path.join(root, 'svs')
+    patch_save_dir = os.path.join(root, 'patches')
+    thumbnail_save_dir = os.path.join(root, 'thumbnails')
+    coord_save_dir = os.path.join(root, 'coords')
+    gene_count_save_dir = os.path.join(root, 'gene_counts')
+    gene_vst_save_dir = os.path.join(root, 'gene_vst')
+    save_root = f'{root}/spot_figures/'
+    os.makedirs(save_root, exist_ok=True)
+    os.makedirs(patch_save_dir, exist_ok=True)
+    os.makedirs(thumbnail_save_dir, exist_ok=True)
+    os.makedirs(svs_save_dir, exist_ok=True)
+    os.makedirs(coord_save_dir, exist_ok=True)
+    os.makedirs(gene_count_save_dir, exist_ok=True)
+    os.makedirs(gene_vst_save_dir, exist_ok=True)
+
+    # os.makedirs(save_root, exist_ok=True)
+    df = pd.read_excel(f'{root}/all_cleaned_20240904.xlsx', index_col=0)
+
+    existed_prefixes = [os.path.basename(f).replace('.jpg', '') for f in glob.glob(os.path.join(save_root, '*.jpg'))]
+    df = df[~df['slide_id'].isin(existed_prefixes)].reset_index(drop=True)
+
+    indices = np.arange(len(df))
+    index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size) 
+    sub_df = df.iloc[index_splits[idr_torch.rank]]
+    sub_df = sub_df.reset_index(drop=True)
+    cmap = plt.get_cmap("tab10")
+    colors = (np.array(cmap.colors)*255).astype(np.uint8)
+
+    for rowid, row in sub_df.iterrows():
+        svs_prefix = row['slide_id']
+        save_path_hdf5 = os.path.join(patch_save_dir, svs_prefix+'.h5')
+        new_coord_filename = os.path.join(coord_save_dir, svs_prefix+'.csv')
+        new_gene_count_filename = os.path.join(gene_count_save_dir, svs_prefix+'.csv')
+        vst_filename = os.path.join(gene_vst_save_dir, svs_prefix+'.tsv')
+        if os.path.exists(vst_filename):
+            continue
+        spot_size = row['spot_size']
+        patch_size = int(np.ceil(1.1 * spot_size)) # expand some area (10% here)
+        
+        barcode_col_name = row['barcode_col_name']
+        X_col_name = row['X_col_name']
+        Y_col_name = row['Y_col_name']
+        try:
+            barcode_col_name = int(float(barcode_col_name)) # read_csv index_col=0
+            X_col_name = int(float(X_col_name))
+            Y_col_name = int(float(Y_col_name))
+        except:
+            pass
+        
+        if isinstance(X_col_name, int):
+            coord_df = pd.read_csv(row['coord_filename'], header=None, index_col=0)
+        else:
+            coord_df = pd.read_csv(row['coord_filename'], index_col=0)
+
+        if '.h5' in row['counts_filename']:
+            counts_df = scanpy.read_10x_h5(row['counts_filename']).to_df().T
+        else:
+            counts_df = pd.read_csv(row['counts_filename'], index_col=0, low_memory=False).T
+
+        counts_df = counts_df.astype(np.float32)
+        counts_df = counts_df.fillna(0)
+        counts_df = counts_df.groupby(counts_df.index).sum().T
+
+        invalid_col_index = np.where(counts_df.sum(axis=0) == 0)[0]
+        if len(invalid_col_index):# invalid genes 
+            counts_df = counts_df.drop(columns=counts_df.columns[invalid_col_index])  
+
+        invalid_row_index = np.where((counts_df != 0).sum(axis=1) < 100)[0]
+        if len(invalid_row_index):# invalid spots 
+            counts_df = counts_df.drop(index=counts_df.iloc[invalid_row_index].index)
+
+        coord_df = coord_df.loc[counts_df.index.values] # only keep those spots with gene counts
+        if True:
+            counts_df.T.to_csv(new_gene_count_filename, sep='\t')
+            del counts_df
+
+            joblines = [
+                '#!/bin/bash\nmodule load R\n',
+                'Rscript --vanilla compute_vst.R "{}" "{}"\n\n\n'.format(new_gene_count_filename, vst_filename)
+            ]
+
+            temp_job_filename = f'./job_compute_vst_{rowid}.sh'
+            with open(temp_job_filename, 'w') as fp:
+                fp.writelines(joblines)
+            time.sleep(0.5)
+            os.system(f'bash "{temp_job_filename}"')        
+
+        stX = coord_df[X_col_name].values.tolist()
+        stY = coord_df[Y_col_name].values.tolist()
+        coord_df.to_csv(new_coord_filename)
+        del coord_df
+
+        results = np.array([stX,stY]).T.astype(np.int32)
+        results[:, 0] -= patch_size//2
+        results[:, 1] -= patch_size//2
+        results = results.astype(np.int32)
+        asset_dict = {'coords': results} 
+
+        slide = openslide.open_slide(row['DX_filename'])
+        patch_level = 0
+        level_downsamples = []
+        dim_0 = slide.level_dimensions[0]
+
+        for downsample, dim in zip(slide.level_downsamples, slide.level_dimensions):
+            estimated_downsample = (dim_0[0] / float(dim[0]), dim_0[1] / float(dim[1]))
+            level_downsamples.append(estimated_downsample) if estimated_downsample != (
+                downsample, downsample) else level_downsamples.append((downsample, downsample))
+        level_dim = slide.level_dimensions
+        attr = {'patch_size': patch_size,  # To be considered...
+                'patch_level': patch_level,
+                'downsample': level_downsamples[patch_level],
+                'downsampled_level_dim': tuple(np.array(level_dim[patch_level])),
+                'level_dim': level_dim[patch_level],
+                'name': svs_prefix,
+                'save_path': patch_save_dir}
+
+        attr_dict = {'coords': attr}
+        save_hdf5(save_path_hdf5, asset_dict, attr_dict, mode='w')
+
+        # plot spot figure
+        W, H = slide.level_dimensions[0]
+        img = slide.read_region((0, 0), 0, (W, H)).convert('RGB')
+        draw = ImageDraw.Draw(img)
+        img2 = Image.fromarray(255*np.ones((H, W, 3), dtype=np.uint8))
+        draw2 = ImageDraw.Draw(img2)
+        circle_radius = int(spot_size * 0.5)
+        # colors = np.concatenate([colors, 128*np.ones((colors.shape[0], 1), dtype=np.uint8)], axis=1)
+        for ind, (x,y) in enumerate(zip(stX, stY)):
+            xy = [x-circle_radius, y-circle_radius, x+circle_radius, y+circle_radius]
+            draw.ellipse(xy, outline=(255, 128, 0), width=8)
+            x -= patch_size // 2
+            y -= patch_size // 2
+            xy = [x, y, x+patch_size, y+patch_size]
+            draw2.rectangle(xy, fill=(144, 238, 144))
+        img3 = Image.blend(img, img2, alpha=0.4)
+        img3.save(os.path.join(save_root, f'{svs_prefix}.jpg'))
+
+        slide.close()
+        del img, img2, img3, draw, draw2 
+
 
 
 if __name__ == '__main__':
