@@ -57,6 +57,7 @@ if [ ! -e ${CSV_FILE_NAME} ]; then
   CSV_FILE_NAME=None
 fi
 CSV_FILE_NAME=None
+CSV_FILE_NAME=/data/zhongz2/ST_20240903_256/all_20240907.xlsx
 if [ -e "./remaining.csv" ]; then
   CSV_FILE_NAME="./remaining.csv"
 fi

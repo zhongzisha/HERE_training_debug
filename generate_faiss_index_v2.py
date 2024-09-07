@@ -844,13 +844,14 @@ def generate_ST_vst_for_visualization():
             spot_size = st_patch_size
 
         slide = openslide.open_slide(svs_filename)
-        dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]
-        if dimension[0] > 100000 or dimension[1] > 100000:
-            vis_level = 2
-        else:
-            vis_level = 1
         if len(slide.level_dimensions) == 1:
             vis_level = 0
+        else:
+            dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]
+            if dimension[0] > 100000 or dimension[1] > 100000:
+                vis_level = 2
+            else:
+                vis_level = 1
 
         level_downsamples = _assertLevelDownsamples(slide)
         slide.close()

@@ -46,8 +46,8 @@ from common import HF_MODELS_DICT
 from dataset import PatchDatasetV2
 from utils import save_hdf5
 import PIL
-PIL.Image.MAX_IMAGE_PIXELS = 933120000
-from PIL import ImageFile
+PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -138,14 +138,16 @@ def submitjob():
     import numpy as np
     step = 10
     startidx = 0
-    endidx = 200
+    endidx = 250
     if os.environ['CLUSTER_NAME'] == 'Biowulf':
         project_name = 'TCGA-ALL2'
         tcga_root = '/data/zhongz2/tcga'
         project_name = 'KenData_20240814'
         tcga_root = '/data/zhongz2/'
         project_name = 'ST'
+        project_name = 'ST_20240903'
         tcga_root = '/data/zhongz2/'
+
         gres = '--gres=gpu:v100x:1,lscratch:32'
     else:
         project_name = 'TCGA-ALL2'
@@ -154,13 +156,14 @@ def submitjob():
         tcga_root = '/mnt/gridftp/zhongz2/'
         gres = '--partition=gpu --gres=gpu:1'
     if True:
-        for start in np.arange(startidx, endidx, step):
-            cmd = f"""
-            sbatch {gres} --nodes=1 job_extract_features.sh \
-            {project_name} generated7 256 UNI {tcga_root} {start} {start+step} 512
-            """
-            os.system(cmd)
-            time.sleep(np.random.randint(low=0,high=5))
+        for backbone in ['UNI', 'CONCH']:
+            for start in np.arange(startidx, endidx, step):
+                cmd = f"""
+                sbatch {gres} --nodes=1 job_extract_features.sh \
+                {project_name} generated7 256 {backbone} {tcga_root} {start} {start+step} 512
+                """
+                os.system(cmd)
+                time.sleep(np.random.randint(low=0,high=5))
     # TransNEO, METABRIC
 
 def get_args():
@@ -379,7 +382,7 @@ def main():
         if os.path.exists(final_feat_filename):
             continue
 
-        slide_file_path = os.path.join(args.data_slide_dir, svs_prefix+ args.slide_ext)
+        # slide_file_path = os.path.join(args.data_slide_dir, svs_prefix+ args.slide_ext)
 
         h5_file_path = os.path.join(args.data_h5_dir, 'patches', svs_prefix + '.h5')
         if not os.path.exists(h5_file_path):
@@ -388,8 +391,11 @@ def main():
         local_temp_dir1 = os.path.join(local_temp_dir, str(np.random.randint(1e5) + np.random.randint(1e10)))
         os.makedirs(local_temp_dir1, exist_ok=True)
 
-        local_svs_filename = os.path.join(local_temp_dir1, svs_prefix + args.slide_ext)
-        os.system(f'cp -RL "{slide_file_path}" "{local_svs_filename}"')
+        # local_svs_filename = os.path.join(local_temp_dir1, svs_prefix + args.slide_ext)
+
+        svs_filename1 = os.path.realpath(slide_file_path)
+        local_svs_filename = os.path.join(local_temp_dir1, os.path.basename(svs_filename1))
+        os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
         time.sleep(1)
 
         h5file = h5py.File(h5_file_path, 'r')

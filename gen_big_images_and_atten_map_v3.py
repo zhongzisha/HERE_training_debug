@@ -7,6 +7,10 @@ import pickle
 import h5py
 import pandas as pd
 from utils import get_svs_prefix, visHeatmap, visWSI
+import PIL
+PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+from PIL import Image, ImageFile, ImageDraw
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def main():
@@ -29,9 +33,10 @@ def main():
         os.makedirs(local_temp_dir, exist_ok=True)
 
         svs_prefix = get_svs_prefix(svs_filename)
-        local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename))
+        svs_filename1 = os.path.realpath(svs_filename)
+        local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename1))
         if not os.path.exists(local_svs_filename):
-            os.system(f'cp -RL "{svs_filename}" "{local_svs_filename}"')
+            os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
 
         with h5py.File(h5filename, 'r') as h5file:  # the mask_root is the CLAM patches dir
             coords = h5file['coords'][()]

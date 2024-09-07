@@ -51,8 +51,8 @@ from utils import get_svs_prefix, _assertLevelDownsamplesV2, new_web_annotation
 from common import HF_MODELS_DICT, CLASSIFICATION_DICT
 from dataset import PatchDatasetV2
 import PIL
-PIL.Image.MAX_IMAGE_PIXELS = 933120000
-from PIL import ImageFile
+PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
@@ -85,6 +85,7 @@ def get_args():
     parser.add_argument('--cluster_task_index', default=0, type=int)
     parser.add_argument('--num_patches', default=128, type=int)
     parser.add_argument('--only_step1', default='gen_patches', type=str)  # yes, no, gen_patches
+    parser.add_argument('--pre_computed_vst', default=False, type=bool)  # yes, no, gen_patches
     return parser.parse_args()
 
 def main():
@@ -177,6 +178,13 @@ def main():
 
     df = df.reset_index() 
     df_all = df.copy()
+
+    if idr_torch.rank == 0:
+        if not os.path.exists(os.path.join(args.save_root, 'patient_list.txt')):
+            with open(os.path.join(args.save_root, 'patient_list.txt'), 'w') as fp:
+                fp.writelines([name + '\n' for name in df_all['PATIENT_ID'].values.tolist()])
+        if not os.path.exists(os.path.join(args.save_root, 'all_data.csv')):
+            df_all.to_csv(os.path.join(args.save_root, 'all_data.csv'))
 
     if args.only_step1 == 'yes':
         dones = []
@@ -338,15 +346,17 @@ def main():
                 svs_filename = os.path.join(args.svs_dir, os.path.basename(filename).replace(' ', '').replace('&', ''))
                 svs_prefix = get_svs_prefix(svs_filename)
 
-                local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename))
+                svs_filename1 = os.path.realpath(svs_filename)
+                local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename1))
                 if not os.path.exists(local_svs_filename):
-                    os.system(f'cp -RL "{svs_filename}" "{local_svs_filename}"')
+                    os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
                 with h5py.File(os.path.join(args.patches_dir, svs_prefix + '.h5'), 'r') as h5file:  # the mask_root is the CLAM patches dir
                     all_coords = h5file['coords'][()]
                     patch_level = h5file['coords'].attrs['patch_level']
                     patch_size = h5file['coords'].attrs['patch_size']
 
-                slide = openslide.OpenSlide(local_svs_filename)
+                print('local_svs_filename', local_svs_filename, os.path.getsize(local_svs_filename))
+                slide = openslide.open_slide(local_svs_filename)
                 dataset = PatchDatasetV2(slide, all_coords, patch_level, patch_size)
                 kwargs = {'num_workers': 0,'pin_memory': True, 'shuffle': False}
 
@@ -404,11 +414,13 @@ def main():
             for j, filename in enumerate(svs_filename_list):
 
                 svs_filename = os.path.join(args.svs_dir, os.path.basename(filename).replace(' ', '').replace('&', ''))
-                local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename))
-                if not os.path.exists(local_svs_filename):
-                    os.system(f'cp -RL "{svs_filename}" "{local_svs_filename}"')
-                slide = openslide.OpenSlide(local_svs_filename)
                 svs_prefix = get_svs_prefix(svs_filename)
+                svs_filename1 = os.path.realpath(svs_filename)
+                local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename1))
+                if not os.path.exists(local_svs_filename):
+                    os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
+                slide = openslide.open_slide(local_svs_filename)
+                
                 h5filename = os.path.join(args.patches_dir, svs_prefix + '.h5')
                 with h5py.File(h5filename, 'r') as h5file:  # the mask_root is the CLAM patches dir
                     all_coords = h5file['coords'][()]
@@ -473,9 +485,9 @@ def main():
                     os.system(f'rm -rf "{local_svs_filename}"')
 
                 # processing gene data for ST data
-                if coord_filename_list is not None:
+                if not args.pre_computed_vst and coord_filename_list is not None:
                     if isinstance(X_col_name, int):
-                        coord_df = pd.read_csv(coord_filename_list[j], header=None)
+                        coord_df = pd.read_csv(coord_filename_list[j], header=None, index_col=0)
                     else:
                         coord_df = pd.read_csv(coord_filename_list[j])
                     if 'h5' in counts_filename_list[j]:
@@ -583,12 +595,11 @@ def main():
                     continue
                 if svs_prefix not in all_patches:
                     continue
-                local_svs_filename = os.path.join(
-                    local_temp_dir, os.path.basename(svs_filename))
+                svs_filename1 = os.path.realpath(svs_filename)
+                local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename1))
                 if not os.path.exists(local_svs_filename):
-                    os.system(
-                        f'cp -RL "{svs_filename}" "{local_svs_filename}"')
-                slide = openslide.OpenSlide(local_svs_filename)
+                    os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
+                slide = openslide.open_slide(local_svs_filename)
                 h5filename = os.path.join(args.patches_dir, svs_prefix + '.h5')
                 with h5py.File(h5filename, 'r') as h5file:  # the mask_root is the CLAM patches dir
                     all_coords = h5file['coords'][()]
@@ -772,9 +783,9 @@ def step2(args, df, labels_dict, save_root4, file_inds_dict, save_root1, save_ro
 
     all_params = []
     for feature_normalization_type in ['meanstd']: 
-        for dimension_reduction_method in ['none', 'pca3d', 'umap3d']:
-            for clustering_method in ['kmeans', 'hierarchical']:
-                for num_clusters in [8, 16]:
+        for dimension_reduction_method in ['none', 'umap3d']: # ['none', 'pca3d', 'umap3d']:
+            for clustering_method in ['kmeans']: #['kmeans', 'hierarchical']:
+                for num_clusters in [8]:  # [8, 16]:
                     for clustering_distance_metric in ['euclidean']:
                         all_params.append((args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, save_root4, file_inds_dict, save_root1,
                                            is_single_patient, file_inds, patch_info_dicts, level_dimensions_dict, level_downsamples_dict,
@@ -1001,12 +1012,14 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
                 nn_labels_j = nn_labels_j_new
 
                 level_dimensions = level_dimensions_dict[file_ind]
-
-                dimension = level_dimensions[1]
-                if dimension[0] > 100000 or dimension[1] > 100000:
-                    vis_level = 2
+                if len(level_dimensions) == 1:
+                    vis_level = 0
                 else:
-                    vis_level = 1
+                    dimension = level_dimensions[1]
+                    if dimension[0] > 100000 or dimension[1] > 100000:
+                        vis_level = 2
+                    else:
+                        vis_level = 1
 
                 patch_info_dict = patch_info_dicts[file_ind]
                 patch_level = patch_info_dict['patch_level']
@@ -1037,12 +1050,11 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
                 all_cluster_data[svs_prefix] = {'coords_in_original': coords_in_original, 'cluster_labels': nn_labels_j}
 
                 gene_data_filename = f'{save_root}/../../../../gene_data/{svs_prefix}_gene_data.pkl'
-                if (args.cluster_task_name == 'one_class' or args.cluster_task_name == 'one_patient') and os.path.exists(gene_data_filename):
-                    with open(gene_data_filename, 'rb') as fp:
-                        gene_data_dict = pickle.load(fp)
-
-                    vst_filename = gene_data_dict['gene_data_vst']
-                    if os.path.exists(vst_filename):
+                if args.cluster_task_name == 'one_class' or args.cluster_task_name == 'one_patient':
+                    if os.path.exists(gene_data_filename):
+                        with open(gene_data_filename, 'rb') as fp:
+                            gene_data_dict = pickle.load(fp)
+                        
                         barcode_col_name = gene_data_dict['barcode_col_name']
                         Y_col_name = gene_data_dict['Y_col_name']
                         X_col_name = gene_data_dict['X_col_name']
@@ -1050,14 +1062,35 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
                         coord_df = gene_data_dict['coord_df']
                         counts_df = gene_data_dict['counts_df']
 
-                        vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
+                        vst_filename = gene_data_dict['gene_data_vst']
+                    else:
+                        mpp = None
+                        coord_filename = svs_filename.replace('/svs/', '/coords/').replace('.svs', '.csv')
+                        vst_filename = svs_filename.replace('/svs/', '/gene_vst/').replace('.svs', '.tsv')
+                        coord_df = pd.read_csv(coord_filename, index_col=0, low_memory=False)
+                        barcode_col_name = row['barcode_col_name']
+                        X_col_name = row['X_col_name']
+                        Y_col_name = row['Y_col_name']
+                        try:
+                            barcode_col_name = int(float(barcode_col_name)) # read_csv index_col=0
+                            X_col_name = int(float(X_col_name))
+                            Y_col_name = int(float(Y_col_name))
+                        except:
+                            pass
+
+                    if os.path.exists(vst_filename):
+
+                        vst = pd.read_csv(vst_filename, sep='\t', index_col=0, low_memory=False)
                         vst = vst.subtract(vst.mean(axis=1), axis=0)
 
-                        barcodes = coord_df[barcode_col_name].values.tolist()
-                        stY = coord_df[Y_col_name].values.tolist()
-                        stX = coord_df[X_col_name].values.tolist()
+                        barcodes = coord_df.index.values.tolist()
+                        stY = coord_df[Y_col_name if Y_col_name in coord_df.columns else str(Y_col_name)].values.tolist()
+                        stX = coord_df[X_col_name if X_col_name in coord_df.columns else str(X_col_name)].values.tolist()
 
-                        st_patch_size = int(pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
+                        if mpp is None:
+                            st_patch_size = patch_size
+                        else:
+                            st_patch_size = int(pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
                         st_all_coords = np.array([stX, stY]).T
                         st_all_coords[:, 0] -= st_patch_size // 2
                         st_all_coords[:, 1] -= st_patch_size // 2
@@ -1065,6 +1098,7 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
 
                         vst = vst.T
                         vst.index.name = 'barcode'
+                        vst.columns = [n.upper() for n in vst.columns]  # genes upper
                         valid_barcodes = set(vst.index.values.tolist())
 
                         cluster_coords = coords_in_original
@@ -1085,9 +1119,9 @@ def step2_routine(args, X, Y, is_reduced_sample, kmeans0_Y, df, labels_dict, sav
                         cluster_labels = cluster_labels[iinds]
                         cluster_coords = cluster_coords[iinds]
                         vst1 = vst.loc[cluster_barcodes]
-                        counts_df1 = counts_df.T
-                        coord_df1 = coord_df.set_index(barcode_col_name)
-                        coord_df1.index.name = 'barcode'
+                        # counts_df1 = counts_df.T
+                        # coord_df1 = coord_df.set_index(barcode_col_name)
+                        # coord_df1.index.name = 'barcode'
 
                         texts = []
                         texts2 = []

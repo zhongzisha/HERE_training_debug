@@ -8,15 +8,17 @@ import h5py
 import pandas as pd
 import numpy as np
 from utils import get_svs_prefix, visWSI
+import PIL
+PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+from PIL import Image, ImageFile, ImageDraw
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def main():
 
     svs_dir = sys.argv[1]
     save_root = sys.argv[2]
-    if idr_torch.rank == 0:
-        if not os.path.exists(save_root):
-            os.makedirs(save_root, exist_ok=True)
+    os.makedirs(save_root, exist_ok=True)
 
     files = glob.glob(os.path.join(svs_dir, '*.svs'))
     existed_prefixes = set([os.path.basename(f).replace('_big_orig.zip', '') for f in glob.glob(os.path.join(save_root, '*.zip'))])
@@ -35,9 +37,10 @@ def main():
         os.makedirs(local_temp_dir, exist_ok=True)
 
         svs_prefix = get_svs_prefix(svs_filename)
-        local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename))
+        svs_filename1 = os.path.realpath(svs_filename)
+        local_svs_filename = os.path.join(local_temp_dir, os.path.basename(svs_filename1))
         if not os.path.exists(local_svs_filename):
-            os.system(f'cp -RL "{svs_filename}" "{local_svs_filename}"')
+            os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
 
         slide = openslide.open_slide(local_svs_filename)
         dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]

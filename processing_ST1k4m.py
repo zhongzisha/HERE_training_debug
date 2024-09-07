@@ -535,6 +535,33 @@ def debug_clean_coords(): # remove some invalid spots
 
         break
         
+def check_files():
+
+    root = '/data/zhongz2/ST_20240903'
+    svs_save_dir = os.path.join(root, 'svs')
+    patch_save_dir = os.path.join(root, 'patches')
+    thumbnail_save_dir = os.path.join(root, 'thumbnails')
+    coord_save_dir = os.path.join(root, 'coords')
+    gene_count_save_dir = os.path.join(root, 'gene_counts')
+    gene_vst_save_dir = os.path.join(root, 'gene_vst')
+
+    df = pd.read_excel(f'{root}/all_20240907.xlsx', index_col=0)  # all files are ok
+    for _, row in df.iterrows():
+        svs_prefix = row['slide_id']
+        svs_filename = os.path.join(svs_save_dir, svs_prefix+'.svs')
+        h5_filename = os.path.join(patch_save_dir, svs_prefix+'.h5')
+        coord_filename = os.path.join(coord_save_dir, svs_prefix+'.csv')
+        vst_filename = os.path.join(gene_vst_save_dir, svs_prefix+'.tsv')
+        existed = os.path.exists(svs_filename) and os.path.exists(h5_filename) and os.path.exists(coord_filename) and os.path.exists(vst_filename)
+        if not os.path.exists(svs_filename):
+            print(svs_filename)
+        if not os.path.exists(h5_filename):
+            print(h5_filename)
+        if not os.path.exists(coord_filename):
+            print(coord_filename)
+        if not os.path.exists(vst_filename):
+            print(vst_filename)        
+
 
 def gen_coords():
 
@@ -573,8 +600,8 @@ def gen_coords():
         new_coord_filename = os.path.join(coord_save_dir, svs_prefix+'.csv')
         new_gene_count_filename = os.path.join(gene_count_save_dir, svs_prefix+'.csv')
         vst_filename = os.path.join(gene_vst_save_dir, svs_prefix+'.tsv')
-        if os.path.exists(vst_filename):
-            continue
+        # if os.path.exists(vst_filename):
+        #     continue
         spot_size = row['spot_size']
         patch_size = int(np.ceil(1.1 * spot_size)) # expand some area (10% here)
         
