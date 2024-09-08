@@ -252,7 +252,7 @@ def main():
         df = pd.DataFrame({'DX_filename': DX_filenames})
     else:
         if 'xlsx' in csv_path: 
-            df = pd.read_excel(csv_path, low_memory=False)
+            df = pd.read_excel(csv_path)
         else:
             df = pd.read_csv(csv_path, low_memory=False)
 
@@ -281,9 +281,6 @@ def main():
         local_temp_dir = os.path.join('/tmp/', os.environ['USER'], model_name, str(idr_torch.rank), str(idr_torch.local_rank))
     else:
         local_temp_dir = os.path.join(os.environ['HOME'], model_name, str(idr_torch.rank), str(idr_torch.local_rank))
-    if os.path.isdir(local_temp_dir):
-        shutil.rmtree(local_temp_dir, ignore_errors=True)
-        time.sleep(1)
     os.makedirs(local_temp_dir, exist_ok=True)
     dest_files = os.listdir(os.path.join(args.feat_dir, 'pt_files'))
     existed_prefixes = set([os.path.basename(f).replace('.pt', '') for f in dest_files])
@@ -342,7 +339,7 @@ def main():
         )
     elif model_name == 'CONCH':
         from conch.open_clip_custom import create_model_from_pretrained
-        model, image_processor = create_model_from_pretrained('conch_ViT-B-16','/data/zhongz2/HUGGINGFACE_HUB_CACHE/CONCH_weights/pytorch_model.bin')
+        model, image_processor = create_model_from_pretrained('conch_ViT-B-16','./CONCH_weights_pytorch_model.bin')
     elif model_name == 'UNI':
         model = timm.create_model(
             "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
@@ -410,7 +407,7 @@ def main():
         print('extract features')
 
         dataset = PatchDatasetV2(slide, coords, patch_level, patch_size)
-        kwargs = {'num_workers': 4, 'pin_memory': True, 'shuffle': False}
+        kwargs = {'num_workers': 0, 'pin_memory': True, 'shuffle': False}
         if transform is not None:
             loader = DataLoader(dataset=dataset, batch_size=args.batch_size, **kwargs, collate_fn=collate_fn2)
         else:

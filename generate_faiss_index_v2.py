@@ -8,6 +8,10 @@ from common import BACKBONE_DICT
 import openslide
 from utils import _assertLevelDownsamplesV2
 import faiss
+import PIL
+PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+from PIL import Image, ImageFile, ImageDraw
+ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 
 def gen_randomly_samples_for_faiss_train_random10000(project_name='KenData', backbone='ProvGigaPath', dim2=256, HERE_ckpt_filename=None, save_dir=None, version='', num_selected_train_samples=100):
@@ -256,6 +260,9 @@ def merge_background_samples_for_deployment_v2():
 def get_all_scales_20240813():
 
     project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST_20240903'] # get_project_names()
+    version = '20240814'
+    version = '20240908'
 
     all_results = {}
     image_ext = '.svs'
@@ -280,14 +287,17 @@ def get_all_scales_20240813():
             patch_size = h5file['coords'].attrs['patch_size']
             h5file.close()
 
-            dimension = slide.level_dimensions[1] if len(
-                slide.level_dimensions) > 1 else slide.level_dimensions[0]
-            if dimension[0] > 100000 or dimension[1] > 100000:
-                vis_level = 2
-            else:
-                vis_level = 1
             if len(slide.level_dimensions) == 1:
                 vis_level = 0
+            else:
+                dimension = slide.level_dimensions[1] if len(
+                    slide.level_dimensions) > 1 else slide.level_dimensions[0]
+                if dimension[0] > 100000 or dimension[1] > 100000:
+                    vis_level = 2
+                else:
+                    vis_level = 1
+                if len(slide.level_dimensions) == 1:
+                    vis_level = 0
 
             level_downsamples = _assertLevelDownsamplesV2(
                 slide.level_dimensions, slide.level_downsamples)
@@ -312,8 +322,7 @@ def get_all_scales_20240813():
 
     save_dir = f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
     os.makedirs(save_dir, exist_ok=True)
-    import pickle
-    with open(f'{save_dir}/all_scales_20240813_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
+    with open(f'{save_dir}/all_scales_{version}_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
         pickle.dump(all_results, fp)
 
 
@@ -334,10 +343,12 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     import pandas as pd
 
     project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST_20240903'] # get_project_names()
 
     data_root = 'data_HiDARE_PLIP_20240208'
     version = '20240812' # for TCGA-COMBINED
     version = '20240814' # for KenData_20240814
+    version = '20240903' # for ST_20240903
 
     DB_USER = os.environ['HERE_DB_USER']
     DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
@@ -359,7 +370,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
             'project_id INT NOT NULL, project_name VARCHAR(256) NOT NULL);'
     cur.execute(sql_command)
 
-    with open(f'{data_root}/assets/all_scales_20240813_newKenData.pkl', 'rb') as fp:
+    with open(f'{data_root}/assets/all_scales_{version}_newKenData.pkl', 'rb') as fp:
         all_scales = pickle.load(fp) # proj_name+svs_prefix
     with open(f'{data_root}/assets/all_notes_all.pkl', 'rb') as fp:
         all_notes = pickle.load(fp) # svs_prefix
@@ -892,7 +903,7 @@ def generate_ST_vst_for_visualization():
 
 
 if __name__ == '__main__':
-    version = 'V6'
+    version = 'V20240908'
     project_name = sys.argv[1]
     backbone = sys.argv[2]
     bigmem = 0

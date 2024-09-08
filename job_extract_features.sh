@@ -77,6 +77,42 @@ python extract_features.py \
 
 exit;
 
+TCGA_ROOT_DIR=/data/zhongz2
+PROJ_NAME=ST_20240903
+PATCH_SIZE=256
+DATA_VERSION=generated7
+MODEL_NAME=UNI
+START_IDX=0
+END_IDX=250
+BATCH_SIZE=256
+
+IMAGE_EXT=".svs"
+DIR_TO_COORDS=${TCGA_ROOT_DIR}/${PROJ_NAME}_${PATCH_SIZE}
+DATA_DIRECTORY=${TCGA_ROOT_DIR}/${PROJ_NAME}_${PATCH_SIZE}/svs
+CSV_FILE_NAME=${TCGA_ROOT_DIR}/${PROJ_NAME}_${PATCH_SIZE}/${DATA_VERSION}/all_with_fpkm_withTIDECytoSig_withMPP_withGene_withCBIO_withCLAM.csv
+if [ ! -e ${CSV_FILE_NAME} ]; then
+  CSV_FILE_NAME=None
+fi
+CSV_FILE_NAME=None
+CSV_FILE_NAME=/data/zhongz2/ST_20240903_256/all_20240907.xlsx
+if [ -e "./remaining.csv" ]; then
+  CSV_FILE_NAME="./remaining.csv"
+fi
+FEATURES_DIRECTORY=${DIR_TO_COORDS}/feats/${MODEL_NAME}   ###!!! take care of this
+
+python extract_features.py \
+--data_h5_dir ${DIR_TO_COORDS} \
+--data_slide_dir ${DATA_DIRECTORY} \
+--csv_path ${CSV_FILE_NAME} \
+--feat_dir ${FEATURES_DIRECTORY} \
+--batch_size ${BATCH_SIZE} \
+--slide_ext ${IMAGE_EXT} \
+--model_name ${MODEL_NAME} \
+--start_idx ${START_IDX} \
+--end_idx ${END_IDX}
+
+exit;
+
 PROJ_NAME="TCGA-ALL2"
 DATA_VERSION=generated7
 PATCH_SIZE=256
