@@ -336,6 +336,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     #               "TCGA-UCS", "TCGA-UVM"]
     # project_names = ['Adoptive_TIL_Breast', 'TransNEO', 'WiemDataCheck', 'METABRIC',
     #                  'ST', 'ShebaV3', 'BintrafuspAlfa', 'Mouse'] + tcga_names + ['KenData']
+
     import os,h5py,glob,time,pickle
     import pymysql
     import numpy as np
@@ -378,6 +379,7 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     with open(f'{data_root}/assets/metadata.repository.2024-08-13.json', 'r') as fp:
         case_uuids = {item['file_name'].replace('.svs', ''): item['associated_entities'][0]['case_id'] for item in json.load(fp)}
     ST_df = pd.read_excel(f'{data_root}/assets/ST_list_cancer.xlsx')
+    ST_df = pd.read_excel(f'{data_root}/assets/ST_{version}.xlsx')
 
     all_items = []
     project_items = []
@@ -539,6 +541,7 @@ def add_ST_data_to_mysqldb():
     root = '/mnt/hidare-efs/data_20240208/differential_analysis/20240202v4_ST/PanCancer2GPUsFP/shared_attention_imagenetPLIP/split1_e95_h224_density_vis/feat_before_attention_feat/test'
     root = '/mnt/hidare-efs/data_20240208/ST_kmeans_clustering/'
     root = '/mnt/hidare-efs/data/HERE_assets/assets/ST_kmeans_clustering/'
+    root = ''
 
     all_prefixes = [os.path.basename(f).replace(
         '.tsv', '') for f in sorted(glob.glob(f'{root}/vst_dir/*.tsv'))]

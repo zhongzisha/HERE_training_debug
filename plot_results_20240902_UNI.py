@@ -1258,8 +1258,8 @@ def Fig3():
             ax = plt.gca()
 
             alpha = 0.7
-            palette0 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
-            palette1 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+            palette0 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+            palette1 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
 
             g=sns.histplot(data=df2, y='HERE', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax, color=palette0)
             g=sns.histplot(data=df2, y='PLIP', bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5], shrink=0.8, ax=ax, color=palette1)
@@ -1285,8 +1285,8 @@ def Fig3():
             ax = plt.gca()
 
             alpha = 0.7
-            palette0 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
-            palette1 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+            palette0 = np.array(COLOR_PALETTES['label'][1])*alpha+(1-alpha)
+            palette1 = np.array(COLOR_PALETTES['label'][0])*alpha+(1-alpha)
 
             v0 = np.histogram(df2['HERE'].values, bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5])[0][::-1]
             v1 = np.histogram(df2['PLIP'].values, bins=[0.5, 1.5, 2.5, 3.5, 4.5, 5.5])[0][::-1]
