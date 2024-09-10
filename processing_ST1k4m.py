@@ -7,6 +7,7 @@ import PIL
 PIL.Image.MAX_IMAGE_PIXELS = 12660162500
 from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+
 import h5py
 import scanpy
 from utils import save_hdf5
@@ -706,6 +707,142 @@ def gen_coords():
         slide.close()
         del img, img2, img3, draw, draw2 
 
+
+
+def generate_vst_db():
+
+
+    import os,h5py,glob,time,pickle
+    import numpy as np
+    import openslide
+    import base64
+    import pandas as pd
+    import json
+    import matplotlib.pyplot as plt
+    import PIL
+    PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+    from PIL import Image, ImageFile, ImageDraw
+    ImageFile.LOAD_TRUNCATED_IMAGES = True
+
+    # from https://github.com/mahmoodlab/CLAM
+    def _assertLevelDownsamples(slide):
+        level_downsamples = []
+        dim_0 = slide.level_dimensions[0]
+
+        for downsample, dim in zip(slide.level_downsamples, slide.level_dimensions):
+            estimated_downsample = (dim_0[0] / float(dim[0]), dim_0[1] / float(dim[1]))
+            level_downsamples.append(estimated_downsample) if estimated_downsample != (
+                downsample, downsample) else level_downsamples.append((downsample, downsample))
+
+        return level_downsamples
+
+    root = '/data/zhongz2/ST_20240903'
+    svs_save_dir = os.path.join(root, 'svs')
+    patch_save_dir = os.path.join(root, 'patches')
+    thumbnail_save_dir = os.path.join(root, 'thumbnails')
+    coord_save_dir = os.path.join(root, 'coords')
+    gene_count_save_dir = os.path.join(root, 'gene_counts')
+    gene_vst_save_dir = os.path.join(root, 'gene_vst')
+    vst_db_dir = os.path.join(root, 'vst_dir_db')
+    save_root = f'{root}/spot_figures/'
+    os.makedirs(save_root, exist_ok=True)
+    os.makedirs(patch_save_dir, exist_ok=True)
+    os.makedirs(thumbnail_save_dir, exist_ok=True)
+    os.makedirs(svs_save_dir, exist_ok=True)
+    os.makedirs(coord_save_dir, exist_ok=True)
+    os.makedirs(gene_count_save_dir, exist_ok=True)
+    os.makedirs(gene_vst_save_dir, exist_ok=True)
+    os.makedirs(vst_db_dir, exist_ok=True)
+
+    # os.makedirs(save_root, exist_ok=True)
+    df = pd.read_excel(f'{root}/ST_20240907.xlsx', index_col=0)
+
+    for rowid, row in df.iterrows():
+
+        svs_prefix = row['slide_id']
+        svs_filename = os.path.join(svs_save_dir, svs_prefix+'.svs')
+        vst_filename = os.path.join(gene_vst_save_dir, svs_prefix+'.tsv')
+        vst_filename_db = f'{vst_db_dir}/{svs_prefix}.db'
+        vst_filename_db_VST = f'{vst_db_dir}/{svs_prefix}_original_VST.db'
+        new_coord_filename = os.path.join(coord_save_dir, svs_prefix+'.csv')
+        if os.path.exists(vst_filename_db_VST) and os.path.exists(vst_filename_db):
+            continue
+
+        spot_size = row['spot_size']
+        patch_size = int(np.ceil(1.1 * spot_size)) # expand some area (10% here)
+        st_patch_size = patch_size
+        
+        barcode_col_name = row['barcode_col_name']
+        X_col_name = row['X_col_name']
+        Y_col_name = row['Y_col_name']
+
+        vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
+        vst = vst.subtract(vst.mean(axis=1), axis=0)
+        vst = vst.T
+        vst.index.name = '__barcode'
+        vst.columns = [n.upper() for n in vst.columns]
+
+        if svs_prefix in ['ST1K4M_Human_Prostate_10X_07122022_Visium', 'ST1K4M_Human_Breast_10X_06092021_Visium', 'ST1K4M_Human_Prostate_10X_06092021_Visium_normal', \
+            'ST1K4M_Human_Prostate_10X_06092021_Visium_cancer', 'ST1K4M_Mouse_Brain_10X_08162021_Visium', 'ST1K4M_Mouse_Kidney_10X_08162021_Visium', \
+                'ST1K4M_Mouse_Brain_10X_10052023_Visium_post_xenium_rep2', 'ST1K4M_Mouse_Brain_10X_10052023_Visium_control_rep1', \
+                    'ST1K4M_Mouse_Brain_10X_10052023_Visium_post_xenium_rep1', 'ST1K4M_Mouse_Brain_10X_10052023_Visium_control_rep2',\
+                        'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep2', 'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep2', \
+                        'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep1', 'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep1', \
+                            'ST1K4M_Mouse_Brain_Lung_10X_02212023_Visium_2mm_edge']:
+            vst.index = [v.replace('_10_', '_10X_') for v in vst.index.values.tolist()]
+
+        coord_df = pd.read_csv(new_coord_filename, index_col=0, low_memory=False)
+
+        coord_df1 = coord_df.rename(columns={X_col_name: 'X', Y_col_name: 'Y'})
+        coord_df1 = coord_df1.loc[vst.index.values]
+        coord_df1.index.name = '__barcode'
+        st_XY = coord_df1[['X', 'Y']].values 
+    
+        slide = openslide.open_slide(svs_filename)
+        if len(slide.level_dimensions) == 1:
+            vis_level = 0
+        else:
+            dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]
+            if dimension[0] > 100000 or dimension[1] > 100000:
+                vis_level = 2
+            else:
+                vis_level = 1
+
+        level_downsamples = _assertLevelDownsamples(slide)
+        slide.close()
+
+        downsample = level_downsamples[vis_level]
+        scale = 1 / downsample[0]
+        circle_radius = int(spot_size * scale * 0.5)
+        st_XY_for_shown = (st_XY * scale).astype(np.int32)
+
+        if os.path.exists(vst_filename_db_VST):
+            continue
+
+        vst1 = vst.copy()
+        vst1 = vst1.astype('float32')
+        vst1[['__spot_X', '__spot_Y']] = st_XY.astype('uint16')
+        st_XY_upperleft = st_XY - st_patch_size//2
+        vst1[['__upperleft_X', '__upperleft_Y']] = st_XY_upperleft.astype('uint16')
+        vst1.to_parquet(vst_filename_db_VST, engine='fastparquet')
+        del vst1
+
+        if os.path.exists(vst_filename_db):
+            continue
+
+        low_percentile = vst.quantile(0.01)
+        high_percentile = vst.quantile(0.99)
+
+        vst = vst.apply(lambda col: col.clip(lower=low_percentile[col.name], upper=high_percentile[col.name]))
+        vst = 255 * (vst - low_percentile) / (high_percentile - low_percentile)
+        vst = vst.astype(np.uint8)
+
+        vst[['__coordX', '__coordY']] = st_XY_for_shown
+        vst['__circle_radius'] = circle_radius
+        vst['__st_patch_size'] = st_patch_size
+        vst['__circle_radius'] = vst['__circle_radius'].astype('uint16')
+        vst['__st_patch_size'] = vst['__st_patch_size'].astype('uint16')
+        vst.to_parquet(vst_filename_db, engine='fastparquet')
 
 
 if __name__ == '__main__':

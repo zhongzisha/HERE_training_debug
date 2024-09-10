@@ -233,8 +233,11 @@ def merge_background_samples_for_deployment_v2():
     for method in ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 'HERE_UNI']:
         if method not in data:
             data[method] = {}
-        version = 'V6'
-        for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED']:
+        for project_name in ['KenData_20240814', 'ST_20240903', 'TCGA-COMBINED']:
+            if project_name == 'ST_20240903':
+                version = 'V20240908'
+            else:
+                version = 'V6'
             filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
             if project_name in data[method] or not os.path.exists(filename):
                 print('wrong')
@@ -251,7 +254,7 @@ def merge_background_samples_for_deployment_v2():
         data[method]['ALL'] = np.concatenate([
             vv for kk, vv in data[method].items() 
         ])
-    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH_20240814.pkl', 'wb') as fp:
+    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH_20240903.pkl', 'wb') as fp:
         pickle.dump(data, fp)
 
 
@@ -468,6 +471,8 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
 
 
 def prepare_hidare_mysqldb():
+
+    import os
     import pymysql 
 
     DB_USER = os.environ['HERE_DB_USER']
@@ -480,6 +485,7 @@ def prepare_hidare_mysqldb():
     cur = conn.cursor()
     
     version = '_20240814'
+    version = '_20240903'
     sql_commands=[
     f'DROP TABLE IF EXISTS gene_table{version};',
     f'DROP TABLE IF EXISTS st_table{version};',
@@ -639,8 +645,7 @@ def add_ST_data_to_mysqldb():
         stY = coord_df[Y_col_name].values.tolist()
         stX = coord_df[X_col_name].values.tolist()
 
-        st_patch_size = int(
-            pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
+        st_patch_size = int(pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
         st_all_coords = np.array([stX, stY]).T
         st_all_coords[:, 0] -= st_patch_size // 2
         st_all_coords[:, 1] -= st_patch_size // 2
@@ -727,6 +732,237 @@ def add_ST_data_to_mysqldb():
                         counts_df1 = counts_df.T
                         coord_df1 = coord_df.set_index(barcode_col_name)
                         coord_df1.index.name = 'barcode'
+
+                        for label in result_data['labels'].tolist():
+                            inds = np.where(cluster_labels == label)[0]
+                            if len(inds) == 0:
+                                continue
+                            coords_this_label = cluster_coords[inds]  # nx2
+                            barcodes_this_label = [
+                                cluster_barcodes[iiii] for iiii in inds]
+                            cluster_info = []
+                            for barcode, coord in zip(barcodes_this_label, coords_this_label):
+                                cluster_info.append('{},{},{}'.format(
+                                    barcode, coord[0], coord[1]))
+                            cur.execute(
+                                f'insert into cluster_table{version} (st_id, cs_id, cluster_label, cluster_info) values (%s, %s, %s, %s)', (st_id, cs_id, label, '\n'.join(cluster_info)))
+                            conn.commit()
+                            cur.execute(
+                                f'select id from cluster_table{version} where st_id = %s and cs_id = %s and cluster_label = %s', (st_id, cs_id, label))
+                            result = cur.fetchone()
+                            c_id = result[0]
+
+                            dff = result_data[label].astype(float)
+                            dff['c_id'] = [c_id for _ in range(len(dff))]
+                            dff['gene_id'] = gene_ids
+                            # dff = dff.fillna(100)
+                            if not dff.isnull().values.any():
+
+                                cur.executemany(
+                                    f'INSERT INTO cluster_result_table{version} (zscore, pvalue, pvalue_corrected, cohensd, c_id, gene_id) VALUES (%s, %s, %s, %s, %s, %s)',
+                                    list(dff.itertuples(index=False, name=None)))
+                                conn.commit()
+
+
+
+def add_ST_data_to_mysqldb_v2():
+
+    import pymysql
+    import pandas as pd
+    import os
+    import glob
+    import pickle
+    import numpy as np
+
+
+    # val = input("Did you create tables in HiDARE database? [Yes/No]")
+    # if 'yes' not in val:
+    #     print('check the function prepare_hidare_mariadb()')
+    #     return 
+
+    version = ''
+    version = '_20240814'
+    version = '_20240903'
+
+    root = '/mnt/hidare-efs/data/differential_results/ST/20231030v2_ST/PanCancer2GPUsFP/shared_attention_imagenetmobilenetv3/split3_e1_h224_density_vis/feat_before_attention_feat/test/'
+    root = '/mnt/hidare-efs/data_20240208/differential_analysis/20240202v4_ST/PanCancer2GPUsFP/shared_attention_imagenetPLIP/split1_e95_h224_density_vis/feat_before_attention_feat/test'
+    root = '/mnt/hidare-efs/data_20240208/ST_kmeans_clustering/'
+    root = '/mnt/hidare-efs/data/HERE_assets/assets/ST_kmeans_clustering/'
+    root = '/mnt/hidare-efs/data_20240208/ST_20240903/CONCH/feat_before_attention_feat'
+    
+    # df = pd.read_excel(f'{root}/../ST_list_cancer.xlsx')
+    df = pd.read_excel(f'{root}/../../../assets/ST_20240903.xlsx')
+    all_prefixes = df['ID'].values.tolist() if 'ID' in df.columns else df['slide_id'].values.tolist()
+
+    DB_USER = os.environ['HERE_DB_USER']
+    DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
+    DB_HOST = os.environ['HERE_DB_HOST']
+    DB_DATABASE = os.environ['HERE_DB_DATABASE']
+
+    conn = pymysql.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, database=DB_DATABASE)
+    conn.autocommit = False
+    cur = conn.cursor()
+
+    # add ST table
+    for prefix in all_prefixes:
+        cur.execute(f"INSERT INTO st_table{version} (prefix) VALUES (%s)", (prefix,))
+        conn.commit()
+
+    num_clusters = [8, 12, 16, 20]
+    keep_thresholds = [1, 10, 20, 30, 50]
+    dimension_reduction_methods = ['umap3d', 'pca3d']
+    clustering_methods = ['kmeans', 'hierarchical']
+    num_clusters = [8]
+    keep_thresholds = [1]
+    dimension_reduction_methods = ['umap3d']
+    clustering_methods = ['hierarchical']
+
+    num_clusters = [8]
+    keep_thresholds = [1]
+    dimension_reduction_methods = ['none']
+    clustering_methods = ['hierarchical']
+    feature_normalization_type = 'meanstd'
+    clustering_distance_metric = 'euclidean'
+
+    # 20240814
+    num_clusters = [8]
+    keep_thresholds = [1]
+    dimension_reduction_methods = ['none']
+    clustering_methods = ['kmeans']
+    feature_normalization_type = 'meanstd'
+    clustering_distance_metric = 'euclidean'
+
+    #
+    gene_symbol_dict = {}
+    st_dict = {}
+    cs_dict = {}
+
+    for rowid, row in df.iterrows(): 
+
+        prefix = row['slide_id']
+        print(prefix)
+        if prefix not in st_dict:
+            cur.execute(
+                f'select id from st_table{version} where prefix = %s', (prefix, ))
+            result = cur.fetchone()
+            if result is None:
+                cur.execute(
+                    f'insert into st_table{version} (prefix) value (%s)', (prefix, ))
+                conn.commit()
+                cur.execute(
+                    f'select id from st_table{version} where prefix = %s', (prefix, ))
+                result = cur.fetchone()
+            st_dict[prefix] = result[0]
+        st_id = st_dict[prefix]
+
+        # gene_data_dict['gene_data_vst']
+        vst_filename = f'{root}/gene_vst/{prefix}.tsv'
+        coord_filename = f'{root}/coords/{prefix}.csv' 
+
+        spot_size = row['spot_size']
+        patch_size = int(np.ceil(1.1 * spot_size)) # expand some area (10% here)
+        st_patch_size = patch_size
+        
+        barcode_col_name = row['barcode_col_name']
+        Y_col_name = row['Y_col_name']
+        X_col_name = row['X_col_name']
+        coord_df = pd.read_csv(coord_filename, index_col=0, low_memory=False)
+
+        if not os.path.exists(vst_filename):
+            continue
+        vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
+        vst = vst.subtract(vst.mean(axis=1), axis=0)
+
+        barcodes = coord_df.index.values.tolist()
+        stY = coord_df[Y_col_name].values.tolist()
+        stX = coord_df[X_col_name].values.tolist()
+
+        st_all_coords = np.array([stX, stY]).T
+        st_all_coords[:, 0] -= st_patch_size // 2
+        st_all_coords[:, 1] -= st_patch_size // 2
+        st_all_coords = st_all_coords.astype(np.int32)
+
+        vst = vst.T
+        vst.index.name = 'barcode'
+        valid_barcodes = vst.index.values.tolist()
+        print(len(valid_barcodes))
+
+        barcodes = [v.replace('_10_', '_10X_') if '_10_' in v else v for v in barcodes]
+        valid_barcodes = set([v.replace('_10_', '_10X_') if '_10_' in v else v for v in valid_barcodes])
+
+        for num_cluster in num_clusters:
+            for keep_threshold in keep_thresholds:
+                for dimension_reduction_method in dimension_reduction_methods:
+                    for clustering_method in clustering_methods:
+                        cluster_setting = '{}_{}_{}_{}_{}_{}_clustering'.format(
+                            feature_normalization_type, dimension_reduction_method, clustering_method, clustering_distance_metric, num_cluster, keep_threshold)
+
+                        if cluster_setting not in cs_dict:
+                            cur.execute(
+                                f'select id from cluster_setting_table{version} where cluster_setting = %s', (cluster_setting, ))
+                            result = cur.fetchone()
+                            if result is None:
+                                cur.execute(
+                                    f'insert into cluster_setting_table{version} (cluster_setting) value (%s)', (cluster_setting, ))
+                                conn.commit()
+                                cur.execute(
+                                    f'select id from cluster_setting_table{version} where cluster_setting = %s', (cluster_setting, ))
+                                result = cur.fetchone()
+                            cs_dict[cluster_setting] = result[0]
+                        cs_id = cs_dict[cluster_setting]
+
+                        cluster_data_filename = f'{root}/analysis/one_patient_top_128/{cluster_setting}/{prefix}/{prefix}_cluster_data.pkl'
+                        result_data_filename = f'{root}/analysis/one_patient_top_128/{cluster_setting}/{prefix}/{prefix}_cluster_tests.pkl'
+
+                        if not os.path.exists(cluster_data_filename):
+                            continue
+                        if not os.path.exists(result_data_filename):
+                            continue
+
+                        with open(cluster_data_filename, 'rb') as fp:
+                            cluster_data = pickle.load(fp)
+
+                        cluster_coords = cluster_data['coords_in_original']
+                        cluster_labels = cluster_data['cluster_labels']
+
+                        with open(result_data_filename, 'rb') as fp:
+                            # gene_names, labels, 0, 1, 2, ...
+                            result_data = pickle.load(fp)
+
+                        gene_names = result_data['gene_names']
+                        gene_ids = []
+                        for gene_name in gene_names:
+                            if gene_name not in gene_symbol_dict:
+                                cur.execute(
+                                    f'select id from gene_table{version} where symbol = %s', (gene_name, ))
+                                result = cur.fetchone()
+                                if result is None:
+                                    cur.execute(
+                                        f'insert into gene_table{version} (symbol) value (%s)', (gene_name, ))
+                                    conn.commit()
+                                    cur.execute(
+                                        f'select id from gene_table{version} where symbol = %s', (gene_name, ))
+                                    result = cur.fetchone()
+                                gene_symbol_dict[gene_name] = result[0]
+                            gene_id = gene_symbol_dict[gene_name]
+                            gene_ids.append(gene_id)
+
+                        cluster_barcodes = []
+                        innnvalid = 0
+                        iinds = []
+                        for iiii, (x, y) in enumerate(cluster_coords):
+                            ind = np.where((st_all_coords[:, 0] == x) & (
+                                st_all_coords[:, 1] == y))[0]
+                            if len(ind) > 0:
+                                barcoode = barcodes[ind[0]]
+                                if barcoode in valid_barcodes:
+                                    cluster_barcodes.append(barcoode)
+                                    iinds.append(iiii)
+                            else:
+                                innnvalid += 1
+                        cluster_labels = cluster_labels[iinds]
+                        cluster_coords = cluster_coords[iinds]
+                        vst1 = vst.loc[cluster_barcodes]
 
                         for label in result_data['labels'].tolist():
                             inds = np.where(cluster_labels == label)[0]

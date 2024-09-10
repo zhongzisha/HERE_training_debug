@@ -36,7 +36,7 @@ GROUP_NAME=${2}
 #     --num_patches 128 \
 #     --only_step1 ${ONLY_STEP1}
 
-SAVE_ROOT="/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/analysis/ST"
+SAVE_ROOT="/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/analysis/ST_v1"
 srun python test_deployment_shared_attention_two_images_comparison_v42.py \
     --save_root ${SAVE_ROOT} \
     --svs_dir "/data/zhongz2/ST_256/svs" \
