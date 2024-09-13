@@ -72,7 +72,8 @@ sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:v100x:1,lscratch:6
     job_ST_20240903.sh "yes" "one_patient"
 sbatch --partition=gpu --mem=100G --time=108:00:00 --gres=gpu:v100x:1,lscratch:64 --cpus-per-task=8 --nodes=8 --ntasks-per-node=1 \
     job_ST_20240903.sh "no" "one_patient"
-
+sbatch --partition=gpu --mem=32G --time=108:00:00 --gres=gpu:v100x:1,lscratch:32 --cpus-per-task=2 --nodes=1 --ntasks-per-node=1 \
+    job_ST_20240903.sh "gen_patches" "one_patient"
 
 
 

@@ -894,6 +894,7 @@ def add_ST_data_to_mysqldb_v2():
             for keep_threshold in keep_thresholds:
                 for dimension_reduction_method in dimension_reduction_methods:
                     for clustering_method in clustering_methods:
+
                         cluster_setting = '{}_{}_{}_{}_{}_{}_clustering'.format(
                             feature_normalization_type, dimension_reduction_method, clustering_method, clustering_distance_metric, num_cluster, keep_threshold)
 
@@ -960,9 +961,9 @@ def add_ST_data_to_mysqldb_v2():
                                     iinds.append(iiii)
                             else:
                                 innnvalid += 1
+
                         cluster_labels = cluster_labels[iinds]
-                        cluster_coords = cluster_coords[iinds]
-                        vst1 = vst.loc[cluster_barcodes]
+                        cluster_coords = cluster_coords[iinds] 
 
                         for label in result_data['labels'].tolist():
                             inds = np.where(cluster_labels == label)[0]

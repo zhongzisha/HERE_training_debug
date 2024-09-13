@@ -578,6 +578,8 @@ def main():
 
         save_root5 = os.path.join(save_root1, 'patch_images', '{}_top_{}/'.format(args.cluster_task_name, args.num_patches))
         os.makedirs(save_root5, exist_ok=True)
+        save_root6 = os.path.join(save_root1, 'patch_images_64', '{}_top_{}/'.format(args.cluster_task_name, args.num_patches))
+        os.makedirs(save_root6, exist_ok=True)
 
         existed_prefixes = set([os.path.basename(f).replace(
             '.tar.gz', '') for f in glob.glob(os.path.join(save_root5, '*.tar.gz'))])
@@ -610,6 +612,8 @@ def main():
 
                 fh = io.BytesIO()
                 tar_fp = tarfile.open(fileobj=fh, mode='w:gz')
+                fh2 = io.BytesIO()
+                tar_fp2 = tarfile.open(fileobj=fh2, mode='w:gz')
                 for coord in all_patches[svs_prefix]:
                     patch = slide.read_region(location=(int(coord[0]), int(coord[1])), level=patch_level,
                                               size=(patch_size, patch_size)).convert(
@@ -623,10 +627,21 @@ def main():
                     info.mtime = time.time()
                     im_buffer.seek(0)
                     tar_fp.addfile(info, im_buffer)
+
+                    im_buffer2 = io.BytesIO()
+                    patch.resize((64, 64)).save(im_buffer2, format='JPEG')
+                    info2 = tarfile.TarInfo(
+                        name='{}/x{}_y{}.JPEG'.format(svs_prefix, coord[0], coord[1]))
+                    info2.size = im_buffer2.getbuffer().nbytes
+                    info2.mtime = time.time()
+                    im_buffer2.seek(0)
+                    tar_fp2.addfile(info2, im_buffer2)
                 tar_fp.close()
                 with open('{}/{}.tar.gz'.format(save_root5, svs_prefix), 'wb') as fp:
                     fp.write(fh.getvalue())
-
+                tar_fp2.close()
+                with open('{}/{}.tar.gz'.format(save_root6, svs_prefix), 'wb') as fp:
+                    fp.write(fh2.getvalue())
                 if os.path.exists(local_svs_filename):
                     os.system(f'rm -rf "{local_svs_filename}"')
         sys.exit(0)
