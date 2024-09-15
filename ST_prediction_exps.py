@@ -8,14 +8,19 @@ import seaborn as sns
 import pyarrow.parquet as pq
 import openslide
 import pickle
+import io
+import tarfile
+import time
 from sklearn.metrics import r2_score
 import idr_torch
 import PIL
 PIL.Image.MAX_IMAGE_PIXELS = 12660162500
-from PIL import Image, ImageFile, ImageDraw
+from PIL import Image, ImageFile, ImageDraw, ImageFilter
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
 import torch
+torch.set_printoptions(sci_mode=False)
+torch.multiprocessing.set_sharing_strategy('file_system')
 import torch.nn as nn
 import torchvision
 from torchvision import transforms
@@ -25,15 +30,26 @@ from torch.utils.data.distributed import DistributedSampler
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.distributed import init_process_group, destroy_process_group
 import torch.distributed as dist
+from torcheval.metrics.functional import r2_score as r2_score_pytorch
+import timm
+from timm.data import resolve_data_config
+from timm.data.transforms_factory import create_transform
+from timm.layers import set_layer_config
+from timm.models import is_model, model_entrypoint, load_checkpoint
+from transformers import CLIPModel, CLIPProcessor
 
 
-CLASSIFICATION_DICT = {}
-REGRESSION_LIST = []
 with open('/data/zhongz2/temp29/debug/ST_gene_list.pkl', 'rb') as fp:
     gene_map_dict = {v: str(i) for i, v in enumerate(pickle.load(fp)['gene_list'])}
-    REGRESSION_LIST = list(gene_map_dict.values())
 BACKBONE_DICT = {
-    'resnet50': 2048
+    'resnet50': 2048,
+    'CLIP': 512,
+    'PLIP': 512,
+    'MobileNetV3': 1280,
+    'mobilenetv3': 1280,
+    'ProvGigaPath': 1536,
+    'CONCH': 512,
+    'UNI': 1024
 }
 GLOBAL_MEAN = [0.75225115, 0.5662438 , 0.72874427]
 GLOBAL_STD = [0.12278537, 0.14380322, 0.10359251]
@@ -56,10 +72,10 @@ def create_data():
 
     version = sys.argv[1]
 
-    version = 'v2'
+    version = 'v3'
     spot_scale = 1.3
-    # data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
-    data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
+    data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
+    # data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
     os.makedirs(data_root, exist_ok=True)
 
     root = '/data/zhongz2/ST_20240903'
@@ -69,30 +85,30 @@ def create_data():
     gene_vst_dir = os.path.join(root, 'gene_vst')
 
     human_slide_ids = {
-        # '10x_CytAssist_11mm_FFPE_Human_Colorectal_Cancer_2.0.1',
+        '10x_CytAssist_11mm_FFPE_Human_Colorectal_Cancer_2.0.1',
         '10x_CytAssist_11mm_FFPE_Human_Glioblastoma_2.0.1',
         '10x_CytAssist_11mm_FFPE_Human_Kidney_2.0.1',
-        # '10x_CytAssist_11mm_FFPE_Human_Lung_Cancer_2.0.1',
-        # '10x_CytAssist_11mm_FFPE_Human_Ovarian_Carcinoma_2.0.0',
-        # '10x_CytAssist_FFPE_Human_Lung_Squamous_Cell_Carcinoma_2.0.0',
-        # '10x_CytAssist_FFPE_Protein_Expression_Human_Tonsil_2.1.0',
-        # '10x_CytAssist_Fresh_Frozen_Human_Breast_Cancer_2.0.1',
-        # '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0',
-        # '10x_V1_Breast_Cancer_Block_A_Section_1_1.1.0',
-        # '10x_V1_Breast_Cancer_Block_A_Section_2_1.1.0',
-        # '10x_Visium_FFPE_Human_Cervical_Cancer_1.3.0',
-        # '10x_Visium_FFPE_Human_Intestinal_Cancer_1.3.0',
-        # '10x_Visium_FFPE_Human_Ovarian_Cancer_1.3.0',
-        # '10x_Visium_FFPE_Human_Prostate_Acinar_Cell_Carcinoma_1.3.0',
-        # '10x_Visium_Human_Breast_Cancer_1.3.0',
-        # 'ST1K4M_Human_Breast_10X_06092021_Visium',
-        # 'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep1',
-        # 'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep2',
-        # 'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep1',
-        # 'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep2',
-        # 'ST1K4M_Human_Prostate_10X_06092021_Visium_cancer',
-        # 'ST1K4M_Human_Prostate_10X_06092021_Visium_normal',
-        # 'ST1K4M_Human_Prostate_10X_07122022_Visium'
+        '10x_CytAssist_11mm_FFPE_Human_Lung_Cancer_2.0.1',
+        '10x_CytAssist_11mm_FFPE_Human_Ovarian_Carcinoma_2.0.0',
+        '10x_CytAssist_FFPE_Human_Lung_Squamous_Cell_Carcinoma_2.0.0',
+        '10x_CytAssist_FFPE_Protein_Expression_Human_Tonsil_2.1.0',
+        '10x_CytAssist_Fresh_Frozen_Human_Breast_Cancer_2.0.1',
+        '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0',
+        '10x_V1_Breast_Cancer_Block_A_Section_1_1.1.0',
+        '10x_V1_Breast_Cancer_Block_A_Section_2_1.1.0',
+        '10x_Visium_FFPE_Human_Cervical_Cancer_1.3.0',
+        '10x_Visium_FFPE_Human_Intestinal_Cancer_1.3.0',
+        '10x_Visium_FFPE_Human_Ovarian_Cancer_1.3.0',
+        '10x_Visium_FFPE_Human_Prostate_Acinar_Cell_Carcinoma_1.3.0',
+        '10x_Visium_Human_Breast_Cancer_1.3.0',
+        'ST1K4M_Human_Breast_10X_06092021_Visium',
+        'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep1',
+        'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep2',
+        'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep1',
+        'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep2',
+        'ST1K4M_Human_Prostate_10X_06092021_Visium_cancer',
+        'ST1K4M_Human_Prostate_10X_06092021_Visium_normal',
+        'ST1K4M_Human_Prostate_10X_07122022_Visium'
     }
     df = df[df['slide_id'].isin(human_slide_ids)].reset_index(drop=True)
 
@@ -123,13 +139,11 @@ def create_data():
     sub_df = df.iloc[index_splits[idr_torch.rank]]
     sub_df = sub_df.reset_index(drop=True)
 
-    global_mean = np.zeros(3, dtype=np.float32)
-    global_std = np.zeros(3, dtype=np.float32)
-
-    column_names_dict = {}
     for rowid, row in sub_df.iterrows():
         svs_prefix = row['slide_id']
-        save_filename = os.path.join(data_root, svs_prefix+'.pkl')
+        save_filename = '{}/{}.tar.gz'.format(data_root, svs_prefix)
+        if os.path.exists(save_filename):
+            continue
         svs_filename = os.path.join(root, 'svs', svs_prefix+'.svs')
         vst_filename_db = os.path.join(root, 'vst_dir_db', svs_prefix+'_original_VST.db')
         parquet_file = pq.ParquetFile(vst_filename_db)
@@ -142,40 +156,127 @@ def create_data():
         vst_df = pd.read_parquet(vst_filename_db, columns=query_columns)
         vst_df = vst_df.clip(lower=-8, upper=8, axis=1)
         vst_df = vst_df.rename(columns=gene_map_dict)
-        column_names_dict[svs_prefix] = vst_df.columns.values.tolist()
 
         spot_size = row['spot_size']
         patch_size = int(np.ceil(spot_scale * spot_size)) # expand some area (10% here)
         st_patch_size = patch_size
         slide = openslide.open_slide(svs_filename)
 
-        save_dir = os.path.join(data_root, svs_prefix)
-        os.makedirs(save_dir, exist_ok=True)
-        mean = np.zeros(3, dtype=np.float32)
-        std = np.zeros(3, dtype=np.float32)
+        fh = io.BytesIO()
+        tar_fp = tarfile.open(fileobj=fh, mode='w:gz')
+
         for (_, row1), (_, row2) in zip(xy_df.iterrows(), vst_df.iterrows()):
             x, y = int(row1['__spot_X'])-st_patch_size//2, int(row1['__spot_Y'])-st_patch_size//2  # left, top
             patch = slide.read_region(location=(x,y), level=0, size=(st_patch_size, st_patch_size)).convert('RGB')
-            save_filename = os.path.join(save_dir, f'x{x}_y{y}.jpg')
-            patch.save(save_filename)
-            with open(save_filename.replace('.jpg', '.txt'), 'w') as fp:
-                fp.write(','.join(['{:.4f}'.format(v) for v in row2.values.tolist()]))
+            patch_filename = os.path.join(svs_prefix, f'x{x}_y{y}.jpg')
+            # patch.save(save_filename)
+            im_buffer = io.BytesIO()
+            patch.save(im_buffer, format='JPEG')
+            info = tarfile.TarInfo(name=patch_filename)
+            info.size = im_buffer.getbuffer().nbytes
+            info.mtime = time.time()
+            im_buffer.seek(0)
+            tar_fp.addfile(info, im_buffer)
 
-            patch = np.array(patch)/255
-            mean += patch.mean((0, 1))
-            std += patch.std((0, 1)) 
-            
-        mean /= len(vst_df)
-        std /= len(vst_df)
+            labels_dict = {k:np.nan for k in list(gene_map_dict.values())}
+            labels_dict.update(row2.to_dict())
+            label = ','.join(['{:.3f}'.format(v) if v is not np.nan else 'nan' for k,v in labels_dict.items()])
+            # with open(save_filename.replace('.jpg', '.txt'), 'w') as fp:
+            #     fp.write(label)
+            txt_buffer = io.StringIO(label)
+            btxt_buffer = io.BytesIO(txt_buffer.read().encode())
+            txt_filename = os.path.join(svs_prefix, f'x{x}_y{y}.txt')
+            info = tarfile.TarInfo(name=txt_filename)
+            info.size = btxt_buffer.getbuffer().nbytes
+            info.mtime = time.time()
+            btxt_buffer.seek(0)
+            tar_fp.addfile(info, btxt_buffer)
 
-        global_mean += mean
-        global_std += std
-        print(svs_prefix)
+        tar_fp.close()
+        with open(save_filename, 'wb') as fp:
+            fp.write(fh.getvalue())
 
-    global_mean /= len(sub_df)
-    global_std /= len(sub_df)
-    with open(os.path.join(data_root, 'mean_std.pkl'), 'wb') as fp:
-        pickle.dump({'global_mean': global_mean, 'global_std': global_std}, fp)
+
+
+
+def load_cfg_from_json(json_file):
+    with open(json_file, "r", encoding="utf-8") as reader:
+        text = reader.read()
+    return json.loads(text)
+
+def load_model_config_from_hf(model_id: str):
+    cached_file = '/data/zhongz2/HUGGINGFACE_HUB_CACHE/ProvGigaPath/config.json'
+
+    hf_config = load_cfg_from_json(cached_file)
+    if 'pretrained_cfg' not in hf_config:
+        # old form, pull pretrain_cfg out of the base dict
+        pretrained_cfg = hf_config
+        hf_config = {}
+        hf_config['architecture'] = pretrained_cfg.pop('architecture')
+        hf_config['num_features'] = pretrained_cfg.pop('num_features', None)
+        if 'labels' in pretrained_cfg:  # deprecated name for 'label_names'
+            pretrained_cfg['label_names'] = pretrained_cfg.pop('labels')
+        hf_config['pretrained_cfg'] = pretrained_cfg
+
+    # NOTE currently discarding parent config as only arch name and pretrained_cfg used in timm right now
+    pretrained_cfg = hf_config['pretrained_cfg']
+    pretrained_cfg['hf_hub_id'] = model_id  # insert hf_hub id for pretrained weight load during model creation
+    pretrained_cfg['source'] = 'hf-hub'
+
+    # model should be created with base config num_classes if its exist
+    if 'num_classes' in hf_config:
+        pretrained_cfg['num_classes'] = hf_config['num_classes']
+
+    # label meta-data in base config overrides saved pretrained_cfg on load
+    if 'label_names' in hf_config:
+        pretrained_cfg['label_names'] = hf_config.pop('label_names')
+    if 'label_descriptions' in hf_config:
+        pretrained_cfg['label_descriptions'] = hf_config.pop('label_descriptions')
+
+    model_args = hf_config.get('model_args', {})
+    model_name = hf_config['architecture']
+    return pretrained_cfg, model_name, model_args
+
+
+def split_model_name_tag(model_name: str, no_tag: str = ''):
+    model_name, *tag_list = model_name.split('.', 1)
+    tag = tag_list[0] if tag_list else no_tag
+    return model_name, tag
+
+
+def parse_model_name(model_name: str):
+    if model_name.startswith('hf_hub'):
+        # NOTE for backwards compat, deprecate hf_hub use
+        model_name = model_name.replace('hf_hub', 'hf-hub')
+    parsed = urlsplit(model_name)
+    assert parsed.scheme in ('', 'timm', 'hf-hub')
+    if parsed.scheme == 'hf-hub':
+        # FIXME may use fragment as revision, currently `@` in URI path
+        return parsed.scheme, parsed.path
+    else:
+        model_name = os.path.split(parsed.path)[-1]
+        return 'timm', model_name
+
+
+def create_model():
+    model_name = 'hf_hub:prov-gigapath/prov-gigapath'
+    model_source, model_name = parse_model_name(model_name)
+    pretrained_cfg, model_name, model_args = load_model_config_from_hf(model_name)
+    kwargs = {}
+    if model_args:
+        for k, v in model_args.items():
+            kwargs.setdefault(k, v)
+    create_fn = model_entrypoint(model_name)
+    with set_layer_config(scriptable=None, exportable=None, no_jit=None):
+        model = create_fn(
+            pretrained=False,
+            pretrained_cfg=pretrained_cfg,
+            pretrained_cfg_overlay=None,
+            **kwargs
+        )
+    load_checkpoint(model, '/data/zhongz2/HUGGINGFACE_HUB_CACHE/ProvGigaPath/pytorch_model.bin')
+
+    return model
 
 
 def setup_seed(seed):
@@ -220,10 +321,9 @@ class Trainer:
             model,
             dataloaders,
             optimizer,
-            class_weights_dict={},
             save_root='/data/zhongz2/temp_ST_prediction/outputs',
-            save_every=1,
-            accum_iter=8,
+            save_every=5,
+            accum_iter=1,
     ) -> None:
         self.gpu_id = int(os.environ["LOCAL_RANK"])
         self.device = torch.device('cuda:{}'.format(self.gpu_id))
@@ -237,13 +337,11 @@ class Trainer:
         self.save_every = save_every
         self.save_root = save_root
 
-        cls_loss_fn_dict, reg_loss_fn_dict = get_loss_fn_dict(class_weights_dict, device=self.gpu_id)
-        self.cls_loss_fn_dict = cls_loss_fn_dict
-        self.reg_loss_fn_dict = reg_loss_fn_dict
-
         self.model = DDP(self.model, device_ids=[self.gpu_id])
 
-        self.loss_dicts = {subset: [] for subset in self.dataloaders.keys()}
+        self.loss_fn = nn.MSELoss()
+        # self.loss_fn = nn.L1Loss()
+        # self.loss_fn = nn.HuberLoss()
 
         if self.gpu_id == 0:
             save_dirs = {}
@@ -273,177 +371,57 @@ class Trainer:
         print(f"[GPU{self.gpu_id}] Epoch {epoch} | Batchsize: {b_sz} | Steps: {len(self.dataloaders[subset])}")
         self.dataloaders[subset].sampler.set_epoch(epoch)
         dataset = self.dataloaders[subset].dataset
-        results = {}
-        labels = {}
-        all_svs_filenames = []
-        for batch_idx, (patches, labeled_batch) in enumerate(self.dataloaders[subset]):
-            patches = patches.to(self.gpu_id)
-            for k in labeled_batch.keys():
-                if k != 'svs_filename':
-                    labeled_batch[k] = labeled_batch[k].to(self.gpu_id)
-                    if k in labels:
-                        labels[k].append(labeled_batch[k].detach().clone())
-                    else:
-                        labels[k] = [labeled_batch[k].detach().clone()]
-                
+
+        labels = []
+        preds = []
+        train_loss = 0
+        for batch_idx, (images_batch, labels_batch) in enumerate(self.dataloaders[subset]):
+            images_batch = images_batch.to(self.gpu_id)
+            labels_batch = labels_batch.to(self.gpu_id)
+
             if is_train:
-                results_dicts = self.model(patches)
+                preds_batch = self.model(images_batch)
             else:
                 with torch.no_grad():
-                    results_dicts = self.model(patches)
-
-                for k, v in results_dicts.items():
-                    if k in results:
-                        results[k].append(v.detach().clone())
-                    else:
-                        results[k] = [v.detach().clone()]
-
-            classification_losses = {}
-            for k in CLASSIFICATION_DICT.keys():
-                if k in labeled_batch:
-                    classification_losses[k] = self.cls_loss_fn_dict[k](results_dicts[k + '_logits'], labeled_batch[k])
-
-            regression_losses = {}
-            for k in REGRESSION_LIST:
-                if k in labeled_batch:
-                    regression_losses[k] = self.reg_loss_fn_dict[k](results_dicts[k + '_logits'], labeled_batch[k])
-
-            total_loss = sum([v for vi, v in enumerate(classification_losses.values())]) + \
-                         sum([v for vi, v in enumerate(regression_losses.values())])
+                    preds_batch = self.model(images_batch)
 
             if is_train:
-
+                mask = torch.isnan(labels_batch)
+                total_loss = self.loss_fn(preds_batch[~mask], labels_batch[~mask])
                 total_loss = total_loss / self.accum_iter
                 total_loss.backward()
+
+                train_loss += total_loss.item()
 
                 if (batch_idx + 1) % self.accum_iter == 0:
                     self.optimizer.step()
                     self.model.zero_grad()
                     self.optimizer.zero_grad()
+                
+                if self.gpu_id == 0 and (batch_idx + 1) % 10 == 0:
+                    print(total_loss.item())
+            else:
+                labels.append(labels_batch)
+                preds.append(preds_batch)
 
-        if not is_train:
-            for k in results.keys():
-                results[k] = torch.cat(results[k])
-            for k in labels.keys():
-                labels[k] = torch.cat(labels[k])
+        if is_train:
+            print('train loss: ', train_loss)
+        else:
+            labels = torch.cat(labels)
+            preds = torch.cat(preds)
 
-            all_results = {}
-            for k in results.keys():
-                all_results[k] = collect_results_gpu(results[k], len(dataset), world_size=self.world_size)
-            all_labels = {}
-            for k in labels.keys():
-                all_labels[k] = collect_results_gpu(labels[k], len(dataset), world_size=self.world_size)
-
+            all_labels = collect_results_gpu(labels, len(dataset), world_size=self.world_size)
+            all_preds = collect_results_gpu(preds, len(dataset), world_size=self.world_size)
+            
             if self.gpu_id == 0:
-                loss_dict = self._save_results(epoch, all_labels, all_results, dataset, save_dir=self.save_dirs[subset],
-                                            writer=None, subset=subset)
-                self.loss_dicts[subset].append(loss_dict)
-
-                for subset, v in self.loss_dicts.items():
-                    if len(v) > 0:
-                        val_log_df = pd.DataFrame(v)
-                        val_log_df.to_csv(os.path.join(self.save_root, '{}_e{}_log.csv'.format(subset, epoch)))
+                scores = r2_score_pytorch(all_preds, all_labels, multioutput='raw_values')
+                scores = scores[~torch.isnan(scores)]
+                scores, inds = torch.sort(scores)
+                print('Bottom 10: ', scores[:10])
+                print('Top 10: ', scores[-10:])
+                print('Count(>0.2): ', len(torch.where(scores>0.2)[0]))
 
         dist.barrier()
-
-    def _save_results(self, epoch, all_labels, all_results, dataset, save_dir, writer=None, subset='val'):
-        losses_dict = {
-            'bce': 0., 'kld': 0.,
-            'surv': 0., 'regu': 0.
-        }
-        for k in CLASSIFICATION_DICT.keys():
-            losses_dict[k] = 0.
-        for k in REGRESSION_LIST:
-            losses_dict[k] = 0.
-
-        loggers_dict = {}
-        cls_invalids = {k: False for k in CLASSIFICATION_DICT.keys()}
-        for k, v in CLASSIFICATION_DICT.items():
-            if k not in dataset.classification_dict:
-                cls_invalids[k] = True
-                continue
-            Y = all_labels[k]
-            if len(Y[torch.where(Y != IGNORE_INDEX_DICT[k])[0]].unique()) < 2:
-                cls_invalids[k] = True
-                continue
-            loggers_dict[k] = Accuracy_Logger(n_classes=len(v), task_name=k, label_names=v,
-                                              ignore_label_ind=IGNORE_INDEX_DICT[k])
-            Y_hat_k = torch.topk(all_results[k + '_logits'], 1, dim=1)[1].squeeze(1)
-            Y_prob_k = F.softmax(all_results[k + '_logits'], dim=1)
-            loggers_dict[k].log(Y_hat_k, Y, Y_prob_k)
-            losses_dict[k] += self.cls_loss_fn_dict[k](all_results[k + '_logits'], Y).item()
-
-        reg_loggers_dict = {}
-        reg_invalids = {k: False for k in REGRESSION_LIST}
-        for k in REGRESSION_LIST:
-            if k not in dataset.regression_list:
-                reg_invalids[k] = True
-                continue
-            Y = all_labels[k]
-            if len(Y) < 2:
-                reg_invalids[k] = True
-                continue
-            reg_loggers_dict[k] = Regression_Logger()
-            reg_loggers_dict[k].log(all_results[k + '_logits'], Y)
-            losses_dict[k] += self.reg_loss_fn_dict[k](all_results[k + '_logits'], Y).item()
-
-        for name, labels in CLASSIFICATION_DICT.items():
-            if name not in dataset.classification_dict:
-                continue
-            if cls_invalids[name]:
-                continue
-            loggers_dict[name].set_save_filename(
-                os.path.join(save_dir, 'epoch_{:03}_{}_{}_data.txt'.format(epoch, name, subset)))
-
-            for average in ['micro', 'macro', 'weighted']:
-                score = loggers_dict[name].get_f1_score(average=average)
-                losses_dict['{}_f1_{}'.format(name, average)] = score
-                if writer:
-                    writer.add_scalar('{}/{}_f1_{}'.format(subset, name, average), score, epoch)
-
-            for average in ['macro', 'weighted']:
-                auc = loggers_dict[name].get_auc_score(average=average)
-                losses_dict['{}_auc_{}'.format(name, average)] = auc
-                if writer:
-                    writer.add_scalar('{}/{}_auc_{}'.format(subset, name, average), auc, epoch)
-
-            loggers_dict[name].get_roc_curve(
-                os.path.join(save_dir, 'epoch_{:03}_{}_{}_ROC.jpg'.format(epoch, name, subset)))
-
-            loggers_dict[name].save_data(
-                os.path.join(save_dir, 'epoch_{:03}_{}_{}_data.txt'.format(epoch, name, subset)))
-
-            loggers_dict[name].get_classification_report(
-                os.path.join(save_dir, 'epoch_{:03}_{}_{}_report.txt'.format(epoch, name, subset)))
-
-            for j in range(len(labels)):
-                acc, correct, count = loggers_dict[name].get_summary(j)
-                losses_dict['{}_{}_acc'.format(name, CLASSIFICATION_DICT[name][j])] = acc
-                losses_dict['{}_{}_correct'.format(name, CLASSIFICATION_DICT[name][j])] = correct
-                losses_dict['{}_{}_count'.format(name, CLASSIFICATION_DICT[name][j])] = count
-                if writer:
-                    writer.add_scalar('{}/{}_{}_{}_acc'.format(subset, name, j, CLASSIFICATION_DICT[name][j]), acc,
-                                      epoch)
-
-        for name in REGRESSION_LIST:
-            if name not in dataset.regression_list:
-                continue
-            if reg_invalids[name]:
-                continue
-            mse = reg_loggers_dict[name].mean_squared_error()
-            losses_dict['{}_mse'.format(name)] = mse
-            if writer:
-                writer.add_scalar('{}/{}_mse'.format(subset, name), mse, epoch)
-
-            reg_metrics_dict = reg_loggers_dict[name].compute_metrics()
-            for metric_name, metric_val in reg_metrics_dict.items():
-                losses_dict['{}_{}'.format(name, metric_name)] = metric_val
-                if writer:
-                    writer.add_scalar('{}/{}_{}'.format(subset, name, metric_name), metric_val, epoch)
-
-        losses_dict['epoch'] = epoch 
-
-        return losses_dict
 
     def _save_snapshot(self, epoch):
         snapshot = {
@@ -463,74 +441,67 @@ class Trainer:
             if self.gpu_id == 0 and epoch % self.save_every == 0:
                 self._save_snapshot(epoch)
 
-        if self.gpu_id == 0:
-            for subset, v in self.loss_dicts.items():
-                if len(v) > 0:
-                    val_log_df = pd.DataFrame(v)
-                    val_log_df.to_csv(os.path.join(self.save_root, '{}_log.csv'.format(subset)))
-
-
-def get_loss_fn_dict(class_weights_dict, device):
-    cls_loss_fn_dict = {}
-    for k in CLASSIFICATION_DICT.keys():
-        cls_loss_fn_dict[k] = nn.CrossEntropyLoss(ignore_index=IGNORE_INDEX_DICT[k],
-                                                  weight=class_weights_dict[k].to(device))
-    reg_loss_fn_dict = {k: nn.MSELoss() for k in REGRESSION_LIST}
-
-    return cls_loss_fn_dict, reg_loss_fn_dict
-
-
-def get_class_weights(train_datasets, num_classes, label_col):
-    Ns = 0
-    slide_cls_ids = [0 for _ in range(num_classes)]
-    for train_dataset in train_datasets:
-        Ns += float(len(train_dataset))
-        for i in range(num_classes):
-            slide_cls_ids[i] += len(np.where(train_dataset.slide_data[label_col] == i)[0])
-    weight_per_class = [Ns / slide_cls_ids[c] if slide_cls_ids[c] > 0 else 0 for c in range(num_classes)]
-    class_weights = torch.FloatTensor(weight_per_class)
-    return class_weights
-
-
 
 
 class STModel(nn.Module):
-    def __init__(self, backbone='resnet50', dropout=0.25):
+    def __init__(self, backbone='resnet50', dropout=0.25, num_outputs=24665):
         super().__init__()
-
+        self.backbone = backbone
         if backbone == 'resnet50':
             self.backbone_model = torchvision.models.resnet50(pretrained=True)
             self.backbone_model.fc = nn.Identity()
+            self.transform = None
+            self.image_processor = None
+        elif backbone == 'CONCH':
+            from conch.open_clip_custom import create_model_from_pretrained
+            self.backbone_model, self.image_processor = create_model_from_pretrained('conch_ViT-B-16','./CONCH_weights_pytorch_model.bin')
+            self.transform = None
+        elif backbone == 'UNI':
+            self.backbone_model = timm.create_model(
+                "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+            )
+            self.backbone_model.load_state_dict(torch.load("./UNI_pytorch_model.bin", map_location="cpu", weights_only=True), strict=True)
+            self.transform = create_transform(**resolve_data_config(self.backbone_model.pretrained_cfg, model=self.backbone_model))
+        elif backbone == 'ProvGigaPath':
+            self.backbone_model = create_model()  # timm.create_model("hf_hub:prov-gigapath/prov-gigapath", pretrained=True)
+            self.transform = transforms.Compose(
+                [
+                    transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+                    transforms.CenterCrop(224),
+                    transforms.ToTensor(),
+                    transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+                ]
+            )
+        elif backbone == 'CLIP':
+            self.backbone_model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+            self.image_processor = CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+        elif backbone == 'PLIP':
+            self.backbone_model = CLIPModel.from_pretrained("./vinid_plip")
+            self.image_processor = CLIPProcessor.from_pretrained("./vinid_plip")
         else:
             raise ValueError('error')
 
         self.rho = nn.Sequential(*[
-            nn.Linear(BACKBONE_DICT[backbone], 512), 
+            nn.Linear(BACKBONE_DICT[backbone], 4096), 
             nn.ReLU(), 
             nn.Dropout(dropout),
-            nn.Linear(512, 256), 
+            nn.Linear(4096, 4096), 
             nn.ReLU(), 
             nn.Dropout(dropout)
         ])
 
-        classifiers = {}
-        for k, labels in CLASSIFICATION_DICT.items():
-            classifiers[k] = nn.Linear(256, len(labels))
-        self.classifiers = nn.ModuleDict(classifiers)
-        regressors = {}
-        for k in REGRESSION_LIST:
-            regressors[k] = nn.Linear(256, 1)
-        self.regressors = nn.ModuleDict(regressors)
+        self.fc = nn.Linear(4096, num_outputs)
+        # self.fc = nn.Linear(BACKBONE_DICT[backbone], num_outputs)
 
-        self.initialize_weights()
+        # self.initialize_weights()
+        self.rho.apply(self._init_weights)
+        self.fc.apply(self._init_weights)
 
     def initialize_weights(self):
-        # initialize nn.Linear and nn.LayerNorm
         self.apply(self._init_weights)
 
     def _init_weights(self, m):
         if isinstance(m, nn.Linear):
-            # we use xavier_uniform following official JAX ViT:
             torch.nn.init.xavier_uniform_(m.weight)
             if isinstance(m, nn.Linear) and m.bias is not None:
                 nn.init.constant_(m.bias, 0)
@@ -540,50 +511,55 @@ class STModel(nn.Module):
 
     def forward(self, x):
         
-        h = self.backbone_model(x)
+        if self.backbone in ['CONCH']:
+            h = self.backbone_model.encode_image(x, proj_contrast=False, normalize=False)
+        elif self.backbone in ['PLIP', 'CLIP']:
+            h = self.backbone_model.get_image_features(x)
+        elif self.backbone in ['resnet50', 'UNI', 'ProvGigaPath']:
+            h = self.backbone_model(x)
 
         h = self.rho(h)
 
-        results_dict = {}
-        for k, classifier in self.classifiers.items():
-            logits_k = classifier(h)
-            results_dict[k + '_logits'] = logits_k
+        h = self.fc(h)
 
-        for k, regressor in self.regressors.items():
-            values_k = regressor(h).squeeze(1)
-            results_dict[k + '_logits'] = values_k
+        h = 8 * torch.tanh(h)  # [-8, 8]
 
-        return results_dict
+        return h
 
 
 
 class PatchDataset1(Dataset):
-    def __init__(self, data, transform):
+    def __init__(self, data, transform, is_train=False):
         super().__init__()
         self.data = data
-        self.transform = transform
-        self.classification_dict = {}
-        self.regression_list = list(self.gene_map_dict.values())
+        self.transform = transform 
+        self.is_train = is_train
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx): 
         patch = Image.open(self.data[idx])
+        if self.is_train:
+            if np.random.rand() < 0.5:
+                patch = patch.rotate(np.random.choice([90, 180, 270]))
+            if np.random.rand() < 0.2:
+                patch = patch.filter(ImageFilter.GaussianBlur(radius=np.random.randint(low=1,high=50)/100.)) 
+
         with open(self.data[idx].replace('.jpg', '.txt'), 'r') as fp:
-            labels = [float(v) for v in fp.readline().split(',')]
-        return self.transform(patch), labels
+            label = torch.tensor([float(v) for v in fp.readline().split(',')])
+        return self.transform(patch), label
 
 
 def load_train_objs(): 
-    # data
-    version = 'v2'
+
+    version = 'v3'
     spot_scale = 1.3
     # data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
     data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
 
     invalid_prefixes = [
-        'selected_gene_names', 'mean_std'
+        'selected_gene_names', 'mean_std', 'meta'
     ]
     val_prefixes = [
         # '10x_CytAssist_11mm_FFPE_Human_Colorectal_Cancer_2.0.1'
@@ -606,14 +582,17 @@ def load_train_objs():
         else:
             train_data.extend(samples) 
 
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
+    # mean = [0.485, 0.456, 0.406]
+    # std = [0.229, 0.224, 0.225]
     mean = GLOBAL_MEAN
     std = GLOBAL_STD
     train_transform = transforms.Compose([
         transforms.Resize((224, 224)), 
         transforms.RandomHorizontalFlip(),
         transforms.RandomVerticalFlip(),
+        # transforms.ElasticTransform(alpha=50.),
+        # transforms.ColorJitter(brightness=.3, hue=.2),
+        # transforms.GaussianBlur(kernel_size=(5, 9)),
         transforms.ToTensor(),
         transforms.Normalize(mean, std)
     ])
@@ -623,16 +602,15 @@ def load_train_objs():
         transforms.Normalize(mean, std)
     ])
 
-    train_dataset = PatchDataset1(train_data, transform=train_transform)
-    val_dataset = PatchDataset1(val_data, transform=val_transform)
+    train_dataset = PatchDataset1(train_data, transform=train_transform, is_train=True)
+    val_dataset = PatchDataset1(val_data, transform=val_transform, is_train=False)
 
-    model = STModel()
+    model = STModel(backbone='resnet50')
 
-    # Freeze the parameters of the pre-trained layers
-    for param in model.backbone_model.parameters():
-        param.requires_grad = False
+    # for param in model.backbone_model.parameters():
+    #     param.requires_grad = False
         
-    lr = 1e-4
+    lr = 5e-5
     weight_decay = 1e-5
     optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
 
@@ -640,31 +618,31 @@ def load_train_objs():
 
 
 def train_main():
-    max_epochs = 20
+    max_epochs = 200
     ddp_setup()
-    class_weights_dict = {}
     train_dataset, val_dataset, model, optimizer = load_train_objs()
 
     dataloaders = {
         'train':
-            DataLoader(train_dataset, num_workers=4, batch_size=1, pin_memory=True, shuffle=False, sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=False)),
+            DataLoader(train_dataset, num_workers=8, batch_size=64, pin_memory=True, shuffle=False, sampler=DistributedSampler(train_dataset, shuffle=True, drop_last=False)),
         'val':
-            DataLoader(val_dataset, num_workers=4, batch_size=1, pin_memory=True, shuffle=False, sampler=DistributedSampler(val_dataset, shuffle=False, drop_last=False)),
+            DataLoader(val_dataset, num_workers=8, batch_size=64, pin_memory=True, shuffle=False, sampler=DistributedSampler(val_dataset, shuffle=False, drop_last=False)),
     }
-    trainer = Trainer(model, dataloaders, optimizer, class_weights_dict, save_root='/lscratch/'+os.environ['SLURM_JOB_ID']+'/outputs', save_every=2, accum_iter=2)
+    trainer = Trainer(model, dataloaders, optimizer, save_root='/lscratch/'+os.environ['SLURM_JOB_ID']+'/outputs', save_every=100, accum_iter=1)
     trainer.train(max_epochs=max_epochs)
     dist.destroy_process_group()
 
 
 if __name__ == '__main__':
     train_main()
+    # create_data()
 
 
 """
 
 torchrun \
     --nnodes=1 \
-    --nproc_per_node=2 \
+    --nproc_per_node=4 \
     --rdzv_backend=c10d \
     --rdzv_endpoint=localhost:29898 \
     ST_prediction_exps.py
@@ -673,121 +651,50 @@ torchrun \
 
 def main():
 
-    version = 'v1'
-    max_epochs = 100
     device = torch.device('cuda:0')
-    # data
-    version = 'v2'
-    spot_scale = 1.3
-    # data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
-    data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
 
-    invalid_prefixes = [
-        'selected_gene_names', 'mean_std'
-    ]
-    val_prefixes = [
-        '10x_CytAssist_11mm_FFPE_Human_Colorectal_Cancer_2.0.1'
-    ]
-    train_data = []
-    val_data = []
-    # files = sorted(glob.glob(os.path.join(data_root, '*.pkl')))
-    files = sorted(os.listdir(data_root))
-    for d in files:
-        if not os.path.isdir(os.path.join(data_root, d)):
-            print(d, 'not dir')
-            continue
-        svs_prefix = d
-        if svs_prefix in invalid_prefixes:
-            continue
-        samples = glob.glob(os.path.join(data_root, d, '*.pkl'))
-        if svs_prefix in val_prefixes:
-            val_data.extend(samples) 
-        else:
-            train_data.extend(samples) 
-
-    mean = [0.485, 0.456, 0.406]
-    std = [0.229, 0.224, 0.225]
-    mean = GLOBAL_MEAN
-    std = GLOBAL_STD
-    train_transform = transforms.Compose([
-        transforms.Resize((224, 224)), 
-        transforms.RandomHorizontalFlip(),
-        transforms.RandomVerticalFlip(),
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std)
-    ])
-    val_transform = transforms.Compose([
-        transforms.Resize((224, 224)), 
-        transforms.ToTensor(),
-        transforms.Normalize(mean, std)
-    ])
-
-    train_dataset = PatchDataset1(train_data, transform=train_transform)
-    val_dataset = PatchDataset1(val_data, transform=val_transform)
-
-    model = STModel()
-
-    # Freeze the parameters of the pre-trained layers
-    for param in model.backbone_model.parameters():
-        param.requires_grad = False
-        
-    lr = 1e-4
-    weight_decay = 1e-5
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr, weight_decay=weight_decay)
+    train_dataset, val_dataset, model, optimizer = load_train_objs()
 
     model.to(device)
 
-    train_loader = DataLoader(train_dataset, num_workers=2, batch_size=1, shuffle=True, drop_last=False)
-    val_loader = DataLoader(val_dataset, num_workers=2, batch_size=1, shuffle=False, drop_last=False)
+    train_loader = DataLoader(train_dataset, num_workers=2, batch_size=4, shuffle=True, drop_last=False)
+    val_loader = DataLoader(val_dataset, num_workers=2, batch_size=4, shuffle=False, drop_last=False)
 
-    cls_loss_fn_dict = {}
-    reg_loss_fn_dict = {k: nn.MSELoss() for k in REGRESSION_LIST}
+    loss_fn = nn.MSELoss()
 
-    log_strs = []
-    labels = {}
-    results = {}
-    is_train = True
-    accum_iter = 4
+    accum_iter = 2
+
+    log_strs = [] 
     model.train()
     model.zero_grad()
     optimizer.zero_grad()
-    for batch_idx, (patches, labeled_batch) in enumerate(train_loader):
-        patches = patches.to(device)
-        for k in labeled_batch.keys():
-            if k != 'svs_filename':
-                labeled_batch[k] = labeled_batch[k].to(device)
-                if k in labels:
-                    labels[k].append(labeled_batch[k].detach().clone())
-                else:
-                    labels[k] = [labeled_batch[k].detach().clone()]
-            
-        if is_train:
-            results_dicts = self.model(patches)
-        else:
-            with torch.no_grad():
-                results_dicts = self.model(patches)
+    for batch_idx, (images, labels) in enumerate(train_loader):
+        images = images.to(device)
+        labels = labels.to(device)
+        
+        preds = model(images)
 
-        for k, v in results_dicts.items():
-            if k in results:
-                results[k].append(v.detach().clone())
-            else:
-                results[k] = [v.detach().clone()]
+        mask = torch.isnan(labels)
+        
+        total_loss = loss_fn(preds[~mask], labels[~mask])
 
-        regression_losses = {}
-        for k in REGRESSION_LIST:
-            if k in labeled_batch:
-                regression_losses[k] = reg_loss_fn_dict[k](results_dicts[k + '_logits'], labeled_batch[k])
+        total_loss = total_loss / accum_iter
+        total_loss.backward()
 
-        total_loss = sum([v for vi, v in enumerate(classification_losses.values())]) + \
-                        sum([v for vi, v in enumerate(regression_losses.values())])
+        if (batch_idx + 1) % accum_iter == 0:
+            optimizer.step()
+            model.zero_grad()
+            optimizer.zero_grad()
 
-        if is_train:
+    model.eval()
 
-            total_loss = total_loss / accum_iter
-            total_loss.backward()
+    all_labels = []
+    all_preds = []
+    for batch_idx, (images, labels) in enumerate(val_loader):
+        images = images.to(device)
+        
+        preds = model(images)
 
-            if (batch_idx + 1) % accum_iter == 0:
-                self.optimizer.step()
-                self.model.zero_grad()
-                self.optimizer.zero_grad()
-    
+        all_labels.append(labels)
+        all_preds.append(preds)
+
