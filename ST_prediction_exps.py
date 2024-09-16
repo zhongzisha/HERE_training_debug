@@ -72,10 +72,10 @@ def create_data():
 
     version = sys.argv[1]
 
-    version = 'v3'
+    version = 'v4'
     spot_scale = 1.3
-    data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
-    # data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
+    # data_root = os.path.join('/data/zhongz2/temp_ST_prediction', f'data_{version}')
+    data_root = os.path.join('/lscratch', os.environ['SLURM_JOB_ID'], f'data_{version}_{spot_scale}')
     os.makedirs(data_root, exist_ok=True)
 
     root = '/data/zhongz2/ST_20240903'
@@ -93,7 +93,7 @@ def create_data():
         '10x_CytAssist_FFPE_Human_Lung_Squamous_Cell_Carcinoma_2.0.0',
         '10x_CytAssist_FFPE_Protein_Expression_Human_Tonsil_2.1.0',
         '10x_CytAssist_Fresh_Frozen_Human_Breast_Cancer_2.0.1',
-        '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0',
+        # '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0',
         '10x_V1_Breast_Cancer_Block_A_Section_1_1.1.0',
         '10x_V1_Breast_Cancer_Block_A_Section_2_1.1.0',
         '10x_Visium_FFPE_Human_Cervical_Cancer_1.3.0',
@@ -121,18 +121,32 @@ def create_data():
     #         raise ValueError("error")
     #         sys.exit(-1)
 
-    #     # get common genes
-    #     gene_names = {}
-    #     for rowid, row in df.iterrows():
-    #         svs_prefix = row['slide_id']
-    #         vst_filename_db = os.path.join(root, 'vst_dir_db', svs_prefix+'_original_VST.db')
-    #         parquet_file = pq.ParquetFile(vst_filename_db)
-    #         existing_columns = parquet_file.schema.names
-    #         gene_names[svs_prefix] = [v for v in existing_columns if '__' != v[:2]]
-    #     gene_names1 = list(gene_names.values())
-    #     all_gene_names = sorted(list(set(gene_names1[0]).union(*gene_names1[1:])))
-    #     with open(filename, 'wb') as fp:
-    #         pickle.dump({'all_gene_names': all_gene_names}, fp)
+
+    # get common genes
+    gene_names = {}
+    for rowid, row in df.iterrows():
+        svs_prefix = row['slide_id']
+        vst_filename_db = os.path.join(root, 'vst_dir_db', svs_prefix+'_original_VST.db')
+        parquet_file = pq.ParquetFile(vst_filename_db)
+        existing_columns = parquet_file.schema.names
+        gene_names[svs_prefix] = [v for v in existing_columns if '__' != v[:2]]
+    gene_names1 = list(gene_names.values())
+    common_gene_names = sorted(list(set(gene_names1[0]).intersection(*gene_names1[1:])))
+    with open(filename, 'wb') as fp:
+        pickle.dump({'common_gene_names': common_gene_names}, fp)
+
+    # get all genes
+    gene_names = {}
+    for rowid, row in df.iterrows():
+        svs_prefix = row['slide_id']
+        vst_filename_db = os.path.join(root, 'vst_dir_db', svs_prefix+'_original_VST.db')
+        parquet_file = pq.ParquetFile(vst_filename_db)
+        existing_columns = parquet_file.schema.names
+        gene_names[svs_prefix] = [v for v in existing_columns if '__' != v[:2]]
+    gene_names1 = list(gene_names.values())
+    all_gene_names = sorted(list(set(gene_names1[0]).union(*gene_names1[1:])))
+    with open(filename, 'wb') as fp:
+        pickle.dump({'all_gene_names': all_gene_names}, fp)
 
     indices = np.arange(len(df))
     index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size) 
