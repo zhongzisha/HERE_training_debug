@@ -776,10 +776,9 @@ def generate_vst_db():
         X_col_name = row['X_col_name']
         Y_col_name = row['Y_col_name']
 
-        vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
+        vst = pd.read_csv(vst_filename, sep='\t', index_col=0, low_memory=False)
         vst = vst.subtract(vst.mean(axis=1), axis=0)
         vst = vst.T
-        vst.index.name = '__barcode'
         vst.columns = [n.upper() for n in vst.columns]
 
         if svs_prefix in ['ST1K4M_Human_Prostate_10X_07122022_Visium', 'ST1K4M_Human_Breast_10X_06092021_Visium', 'ST1K4M_Human_Prostate_10X_06092021_Visium_normal', \
@@ -790,7 +789,8 @@ def generate_vst_db():
                         'ST1K4M_Human_Colon_10X_10052023_Visium_post_xenium_rep1', 'ST1K4M_Human_Colon_10X_10052023_Visium_control_rep1', \
                             'ST1K4M_Mouse_Brain_Lung_10X_02212023_Visium_2mm_edge']:
             vst.index = [v.replace('_10_', '_10X_') for v in vst.index.values.tolist()]
-
+            
+        vst.index.name = '__barcode'
         coord_df = pd.read_csv(new_coord_filename, index_col=0, low_memory=False)
 
         coord_df1 = coord_df.rename(columns={X_col_name: 'X', Y_col_name: 'Y'})
