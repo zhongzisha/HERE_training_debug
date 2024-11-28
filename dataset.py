@@ -58,7 +58,7 @@ class HistoDataset(Dataset):
         svs_filename = item['DX_filename']
         svs_prefix = os.path.basename(svs_filename).replace('.svs', '')
 
-        patches = torch.load(os.path.join(self.feats_dir, svs_prefix + '.pt')).float()
+        patches = torch.load(os.path.join(self.feats_dir, svs_prefix + '.pt'), weights_only=True).float()
 
         labels_dict = {
             'svs_filename': svs_filename,
