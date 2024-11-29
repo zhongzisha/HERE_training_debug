@@ -435,6 +435,68 @@ def main():
         os.system(f'rm -rf "{local_temp_dir}"')
 
 
+def softmax_stable(x):  # only 2-D
+    x = np.exp(x - np.max(x, axis=1)[:, None])
+    return x / x.sum(axis=1)[:, None]
+
+
+def get_results():
+
+    import os
+    import pandas as pd
+    import numpy as np
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT
+    import torch
+    from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
+    from scipy.stats import percentileofscore, pearsonr, spearmanr
+
+    for model_name in ['CONCH', 'UNI', 'ProvGigaPath']:
+        scores = []
+        for split in range(5):
+            csv_path = f'./splits/test-{split}.csv'
+            df = pd.read_csv(csv_path, low_memory=False)
+
+            results_dir = f'/data/zhongz2/download/TCGA_test{split}/{model_name}/pred_files'
+            results = []
+            for _, row in df.iterrows():
+                svs_prefix = os.path.splitext(os.path.basename(row['DX_filename']))[0]
+                results_dict = torch.load(os.path.join(results_dir, svs_prefix+'.pt'))
+                result = {}
+                for k, v in CLASSIFICATION_DICT.items():
+                    result[k] = results_dict[k+'_logits']
+                for k in REGRESSION_LIST:
+                    result[k] = results_dict[k+'_logits']
+                results.append(result)
+
+            result_df = pd.DataFrame(results)
+
+            results = []
+            for k, v in CLASSIFICATION_DICT.items():
+                valid_ind = ~df[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
+
+                gt = df.loc[valid_ind, k]
+                logits = np.concatenate(result_df.loc[valid_ind, k].values)
+                probs = softmax_stable(logits)
+                probs = np.delete(probs, IGNORE_INDEX_DICT[k], axis=1)
+                probs = softmax_stable(probs)
+                # logits = np.delete(logits, IGNORE_INDEX_DICT[k], axis=1)
+                # probs = softmax_stable(logits)
+                # preds = np.argmax(probs, axis=1)
+                auc = roc_auc_score(y_true=gt, y_score=probs[:, 1], average='weighted', multi_class='ovo',
+                                        labels=np.arange(2))
+                # cm = confusion_matrix(y_true=gt, y_pred=preds)
+                results.append(auc)
+            
+            for k in REGRESSION_LIST:
+                gt = df.loc[:, k]
+                logits = np.concatenate(result_df.loc[:, k].values)
+                r2score = r2_score(gt, logits)
+                pearson_corr, pearsonr_pvalue = pearsonr(gt, logits)
+                spearmanr_corr, spearmanr_pvalue = spearmanr(gt, logits)
+                results.append(spearmanr_corr)
+
+            scores.append(results)   
+        scores = pd.DataFrame(scores, columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
 
 if __name__ == '__main__':
     main()

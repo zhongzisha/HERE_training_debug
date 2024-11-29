@@ -291,9 +291,10 @@ TCGA-ALL2, best_epoch: 58, best_split: 3, mean value: [33.65394501],
  [33.59210872]]
 """
 def check_best_split_v2():
+
     results_dir = 'results_20240724_e100'
-    # for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH']: 
-    for backbone in ['UNI']: 
+    # for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH', 'UNI']: 
+    for backbone in ['CONCH']: 
         print(f'\nbegin {backbone}')
         for proj_name in ['TCGA-ALL2']:
             task_types = ['cls', 'reg']
@@ -329,14 +330,17 @@ def check_best_split_v2():
                     results = []
                     for split in range(5):
                         filename1 = '{}/split_{}/{}_log.csv'.format(splits_dir, split, subset)
-                        df = pd.read_csv(filename1)
+                        df = pd.read_csv(filename1, low_memory=False)
                         if select_columns[0] not in df:
+                            print('no columns')
                             continue
                         df11 = df[select_columns]
                         if df11.isnull().values.any():
+                            print('nan existed')
                             df11 = df11.fillna(df11.max(axis=0))
                         results.append(df11.values)
                     if len(results) == 0:
+                        print('no results')
                         continue
                     results = np.array(results)
                     all_results.append(results)
@@ -371,6 +375,7 @@ def main():
         all_sites = [proj_name]
         # subsets = ['train', 'test1', 'test2']  # here, train is the combination of train and val
         subsets = ['train', 'test', 'outside_test0', 'outside_test1']
+        subsets = ['test']
 
     task_types = ['cls', 'reg']
     accum_iters = [4]
@@ -387,11 +392,13 @@ def main():
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
     save_root = '/Users/zhongz2/down/figures_20240902_e100_top4' # Add UNI 
+    save_root = '/Users/zhongz2/down/figures_20241129_e100_top4' # Add UNI 
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
         print('begin {}'.format(site_name))
         for subset in subsets:
+
             if per_cancer:
                 pdfsavefilename = '{}/{}_{}_all_results.pdf'.format(save_root, subset, site_name)
             else:
@@ -459,6 +466,9 @@ def main():
                             prefixes.append(
                                 '{}_{}'.format(backbone, accum_iter)
                             )
+
+                    print('filenames', filenames)
+
                     for iii, filename in enumerate(filenames):
                         results = []
 

@@ -90,7 +90,7 @@ if [ ! -d "splits" ]; then
     ln -sf /data/zhongz2/TCGA-ALL2_256/generated7/splits2/ splits
 fi
 NUM_GPUS=2
-GRES_STR="--gres=gpu:v100x:${NUM_GPUS},lscratch:700"
+GRES_STR="--gres=gpu:a100:${NUM_GPUS},lscratch:700"
 FINAL_SAVE_ROOT=/data/zhongz2/temp29/debug/results_20241128_e100_noattention
 if [ ! -d ${FINAL_SAVE_ROOT} ]; then
     mkdir -p ${FINAL_SAVE_ROOT}
@@ -111,7 +111,7 @@ BACKBONES=("CONCH")
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 DROPOUT=0.25
 
-for SPLIT_NUM in 0 1 2 3 4; do     #  0 1 2 3 4
+for SPLIT_NUM in 0; do     #  0 1 2 3 4
     for ACCUM_ITER in 4; do # 4 8
         for i in ${!BACKBONES[@]}; do
             BACKBONE=${BACKBONES[${i}]}
