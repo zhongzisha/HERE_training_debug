@@ -440,7 +440,100 @@ def softmax_stable(x):  # only 2-D
     return x / x.sum(axis=1)[:, None]
 
 
-def get_results():
+def check_results_forCPTAC():
+   
+    import os, glob,json
+    import pandas as pd
+    import numpy as np
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT
+    import torch
+    from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
+    from scipy.stats import percentileofscore, pearsonr, spearmanr
+
+    model_name = 'UNI'
+    results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
+    all_files = glob.glob(os.path.join(results_dir, '*.pt'))
+    results = {}
+    for f in all_files:
+        svs_prefix = os.path.splitext(os.path.basename(f))[0]
+        results_dict = torch.load(f)
+        result = {}
+        for k, v in CLASSIFICATION_DICT.items():
+            result[k] = results_dict[k+'_logits']
+        for k in REGRESSION_LIST:
+            result[k] = results_dict[k+'_logits']
+        results[svs_prefix] = result
+
+    result_df = pd.DataFrame(results).T
+    result_df.index.name = 'svs_prefix'
+    result_df = result_df.reset_index(drop=False)
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+
+    cancer = 'BRCA'
+    df1 = df[df['cancer_type']==cancer]
+    result_df1 = result_df[result_df['svs_prefix'].isin(df1['svs_prefix'])]
+    df1 = df1[df1['svs_prefix'].isin(result_df1['svs_prefix'])]
+
+    mutation = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.Mutation.gz', sep='\t')
+    expression = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.expression.gz', sep='\t')
+
+    data = pd.read_csv('/data/Jiang_Lab/Data/Zisha_Zhong/BigData/tcga_brca/Merged_FPKM.tsv', delimiter='\t', index_col='gene_name',
+                       low_memory=False)
+
+    columns = data.columns
+    removed_columns = [col for col in columns if 'TCGA' not in col]  # must be TCGA dataset
+    if len(removed_columns) > 0:
+        data = data.drop(removed_columns, axis=1)
+    data = np.log2(data + 1)
+
+    datas1 = pd.read_excel('/data/zhongz2/tcga/tcga_brca//DataS1.xlsx')
+    normal_df = datas1[datas1['2016 Histology Annotations'].isin(['True Normal'])]
+    normal_CLID_values = normal_df.CLID.values.tolist()
+    normal_CLID_values = [name[:12] for name in normal_CLID_values]
+    normal_CLID_values_set = set(normal_CLID_values)
+
+    if len(normal_CLID_values_set) > 0:
+        normal_column_names = []
+        for name in data.columns.values:
+            if name[:12] in normal_CLID_values_set:
+                normal_column_names.append(name)
+        data_normal = data.filter(normal_column_names, axis=1)
+        data_tumor = data.drop(normal_column_names, axis=1)
+    else:
+        data_normal = data
+        data_tumor = data
+
+    data = data_tumor.subtract(data_normal.mean(axis=1), axis=0)  # Y   # data_tumor
+    data = data.groupby(data.index).median()
+
+    # MsigDB Hallmark 50 gene sets
+    with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
+        hallmark_dict = json.load(fp)
+
+    newdata2 = {}
+    for hall_key, hall_item_dict in hallmark_dict.items():
+        gene_list = [v for v in hall_item_dict['geneSymbols'] if v in data.index.values]
+        if len(gene_list) > 0:
+            newdata2['{}_sum'.format(hall_key)] = data.loc[gene_list].mean()   # the difference between v5 and v6
+    newdata2 = pd.DataFrame(newdata2)
+    newdata2['CLID'] = [v[:16] for v in newdata2.index.values]
+
+    df3 = pd.read_csv('/data/zhongz2/tcga/TCGA-ALL2_256/generated7/all_with_fpkm_withTIDECytoSig_withMPP_withGene_withCBIO_withCLAM.csv', low_memory=False)
+
+    df3 = df3[df3['CLID'].isin(newdata2['CLID'])]
+    newdata2 = newdata2[newdata2['CLID'].isin(df3['CLID'])]
+    df3 = df3.sort_values('CLID')
+    newdata2 = newdata2.sort_values('CLID')
+
+    # TODO
+
+
+def check_results_forTCGA():
 
     import os
     import pandas as pd

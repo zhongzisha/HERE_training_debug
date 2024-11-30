@@ -36,3 +36,13 @@ sbatch --partition=multinode --mem=64G --time=108:00:00 --gres=lscratch:20 \
     --cpus-per-task=1 --nodes=8 --ntasks-per-node=1 gen_big_images_dzi.sh \
     /data/zhongz2/ST_20240903/svs \
     /data/Jiang_Lab/Data/Zisha_Zhong/ST_20240903_dzi_images
+
+
+sbatch --partition=multinode --mem=64G --time=108:00:00 --gres=lscratch:20 \
+    --cpus-per-task=1 --nodes=8 --ntasks-per-node=1 gen_big_images_dzi.sh \
+    /data/zhongz2/CPTAC/svs \
+    /data/zhongz2/CPTAC/CPTAC_dzi_images
+
+
+
+

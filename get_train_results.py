@@ -375,7 +375,6 @@ def main():
         all_sites = [proj_name]
         # subsets = ['train', 'test1', 'test2']  # here, train is the combination of train and val
         subsets = ['train', 'test', 'outside_test0', 'outside_test1']
-        subsets = ['test']
 
     task_types = ['cls', 'reg']
     accum_iters = [4]
@@ -387,12 +386,21 @@ def main():
         'CONCH': 512,
         'UNI': 1024
     }
-
+    network_dims = {   # only for TCGA-ALL2
+        # 'mobilenetv3': 1280,
+        # 'CLIP': 512,
+        # 'PLIP': 512,
+        # 'ProvGigaPath': 1536,
+        'CONCH': 512,
+        # 'UNI': 1024
+    }
     sub_epochs = [1]
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
     save_root = '/Users/zhongz2/down/figures_20240902_e100_top4' # Add UNI 
     save_root = '/Users/zhongz2/down/figures_20241129_e100_top4' # Add UNI 
+    results_dir = 'results_20241128_e100_noattention'
+    save_root = '/Users/zhongz2/down/figures_20241130_e100_top4_noattention' # Add UNI 
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
@@ -459,8 +467,8 @@ def main():
                                 # '/Volumes/data-1/temp29/debug/results_20240724/ngpus{}_accum{}_backbone{}_dropout0.25'.format(
                                 #     num_gpus, accum_iter, backbone
                                 # )
-                                '/Volumes/data-1/temp29/debug/results_20240724_e100/ngpus{}_accum{}_backbone{}_dropout0.25'.format(
-                                    num_gpus, accum_iter, backbone
+                                '/Volumes/data-1/temp29/debug/{}/ngpus{}_accum{}_backbone{}_dropout0.25'.format(
+                                   results_dir, num_gpus, accum_iter, backbone
                                 )
                             )
                             prefixes.append(

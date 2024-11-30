@@ -10,12 +10,13 @@ begin the revision 1
 1.CONCH, UNI, ProvGigaPath在HERE101上都跑一遍
 
 2. SISH, Yottixel, RetCCL在NCI数据上都跑一遍HERE101，需要Jinlin评估
+slide检索
 
 3. 在CPTAC上跑gene mutation分类和表达预测的评估
 
 4. 在CPTAC上建立索引，然后找对应癌症的图片
 
-5. 在HERE,Yottixel,SISH,RetCCL上用NCI数据的patch进行不同个数的评估比较
+5. 在HERE上用NCI数据的patch进行不同个数的评估比较
 
 
 

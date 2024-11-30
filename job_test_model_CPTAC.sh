@@ -65,7 +65,7 @@ srun python test_model.py \
 
 exit;
 
-for MODEL_NAME in "UNI" "CONCH" "ProvGigaPath"; do  # "UNI" "CONCH" "ProvGigaPath"
+for MODEL_NAME in "CONCH"; do  # "UNI" "CONCH" "ProvGigaPath"
 
 sbatch --job-name CPTAC \
 --nodes=12 --ntasks-per-node=1 \
