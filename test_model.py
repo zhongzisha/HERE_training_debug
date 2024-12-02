@@ -440,8 +440,17 @@ def softmax_stable(x):  # only 2-D
     return x / x.sum(axis=1)[:, None]
 
 
+def check_case_number():
+
+    with open('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01.json','r') as fp:
+        bio = json.load(fp)
+    m = {}
+    for i in range(len(bio)):
+        if len(bio[i]['samples'][0]['portions']) >0 and len(bio[i]['samples'][0]['portions'][0]['analytes']) > 0:
+            m[bio[i]['submitter_id']]= bio[i]['samples'][0]['portions'][0]['analytes'][0]['aliquots'][0]['submitter_id']
+
 def check_results_forCPTAC():
-   
+
     import os, glob,json
     import pandas as pd
     import numpy as np
@@ -449,6 +458,54 @@ def check_results_forCPTAC():
     import torch
     from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
     from scipy.stats import percentileofscore, pearsonr, spearmanr
+
+
+    # clinical
+    txt_files = glob.glob('/data/zhongz2/CPTAC/Clinical_meta_data_v1/*.txt')
+    alldfs = []
+    for f in txt_files:
+        df = pd.read_csv(f, sep='\t')
+        df.drop(0, inplace=True)
+        alldfs.append(df)
+    clinical = pd.concat(alldfs)
+
+    # mutation effect
+    oncokb_files = glob.glob('/data/zhongz2/CPTAC/Mutation_BCM_v1/*oncokb.txt')
+    alldata = {}
+    gene_dict = {}
+    for filepath in oncokb_files:
+
+        df = pd.read_csv(filepath, sep='\t', low_memory=False)
+        df1 = df.drop_duplicates(subset=['gene_name'])
+        gene_dict.update(dict(zip(df1['gene_name'], df1['Hugo_Symbol'])))
+        barcodes = df['Tumor_Sample_Barcode'].unique()
+        for barcode in barcodes:
+            print(barcode)
+            dff = df[df['Tumor_Sample_Barcode'] == barcode]
+            dff = dff[['Hugo_Symbol', 'MUTATION_EFFECT']].drop_duplicates(subset=['Hugo_Symbol'])
+            dff = dff.set_index('Hugo_Symbol')
+            alldata[barcode] = dff.to_dict()['MUTATION_EFFECT']
+            # for ii, gene_symbol in enumerate(dff.index.values):
+            #     if gene_symbol not in alldata:
+            #         alldata[gene_symbol] = {}
+            #     alldata[gene_symbol][barcode] = dff.loc[gene_symbol, 'MUTATION_EFFECT']
+    mutation_df = pd.DataFrame.from_dict(alldata, orient='index').transpose()
+    mutation_df.index.name = 'Hugo_Symbol'
+    mutation_df.to_csv('/data/zhongz2/CPTAC/Mutation_BCM_v1/mutation_effect.csv')
+
+    # MsigDB Hallmark 50 gene sets
+    with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
+        hallmark_dict = json.load(fp)
+        hallmark_gene_symbols = []
+        for k,v in hallmark_dict.items():
+            hallmark_gene_symbols.extend(v['geneSymbols'])
+        hallmark_gene_symbols = set(hallmark_gene_symbols)
+    
+    # gene set expression
+    txt_files = glob.glob('/data/zhongz2/CPTAC/RNA_BCM_v1/*_gene_RSEM_coding_UQ_1500_log2_Tumor.txt')
+    alldfs = []
+    for f in txt_files:
+        df = pd.read_csv(f, sep='\t', low_memory=False)
 
     model_name = 'UNI'
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
@@ -479,56 +536,66 @@ def check_results_forCPTAC():
     result_df1 = result_df[result_df['svs_prefix'].isin(df1['svs_prefix'])]
     df1 = df1[df1['svs_prefix'].isin(result_df1['svs_prefix'])]
 
-    mutation = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.Mutation.gz', sep='\t')
-    expression = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.expression.gz', sep='\t')
+    # mutation = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.Mutation.gz', sep='\t')
+    # expression = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.expression.gz', sep='\t')
 
-    data = pd.read_csv('/data/Jiang_Lab/Data/Zisha_Zhong/BigData/tcga_brca/Merged_FPKM.tsv', delimiter='\t', index_col='gene_name',
-                       low_memory=False)
+    data = pd.read_csv('/data/zhongz2/CPTAC/Merged_FPKM.tsv', delimiter='\t', index_col=0, low_memory=False)
+    aliquot_df = pd.read_csv('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01/aliquot.tsv', sep='\t', low_memory=False)
+    slide_df = pd.read_csv('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01/slide.tsv', sep='\t', low_memory=False)
+    mutation_df = pd.read_csv('/data/zhongz2/CPTAC/mutation_effects.csv', low_memory=False)
+    clinical = pd.read_csv('/data/zhongz2/CPTAC/isb-cgc-bq-clinical_gdc_current.csv')
 
-    columns = data.columns
-    removed_columns = [col for col in columns if 'TCGA' not in col]  # must be TCGA dataset
-    if len(removed_columns) > 0:
-        data = data.drop(removed_columns, axis=1)
-    data = np.log2(data + 1)
+    brca_meta = pd.read_csv('/data/zhongz2/CPTAC/Clinical_meta_data_v1/BRCA_meta.txt', sep='\t')
 
-    datas1 = pd.read_excel('/data/zhongz2/tcga/tcga_brca//DataS1.xlsx')
-    normal_df = datas1[datas1['2016 Histology Annotations'].isin(['True Normal'])]
-    normal_CLID_values = normal_df.CLID.values.tolist()
-    normal_CLID_values = [name[:12] for name in normal_CLID_values]
-    normal_CLID_values_set = set(normal_CLID_values)
+    if False: # check TCGA
 
-    if len(normal_CLID_values_set) > 0:
-        normal_column_names = []
-        for name in data.columns.values:
-            if name[:12] in normal_CLID_values_set:
-                normal_column_names.append(name)
-        data_normal = data.filter(normal_column_names, axis=1)
-        data_tumor = data.drop(normal_column_names, axis=1)
-    else:
-        data_normal = data
-        data_tumor = data
+        data = pd.read_csv('/data/Jiang_Lab/Data/Zisha_Zhong/BigData/tcga_brca/Merged_FPKM.tsv', delimiter='\t', index_col='gene_name',
+                        low_memory=False)
 
-    data = data_tumor.subtract(data_normal.mean(axis=1), axis=0)  # Y   # data_tumor
-    data = data.groupby(data.index).median()
+        columns = data.columns
+        removed_columns = [col for col in columns if 'TCGA' not in col]  # must be TCGA dataset
+        if len(removed_columns) > 0:
+            data = data.drop(removed_columns, axis=1)
+        data = np.log2(data + 1)
 
-    # MsigDB Hallmark 50 gene sets
-    with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
-        hallmark_dict = json.load(fp)
+        datas1 = pd.read_excel('/data/zhongz2/tcga/tcga_brca//DataS1.xlsx')
+        normal_df = datas1[datas1['2016 Histology Annotations'].isin(['True Normal'])]
+        normal_CLID_values = normal_df.CLID.values.tolist()
+        normal_CLID_values = [name[:12] for name in normal_CLID_values]
+        normal_CLID_values_set = set(normal_CLID_values)
 
-    newdata2 = {}
-    for hall_key, hall_item_dict in hallmark_dict.items():
-        gene_list = [v for v in hall_item_dict['geneSymbols'] if v in data.index.values]
-        if len(gene_list) > 0:
-            newdata2['{}_sum'.format(hall_key)] = data.loc[gene_list].mean()   # the difference between v5 and v6
-    newdata2 = pd.DataFrame(newdata2)
-    newdata2['CLID'] = [v[:16] for v in newdata2.index.values]
+        if len(normal_CLID_values_set) > 0:
+            normal_column_names = []
+            for name in data.columns.values:
+                if name[:12] in normal_CLID_values_set:
+                    normal_column_names.append(name)
+            data_normal = data.filter(normal_column_names, axis=1)
+            data_tumor = data.drop(normal_column_names, axis=1)
+        else:
+            data_normal = data
+            data_tumor = data
 
-    df3 = pd.read_csv('/data/zhongz2/tcga/TCGA-ALL2_256/generated7/all_with_fpkm_withTIDECytoSig_withMPP_withGene_withCBIO_withCLAM.csv', low_memory=False)
+        data = data_tumor.subtract(data_normal.mean(axis=1), axis=0)  # Y   # data_tumor
+        data = data.groupby(data.index).median()
 
-    df3 = df3[df3['CLID'].isin(newdata2['CLID'])]
-    newdata2 = newdata2[newdata2['CLID'].isin(df3['CLID'])]
-    df3 = df3.sort_values('CLID')
-    newdata2 = newdata2.sort_values('CLID')
+        # MsigDB Hallmark 50 gene sets
+        with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
+            hallmark_dict = json.load(fp)
+
+        newdata2 = {}
+        for hall_key, hall_item_dict in hallmark_dict.items():
+            gene_list = [v for v in hall_item_dict['geneSymbols'] if v in data.index.values]
+            if len(gene_list) > 0:
+                newdata2['{}_sum'.format(hall_key)] = data.loc[gene_list].mean()   # the difference between v5 and v6
+        newdata2 = pd.DataFrame(newdata2)
+        newdata2['CLID'] = [v[:16] for v in newdata2.index.values]
+
+        df3 = pd.read_csv('/data/zhongz2/tcga/TCGA-ALL2_256/generated7/all_with_fpkm_withTIDECytoSig_withMPP_withGene_withCBIO_withCLAM.csv', low_memory=False)
+
+        df3 = df3[df3['CLID'].isin(newdata2['CLID'])]
+        newdata2 = newdata2[newdata2['CLID'].isin(df3['CLID'])]
+        df3 = df3.sort_values('CLID')
+        newdata2 = newdata2.sort_values('CLID')
 
     # TODO
 
