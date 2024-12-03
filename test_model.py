@@ -449,7 +449,36 @@ def check_case_number():
         if len(bio[i]['samples'][0]['portions']) >0 and len(bio[i]['samples'][0]['portions'][0]['analytes']) > 0:
             m[bio[i]['submitter_id']]= bio[i]['samples'][0]['portions'][0]['analytes'][0]['aliquots'][0]['submitter_id']
 
-def check_results_forCPTAC():
+
+def generate_CPTAC_dirs():
+    import sys,os,glob,shutil
+    import pandas as pd
+
+    allsvs_dir = '/data/zhongz2/CPTAC_256/svs'
+    allpatches_dir = '/data/zhongz2/CPTAC_256/patches'
+    patch_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in glob.glob(os.path.join(allpatches_dir, '*.h5'))]
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        lines = [line.strip().split('/')[-2:] for line in fp.readlines()]
+    df = pd.DataFrame(lines, columns=['cancer_type', 'file_name'])
+
+    for cancer_type in df['cancer_type'].unique():
+        print(cancer_type)
+        save_dir = f'/data/zhongz2/CPTAC_{cancer_type}_256'
+        os.makedirs(os.path.join(save_dir, 'svs'), exist_ok=True)
+        os.makedirs(os.path.join(save_dir, 'patches'), exist_ok=True)
+        os.system('ln -sf "/data/zhongz2/CPTAC_256/feats" "{}/"'.format(save_dir))
+
+        dff = df[df['cancer_type'] == cancer_type]
+        for file_name in dff['file_name'].values:
+            svs_prefix = os.path.splitext(file_name)[0]
+            if svs_prefix not in patch_prefixes:
+                continue
+            os.system('ln -sf "/data/zhongz2/CPTAC_256/svs/{}.svs" "{}"'.format(svs_prefix, os.path.join(save_dir, 'svs', svs_prefix+'.svs')))
+            os.system('ln -sf "/data/zhongz2/CPTAC_256/patches/{}.h5" "{}"'.format(svs_prefix, os.path.join(save_dir, 'patches', svs_prefix+'.h5')))
+
+
+def prepare_labels_forCPTAC():
 
     import os, glob,json
     import pandas as pd
@@ -458,6 +487,7 @@ def check_results_forCPTAC():
     import torch
     from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
     from scipy.stats import percentileofscore, pearsonr, spearmanr
+    from matplotlib import pyplot as plt
 
 
     # clinical
@@ -484,6 +514,10 @@ def check_results_forCPTAC():
             dff = df[df['Tumor_Sample_Barcode'] == barcode]
             dff = dff[['Hugo_Symbol', 'MUTATION_EFFECT']].drop_duplicates(subset=['Hugo_Symbol'])
             dff = dff.set_index('Hugo_Symbol')
+            if barcode in alldata:
+                print(barcode, ' is in there')
+                import pdb
+                pdb.set_trace()
             alldata[barcode] = dff.to_dict()['MUTATION_EFFECT']
             # for ii, gene_symbol in enumerate(dff.index.values):
             #     if gene_symbol not in alldata:
@@ -492,6 +526,103 @@ def check_results_forCPTAC():
     mutation_df = pd.DataFrame.from_dict(alldata, orient='index').transpose()
     mutation_df.index.name = 'Hugo_Symbol'
     mutation_df.to_csv('/data/zhongz2/CPTAC/Mutation_BCM_v1/mutation_effect.csv')
+
+    gene_symbols = {
+        'TP53': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'PIK3CA': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'PTEN': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'KRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'ARID1A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'BRAF': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'APC': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'IDH1': {'Gain_Or_Loss_Or_Unknown_Or_NaN': 0, 'switch': 1, 'Other': 2},
+        'KMT2D': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'FBXW7': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CDKN2A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'NF1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'RB1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'KMT2C': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'ATRX': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CTNNB1': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'NRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'FAT1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'PBRM1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'PIK3R1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'ATM': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'RNF43': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'EGFR': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'KDM6A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'ARID2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CDH1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'SETD2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CTCF': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'EP300': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'NFE2L2': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'CIC': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'SMAD4': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'VHL': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'KMT2B': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'GATA3': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CREBBP': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'ZFHX3': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'ERBB2': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'MAP3K1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'JAK1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'NSD1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'STAG2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'KMT2A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'BRCA2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'MGA': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'BAP1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'MSH6': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'HRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+        'SPOP': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'B2M': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'NOTCH1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'BCORL1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+        'CASP8': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2}
+    }
+
+    gene_data = {}
+    for gene_symbol in gene_symbols.keys():
+        df1 = mutation_df.loc[gene_symbol, :]
+        if len(df1) > 0:
+            gene_data[gene_symbol] = {k:str(v).lower() for k,v in df1.to_dict().items()}
+
+    case_ids = mutation_df.columns.values
+    gene_mut_labels = {}
+    # create gene mutation labels
+    for gene_symbol, labels_dict in gene_symbols.items():
+        if gene_symbol not in gene_data:
+            continue
+        values = []
+        labels_dict_reverse = {v: k.lower() for k, v in labels_dict.items()}
+        for case_id in case_ids:
+            if case_id in gene_data[gene_symbol]:
+                label = gene_data[gene_symbol][case_id]
+                if 'gain' in label: label = 'gain'
+                if 'loss' in label: label = 'loss'
+                if 'switch' in label: label = 'switch'
+                if 'nan' in label: label = 'nan'
+                if 'unknown' in label or 'inconclusive' in label: label = 'unknown'
+                found = False
+                for k, v in labels_dict_reverse.items():
+                    if label in v:
+                        values.append(k)
+                        found = True
+                        break
+                if not found:
+                    print(label)
+                    values.append(0)
+            else:
+                values.append(2)
+
+        if len(values) > 0 and len(np.unique(values)) > 1:
+            gene_mut_labels['{}_cls'.format(gene_symbol)] = values
+    gene_mut_labels = pd.DataFrame(gene_mut_labels, index=case_ids)
+    gene_mut_labels.index.name = 'barcode'
+    gene_mut_labels.to_csv('/data/zhongz2/CPTAC/gene_mutation_classification_labels.csv')
+
 
     # MsigDB Hallmark 50 gene sets
     with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
@@ -502,12 +633,95 @@ def check_results_forCPTAC():
         hallmark_gene_symbols = set(hallmark_gene_symbols)
     
     # gene set expression
-    txt_files = glob.glob('/data/zhongz2/CPTAC/RNA_BCM_v1/*_gene_RSEM_coding_UQ_1500_log2_Tumor.txt')
+    gene_exp_files = glob.glob('/data/zhongz2/CPTAC/RNA_BCM_v1/*_gene_RSEM_coding_UQ_1500_log2_Tumor.txt')
     alldfs = []
-    for f in txt_files:
-        df = pd.read_csv(f, sep='\t', low_memory=False)
+    for f in gene_exp_files:
+        df = pd.read_csv(f, sep='\t', low_memory=False, index_col=0)
+        alldfs.append(df)
+    gene_exp_df = pd.concat(alldfs, axis=1)
+    del alldfs
+    gene_exp_df = gene_exp_df.sort_index()
+    gene_prefixes = [v[:15] for v in gene_exp_df.index.values]
+    gene_prefixes_df = pd.DataFrame(gene_prefixes, columns=['prefix'])
+    gene_prefixes_df.index = gene_exp_df.index.values
+    gene_prefixes_df = gene_prefixes_df.drop_duplicates(subset=['prefix'], keep='first')
+    # gene_map
+    ensembl = pd.read_csv('/home/zhongz2/ST_prediction/ensembl.tsv', sep='\t')
+    ensembl = ensembl[ensembl['Ensembl ID(supplied by Ensembl)'].notna()]
+    gene_prefixes_df['Hugo_Symbol'] = gene_prefixes_df['prefix'].map(dict(zip(ensembl['Ensembl ID(supplied by Ensembl)'], ensembl['Approved symbol'])))
+    gene_prefixes_df = gene_prefixes_df[gene_prefixes_df['Hugo_Symbol'].notna()]
+    gene_exp_df = gene_exp_df.loc[gene_prefixes_df.index]
+    gene_exp_df.index = gene_prefixes_df['Hugo_Symbol'].values
+    gene_exp_df.index.name = 'Hugo_Symbol'
 
-    model_name = 'UNI'
+    for v in list(hallmark_gene_symbols):
+        if v not in gene_exp_df.index.values:
+            print(v)
+
+    for k,v in hallmark_dict.items():
+        existed_symbols = set(v['geneSymbols']).intersection(gene_exp_df.index)
+        ratio = len(existed_symbols) / float(len(v['geneSymbols']))
+        print('{:<45}\t{}\t{}\t{:.2f}'.format(k, len(existed_symbols), len(v['geneSymbols']), ratio))
+
+    gene_exp_df.to_csv('/data/zhongz2/CPTAC/gene_exp.csv')
+
+    # data_tumor = gene_exp_df
+    # data_normal = gene_exp_df
+    # data = data_tumor.subtract(data_normal.mean(axis=1), axis=0)  # Y   # data_tumor
+    # data = data.groupby(data.index).median()
+    data = gene_exp_df
+
+    newdata2 = {}
+    for hall_key, hall_item_dict in hallmark_dict.items():
+        gene_list = [v for v in hall_item_dict['geneSymbols'] if v in data.index.values]
+        if len(gene_list) > 0:
+            newdata2['{}_sum'.format(hall_key)] = data.loc[gene_list].mean()   # the difference between v5 and v6
+    newdata2 = pd.DataFrame(newdata2)
+
+    CTL = data.loc[['CD8A', 'CD8B', 'GZMA', 'GZMB', 'PRF1']].median()
+
+    signature = pd.read_csv('/data/zhongz2/HistoVAE/TIDE_Results/Exclusion_scores/exclusion.signature', delimiter='\t')
+    metrics = signature.apply(lambda v: data.corrwith(v))
+
+    signature_dysfunction = pd.read_csv('/data/zhongz2/HistoVAE/run.summary.full.trans.gz', delimiter='\t',
+                                        index_col=0).dropna().median(axis=1)
+    signature_dysfunction = signature_dysfunction.to_frame()
+    signature_dysfunction.index.name = 'gene_name'
+    signature_dysfunction.columns = ['Dys']
+    dysfunction_metrics = signature_dysfunction.apply(lambda v: data.corrwith(v))
+
+    TIDE_scores = pd.concat([metrics.drop(['Mean'], axis=1), dysfunction_metrics], axis=1)
+
+    CTL = pd.DataFrame(CTL)
+    CTL.columns = ['Cytotoxic_T_Lymphocyte']
+    gene_set_regression_labels = pd.concat([CTL, TIDE_scores, newdata2], axis=1)
+    gene_set_regression_labels.index.name = 'barcode'
+
+    hist_save_dir = os.path.join('/data/zhongz2/CPTAC/hists')
+    os.makedirs(hist_save_dir, exist_ok=True)
+    try:
+        from scipy.stats import pearsonr
+        import matplotlib.pyplot as plt
+
+        for col in gene_set_regression_labels.columns:
+            corr, pvalue = pearsonr(CTL.values.flatten(), gene_set_regression_labels[col].values)
+            print('Corr ({}, {}) is {}(p={}) '.format('CTL', col, corr, pvalue))
+            _ = plt.hist(gene_set_regression_labels[col].values, bins='auto')
+            plt.savefig(os.path.join(hist_save_dir, '{}_hist.png'.format(col)))
+            plt.close('all')
+    except:
+        print('ERROR: MsigDB hallmark histogram error, check it!')
+
+    gene_set_regression_labels.to_csv('/data/zhongz2/CPTAC/gene_set_regression_labels.csv')
+
+    all_labels = gene_mut_labels.merge(gene_set_regression_labels, left_index=True, right_index=True)
+    all_labels.to_csv('/data/zhongz2/CPTAC/all_labels.csv')
+
+
+def check_results_forCPTAC(model_name='UNI'):
+
+    os.makedirs('/data/zhongz2/CPTAC/predictions/per-cancer', exist_ok=True)
+
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
     all_files = glob.glob(os.path.join(results_dir, '*.pt'))
     results = {}
@@ -531,73 +745,90 @@ def check_results_forCPTAC():
     df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
     df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
 
-    cancer = 'BRCA'
-    df1 = df[df['cancer_type']==cancer]
-    result_df1 = result_df[result_df['svs_prefix'].isin(df1['svs_prefix'])]
-    df1 = df1[df1['svs_prefix'].isin(result_df1['svs_prefix'])]
+    result_df1 = result_df.merge(df, left_on='svs_prefix', right_on='svs_prefix').reset_index(drop=True)
+    
+    all_labels = pd.read_csv('/data/zhongz2/CPTAC/all_labels.csv', index_col=0)
+    # ['OV', 'BRCA', 'COAD', 'LUAD', 'CCRCC', 'UCEC', 'GBM', 'PDA', 'SAR', 'LSCC', 'CM', 'AML', 'HNSCC']
+    all_scores = {}
+    for cancer_type in result_df1['cancer_type'].unique():
 
-    # mutation = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.Mutation.gz', sep='\t')
-    # expression = pd.read_csv(f'/data/zhongz2/CPTAC/genes/{cancer}.Tumor.expression.gz', sep='\t')
+        result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
+        if len(result_df2) == 0:
+            continue
 
-    data = pd.read_csv('/data/zhongz2/CPTAC/Merged_FPKM.tsv', delimiter='\t', index_col=0, low_memory=False)
-    aliquot_df = pd.read_csv('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01/aliquot.tsv', sep='\t', low_memory=False)
-    slide_df = pd.read_csv('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01/slide.tsv', sep='\t', low_memory=False)
-    mutation_df = pd.read_csv('/data/zhongz2/CPTAC/mutation_effects.csv', low_memory=False)
-    clinical = pd.read_csv('/data/zhongz2/CPTAC/isb-cgc-bq-clinical_gdc_current.csv')
+        barcodes = []
+        for svs_prefix in result_df2['svs_prefix'].values:
+            found = False
+            for v in all_labels.index.values:
+                if v in svs_prefix:
+                    found = True
+                    break
+            if found:
+                barcodes.append(v)
+            else:
+                barcodes.append('')
+            
+        result_df2['barcode'] = barcodes
 
-    brca_meta = pd.read_csv('/data/zhongz2/CPTAC/Clinical_meta_data_v1/BRCA_meta.txt', sep='\t')
+        result_df2 = result_df2[result_df2['barcode'].isin(all_labels.index)].reset_index(drop=True)
+        labels = all_labels.loc[result_df2['barcode'].values]
 
-    if False: # check TCGA
+        if len(result_df2) ==0 or len(labels) == 0:
+            continue
+        
+        labels.to_csv(f'/data/zhongz2/CPTAC/predictions/per-cancer/{cancer_type}_{model_name}_labels.csv')
+        result_df2.to_csv(f'/data/zhongz2/CPTAC/predictions/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
-        data = pd.read_csv('/data/Jiang_Lab/Data/Zisha_Zhong/BigData/tcga_brca/Merged_FPKM.tsv', delimiter='\t', index_col='gene_name',
-                        low_memory=False)
+        results = []
+        for k, v in CLASSIFICATION_DICT.items():
+            if k not in labels.columns:
+                results.append(0)
+                continue
 
-        columns = data.columns
-        removed_columns = [col for col in columns if 'TCGA' not in col]  # must be TCGA dataset
-        if len(removed_columns) > 0:
-            data = data.drop(removed_columns, axis=1)
-        data = np.log2(data + 1)
+            try:
+                valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
 
-        datas1 = pd.read_excel('/data/zhongz2/tcga/tcga_brca//DataS1.xlsx')
-        normal_df = datas1[datas1['2016 Histology Annotations'].isin(['True Normal'])]
-        normal_CLID_values = normal_df.CLID.values.tolist()
-        normal_CLID_values = [name[:12] for name in normal_CLID_values]
-        normal_CLID_values_set = set(normal_CLID_values)
+                gt = labels.loc[valid_ind, k]
+                logits = np.concatenate(result_df2.loc[np.where(valid_ind)[0], k].values)
+                probs = softmax_stable(logits)
+                probs = np.delete(probs, IGNORE_INDEX_DICT[k], axis=1)
+                probs = softmax_stable(probs)
+                # logits = np.delete(logits, IGNORE_INDEX_DICT[k], axis=1)
+                # probs = softmax_stable(logits)
+                preds = np.argmax(probs, axis=1)
+                auc = roc_auc_score(y_true=gt, y_score=probs[:, 1], average='weighted', multi_class='ovo',
+                                        labels=np.arange(2))
+                # cm = confusion_matrix(y_true=gt, y_pred=preds)
+                results.append(auc)
+            except Exception as error:
+                print(k, error)
+                results.append(0)
 
-        if len(normal_CLID_values_set) > 0:
-            normal_column_names = []
-            for name in data.columns.values:
-                if name[:12] in normal_CLID_values_set:
-                    normal_column_names.append(name)
-            data_normal = data.filter(normal_column_names, axis=1)
-            data_tumor = data.drop(normal_column_names, axis=1)
-        else:
-            data_normal = data
-            data_tumor = data
+        for k in REGRESSION_LIST:
+            if k not in labels.columns and k[5:] not in labels.columns:
+                results.append(0)
+                continue
+            logits = np.concatenate(result_df2.loc[:, k].values)
+            if 'TIDE_' == k[:5]:
+                k = k[5:]
+            gt = labels.loc[:, k]
+            r2score = r2_score(gt, logits)
+            pearson_corr, pearsonr_pvalue = pearsonr(gt, logits)
+            spearmanr_corr, spearmanr_pvalue = spearmanr(gt, logits)
+            results.append(spearmanr_corr)
 
-        data = data_tumor.subtract(data_normal.mean(axis=1), axis=0)  # Y   # data_tumor
-        data = data.groupby(data.index).median()
+        all_scores[cancer_type] = np.array(results).reshape(1, -1)
 
-        # MsigDB Hallmark 50 gene sets
-        with open('/data/zhongz2/HistoVAE/h.all.v2022.1.Hs.json', 'r') as fp:
-            hallmark_dict = json.load(fp)
+    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
+    results.index = list(all_scores.keys())
 
-        newdata2 = {}
-        for hall_key, hall_item_dict in hallmark_dict.items():
-            gene_list = [v for v in hall_item_dict['geneSymbols'] if v in data.index.values]
-            if len(gene_list) > 0:
-                newdata2['{}_sum'.format(hall_key)] = data.loc[gene_list].mean()   # the difference between v5 and v6
-        newdata2 = pd.DataFrame(newdata2)
-        newdata2['CLID'] = [v[:16] for v in newdata2.index.values]
+    results.to_csv(f'/data/zhongz2/CPTAC/predictions/{model_name}_prediction_scores.csv')
 
-        df3 = pd.read_csv('/data/zhongz2/tcga/TCGA-ALL2_256/generated7/all_with_fpkm_withTIDECytoSig_withMPP_withGene_withCBIO_withCLAM.csv', low_memory=False)
 
-        df3 = df3[df3['CLID'].isin(newdata2['CLID'])]
-        newdata2 = newdata2[newdata2['CLID'].isin(df3['CLID'])]
-        df3 = df3.sort_values('CLID')
-        newdata2 = newdata2.sort_values('CLID')
+def do_results():
 
-    # TODO
+    for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
+        check_results_forCPTAC(model_name=model_name)
 
 
 def check_results_forTCGA():

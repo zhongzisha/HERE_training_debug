@@ -290,11 +290,129 @@ TCGA-ALL2, best_epoch: 58, best_split: 3, mean value: [33.65394501],
  [33.92088263]
  [33.59210872]]
 """
+
+
+""" no attention
+begin PLIP
+TCGA-ALL2, best_epoch: 66, best_split: 1, mean value: [29.11916396], 
+[[28.57568554]
+ [29.89418162]
+ [28.20150555]
+ [29.74166515]
+ [29.18278191]]
+
+begin ProvGigaPath
+TCGA-ALL2, best_epoch: 39, best_split: 0, mean value: [32.74395793], 
+[[33.32756371]
+ [32.95985017]
+ [32.40131981]
+ [32.75990765]
+ [32.27114829]]
+
+begin CONCH
+TCGA-ALL2, best_epoch: 61, best_split: 1, mean value: [33.41015442], 
+[[32.7633769 ]
+ [34.12984309]
+ [32.72588764]
+ [33.79433179]
+ [33.63733268]]
+
+begin UNI
+TCGA-ALL2, best_epoch: 44, best_split: 1, mean value: [33.00725942], 
+[[33.0650199 ]
+ [33.75186445]
+ [32.61928498]
+ [33.1197163 ]
+ [32.48041149]]
+"""
+def compare_attention_with_noattention():
+    atten_values = {
+        'PLIP': [[29.86416785],
+                [28.85635187],
+                [28.72621062],
+                [30.07893741],
+                [28.75004294]],
+        'ProvGigaPath': [[33.26106165],
+                [33.49437003],
+                [33.0977323 ],
+                [33.37102611],
+                [32.98334629]],
+        'CONCH':
+                [[33.35970299],
+                [33.56453657],
+                [34.04463461],
+                [35.49385124],
+                [34.36209713]],
+        'UNI':
+                [[33.28786349],
+                [33.84315466],
+                [33.62571556],
+                [33.92088263],
+                [33.59210872]]
+    }
+
+    noatten_values = {
+        'PLIP': [[28.57568554],
+                [29.89418162],
+                [28.20150555],
+                [29.74166515],
+                [29.18278191]],
+        'ProvGigaPath': [[33.32756371],
+            [32.95985017],
+            [32.40131981],
+            [32.75990765],
+            [32.27114829]],
+                    'CONCH':
+            [[32.7633769 ],
+            [34.12984309],
+            [32.72588764],
+            [33.79433179],
+            [33.63733268]],
+                    'UNI':
+            [[33.0650199 ],
+            [33.75186445],
+            [32.61928498],
+            [33.1197163 ],
+            [32.48041149]]
+    }
+
+    keys = ['PLIP', 'ProvGigaPath', 'CONCH', 'UNI']
+
+    plt.close('all')
+    fig, axes = plt.subplots(nrows=2, ncols=2)
+    for i, key in enumerate(keys):
+        ii,jj=i%2, i//2
+        ax = axes[ii,jj]
+
+        val0 = np.array(atten_values[key])
+        val1 = np.array(noatten_values[key])
+
+        ax.plot(val0, marker='.', color='r', ls='-', label='w attention')
+        ax.plot(val1, marker='.', color='g', ls='-', label='w/o attention')
+        ax.title.set_text(key)
+        ax.set_xticks([0,1,2,3,4],[f'run{i}' for i in range(5)])
+    fig.suptitle('Sum of scores on 5 independent runs', fontsize=16)
+    plt.tight_layout()
+    plt.savefig('/Users/zhongz2/down/a.png')
+
+    plt.close('all')
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    means = [[np.array(atten_values[k]).mean() for k in keys],
+        [np.array(noatten_values[k]).mean() for k in keys]]
+    ax.plot(means[0], marker='.', color='r', ls='-', label='w attention')
+    ax.plot(means[1], marker='.', color='g', ls='-', label='w/o attention')
+    plt.xticks([i for i in range(len(keys))], keys)
+    plt.legend()
+    plt.title('Mean scores with 5 independent runs on TCGA test set')
+    plt.tight_layout()
+    plt.savefig('/Users/zhongz2/down/b.png')
+
 def check_best_split_v2():
 
     results_dir = 'results_20240724_e100'
+    results_dir = 'results_20241128_e100_noattention'
     # for backbone in ['mobilenetv3', 'CLIP', 'PLIP', 'ProvGigaPath', 'CONCH', 'UNI']: 
-    for backbone in ['CONCH']: 
+    for backbone in ['PLIP', 'ProvGigaPath', 'CONCH', 'UNI']: 
         print(f'\nbegin {backbone}')
         for proj_name in ['TCGA-ALL2']:
             task_types = ['cls', 'reg']
@@ -354,6 +472,9 @@ def check_best_split_v2():
                 all_results1.sum(axis=0).mean(axis=0)[best_epoch],
                 all_results1.sum(axis=0)[:, best_epoch]))  # the sum values for 5 splits in the best epoch
 
+
+
+
 def main():
 
     proj_name = 'TCGA-ALL2'
@@ -386,21 +507,15 @@ def main():
         'CONCH': 512,
         'UNI': 1024
     }
-    network_dims = {   # only for TCGA-ALL2
-        # 'mobilenetv3': 1280,
-        # 'CLIP': 512,
-        # 'PLIP': 512,
-        # 'ProvGigaPath': 1536,
-        'CONCH': 512,
-        # 'UNI': 1024
-    }
+
     sub_epochs = [1]
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
     save_root = '/Users/zhongz2/down/figures_20240902_e100_top4' # Add UNI 
     save_root = '/Users/zhongz2/down/figures_20241129_e100_top4' # Add UNI 
+
     results_dir = 'results_20241128_e100_noattention'
-    save_root = '/Users/zhongz2/down/figures_20241130_e100_top4_noattention' # Add UNI 
+    save_root = '/Users/zhongz2/down/figures_20241203_e100_top4_noattention' # Add UNI 
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
