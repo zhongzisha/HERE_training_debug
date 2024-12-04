@@ -28,69 +28,82 @@ fi
 
 cd /data/zhongz2/temp29/debug/
 
-python generate_faiss_index_v2_CPTAC.py ${1} ${2} ${3}
+srun python generate_faiss_index_v2_KenData_scalability.py ${1} ${2} ${3}
 
 
 exit;
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED CONCH 0
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED CONCH 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED PLIP 0
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED PLIP 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED ProvGigaPath 0
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED ProvGigaPath 0
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 CONCH 0
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 CONCH 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 PLIP 0
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 PLIP 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 ProvGigaPath 0
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 ProvGigaPath 0
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 UNI 0
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 UNI 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED UNI 0
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED UNI 0
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=4 --partition=multinode --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh ST UNI 0
+    generate_faiss_index_v2_KenData_scalability.sh ST UNI 0
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=500G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 CONCH 1
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 CONCH 1
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=300G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED CONCH 1
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED CONCH 1
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=gpu --gres=gpu:v100x:1 --ntasks-per-node=1 --mem=300G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 PLIP 1
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 PLIP 1
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED PLIP 1
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED PLIP 1
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
-    generate_faiss_index_v2_CPTAC.sh KenData_20240814 ProvGigaPath 1
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814 ProvGigaPath 1
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=2 --partition=largemem --ntasks-per-node=1 --mem=500G \
-    generate_faiss_index_v2_CPTAC.sh TCGA-COMBINED ProvGigaPath 1
+    generate_faiss_index_v2_KenData_scalability.sh TCGA-COMBINED ProvGigaPath 1
 
 
 
 # 20241203 CPTAC
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=1 --partition=norm --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh CPTAC_BRCA CONCH 0
+    generate_faiss_index_v2_KenData_scalability.sh CPTAC_BRCA CONCH 0
 
 cancers=("AML" "BRCA" "CCRCC" "CM" "COAD" "GBM" "HNSCC" "LSCC" "LUAD" "OV" "PDA" "SAR" "UCEC")
 for cancer in "AML" "CCRCC" "CM" "COAD" "GBM" "HNSCC" "LSCC" "LUAD" "OV" "PDA" "SAR" "UCEC"; 
 do
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=1 --partition=norm --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh CPTAC_${cancer} CONCH 0
+    generate_faiss_index_v2_KenData_scalability.sh CPTAC_${cancer} CONCH 0
 sleep 1
 done
 
 sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=1 --partition=norm --ntasks-per-node=1 --mem=100G \
-    generate_faiss_index_v2_CPTAC.sh CPTAC CONCH 0
+    generate_faiss_index_v2_KenData_scalability.sh CPTAC CONCH 0
 
 
 
+# 20241204 KenData scalability
 
 
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=1 --partition=norm --ntasks-per-node=1 --mem=100G \
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814_1e5 CONCH 0
+
+for postfix in "1e6" "1e7"; do
+
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=1 --partition=norm --ntasks-per-node=1 --mem=100G \
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814_${postfix} CONCH 0
+
+done
 
 
+postfix="1e8"
+sbatch --time=108:00:00 --cpus-per-task=4 --ntasks=8 --partition=multinode --ntasks-per-node=1 --mem=100G \
+    generate_faiss_index_v2_KenData_scalability.sh KenData_20240814_${postfix} CONCH 0
 

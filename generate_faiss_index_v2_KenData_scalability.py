@@ -1174,6 +1174,8 @@ if __name__ == '__main__':
     HERE_ckpt_filename=f'/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backbone{backbone}_dropout0.25/split_{BEST_SPLIT}/snapshot_{BEST_EPOCH}.pt'
     # save_dir=f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_related{version}'
     save_dir=f'/data/zhongz2/temp_20241203/faiss_related{version}'
+    save_dir=f'/data/zhongz2/temp_20241204_scalability/faiss_related{version}'
+
     os.makedirs(save_dir, exist_ok=True)
 
     train_data_filename = gen_randomly_samples_for_faiss_train_random10000(project_name=project_name, \
