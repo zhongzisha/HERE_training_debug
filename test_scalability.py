@@ -77,16 +77,16 @@ def check_memory_usage():
         # 'IndexBinaryFlat_ITQ32_LSH': 'ITQ+LSH(32)',
         # 'IndexBinaryFlat_ITQ64_LSH': 'ITQ+LSH(64)',
         # 'IndexBinaryFlat_ITQ128_LSH': 'ITQ+LSH(128)',
-        'IndexHNSWFlat_m8_IVFPQ_nlist128_m8': 'HNSW+IVFPQ(8,128)',
-        'IndexHNSWFlat_m8_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(8,256)',
-        'IndexHNSWFlat_m16_IVFPQ_nlist128_m8': 'HNSW+IVFPQ(16,128)',
-        'IndexHNSWFlat_m16_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(16,256)',
+        # 'IndexHNSWFlat_m8_IVFPQ_nlist128_m8': 'HNSW+IVFPQ(8,128)',
+        # 'IndexHNSWFlat_m8_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(8,256)',
+        # 'IndexHNSWFlat_m16_IVFPQ_nlist128_m8': 'HNSW+IVFPQ(16,128)',
+        # 'IndexHNSWFlat_m16_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(16,256)',
         'IndexHNSWFlat_m32_IVFPQ_nlist128_m8': 'HNSW+IVFPQ(32,128)',
-        'IndexHNSWFlat_m32_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(32,256)'
+        # 'IndexHNSWFlat_m32_IVFPQ_nlist256_m8': 'HNSW+IVFPQ(32,256)'
     }
 
     method = 'HERE_CONCH'
-    num_patches = ['1e5', '1e6', '1e7', '1e8']
+    num_patches = ['1e5', '1e6', '1e7', '1e8', 'TCGA_NCI_CPTAC']
 
     faiss_bins_dir = '/data/zhongz2/temp_20241204_scalability/faiss_relatedV20240908/faiss_bins'
 
@@ -94,26 +94,39 @@ def check_memory_usage():
 
     all_mems = {}
     all_sizes = {}
+    all_real_sizes = {}
     for index_name, index_NAME in mapper_dict.items():
 
         mems = []
         sizes = []
+        real_sizes = []
         for num_patch in num_patches:
-            faiss_bin_filename = os.path.join(faiss_bins_dir, f'all_data_feat_before_attention_feat_faiss_{index_name}_KenData_20240814_{num_patch}_HERE_CONCH.bin')
+            if num_patch == 'TCGA_NCI_CPTAC':
+                faiss_bin_filename = os.path.join(faiss_bins_dir, f'all_data_feat_before_attention_feat_faiss_{index_name}_TCGA_NCI_CPTAC_HERE_CONCH.bin')
+            else:
+                faiss_bin_filename = os.path.join(faiss_bins_dir, f'all_data_feat_before_attention_feat_faiss_{index_name}_KenData_20240814_{num_patch}_HERE_CONCH.bin')
             # mem1 = psutil.virtual_memory().used/1024/1024/1024
-            # index = faiss.read_index(faiss_bin_filename)
+            index = faiss.read_index(faiss_bin_filename)
             # mem2 = psutil.virtual_memory().used/1024/1024/1024
             # mems.append(mem2 - mem1)
             sizes.append(os.path.getsize(faiss_bin_filename)/1e9)
+            real_sizes.append(index.ntotal)
         all_mems[index_NAME] = mems
         all_sizes[index_NAME] = sizes
+        all_real_sizes[index_NAME] = real_sizes
+
 
 
     from matplotlib import pyplot as plt
 
     key = 'HNSW+IVFPQ(32,128)'
     fig, axes = plt.subplots(nrows=1, ncols=1)
-    plt.bar(num_patches, all_sizes['HNSW+IVFPQ(32,128)'])
+    y = all_sizes[key]
+    plt.bar(num_patches, all_sizes[key])
+    for i in range(len(num_patches)):
+        if i!=len(num_patches)-1:
+            continue
+        plt.text(i, y[i], str(all_real_sizes[key][i]), ha = 'center')
     plt.xlabel('number of patches')
     plt.ylabel('Index size (Gb)'.format(key))
     plt.title('Comparison on database scalability')
