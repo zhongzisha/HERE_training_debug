@@ -28,7 +28,8 @@ def main():
     os.makedirs(save_root, exist_ok=True)
 
     patch_files = glob.glob(os.path.join(patches_dir, '*.h5'))
-    existed_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in glob.glob(os.path.join(save_root, '*.tif'))]
+    # existed_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in glob.glob(os.path.join(save_root, '*.tif'))]
+    existed_prefixes = [f for f in os.listdir(save_root) if '.tif' not in f and f[0]!='.']
     needtodo_files = [f for f in patch_files if os.path.splitext(os.path.basename(f))[0] not in existed_prefixes]
 
     print('existing files: ', len(existed_prefixes))
@@ -89,25 +90,24 @@ def main():
                 patch = slide.read_region((x1, y1), level=patch_level, size=(size, size)).convert('RGB')
                 patch.save(os.path.join(save_dir, f'bot{ri}.png'))
 
-        try:
-
-            A = np.copy(A_raw)[0]
-            save_filename = '{}/{}.tif'.format(save_root, svs_prefix)
-            img = visHeatmap(slide, scores=A, coords=all_coords,
-                            vis_level=0, patch_size=(patch_size, patch_size),
-                            convert_to_percentiles=True)
-            print(type(img), img.size)
-            img.save(save_filename)
-            img_vips = pyvips.Image.new_from_array(img)
-            # img_vips.dzsave(save_filename, tile_size=1024)
-            img_vips.tiffsave(save_filename, compression="jpeg",
-                tile=True, tile_width=256, tile_height=256,
-                pyramid=True,  bigtiff=True)
-            # img_vips.write_to_file(save_filename, tile=True, compression="jpeg", bigtiff=True, pyramid=True)
-            # time.sleep(1)
-            # del img, img_vips
-        except:
-            print(f'error {f}')
+        # try:
+        #     A = np.copy(A_raw)[0]
+        #     save_filename = '{}/{}.tif'.format(save_root, svs_prefix)
+        #     img = visHeatmap(slide, scores=A, coords=all_coords,
+        #                     vis_level=0, patch_size=(patch_size, patch_size),
+        #                     convert_to_percentiles=True)
+        #     print(type(img), img.size)
+        #     img.save(save_filename)
+        #     img_vips = pyvips.Image.new_from_array(img)
+        #     # img_vips.dzsave(save_filename, tile_size=1024)
+        #     img_vips.tiffsave(save_filename, compression="jpeg",
+        #         tile=True, tile_width=256, tile_height=256,
+        #         pyramid=True,  bigtiff=True)
+        #     # img_vips.write_to_file(save_filename, tile=True, compression="jpeg", bigtiff=True, pyramid=True)
+        #     # time.sleep(1)
+        #     # del img, img_vips
+        # except:
+        #     print(f'error {f}')
 
 
 if __name__ == '__main__':
