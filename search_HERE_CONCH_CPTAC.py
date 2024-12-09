@@ -651,25 +651,33 @@ def main():
 
     with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
         filenames = [line.strip() for line in fp.readlines()]
-    clinical = pd.DataFrame(filenames, columns=['orig_filename'])
-    clinical['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in clinical['orig_filename'].values]
-    clinical['cancer_type'] = [f.split('/')[-2] for f in clinical['orig_filename'].values]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+
+    font2                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale              = 5
+    fontColor              = (45, 255, 255)
+    thickness              = 5
+    lineType               = 5
+    font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans.ttf')
+    font1 = ImageFont.truetype(font_path, size=28)
 
     topn = 5
-    font2                   = cv2.FONT_HERSHEY_SIMPLEX
-    fontScale              = 2
-    fontColor              = (0,0,0)
-    thickness              = 2
-    lineType               = 2
-    font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans.ttf')
-    font1 = ImageFont.truetype(font_path, size=32)
 
     assert len(project_names) == 1
 
-    files = sorted(glob.glob('/mnt/hidare-efs/data_20240208/jiang_exp1/png/*.png'))
-    files = sorted(glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/png/*.png'))
-    # print('files', files)
+    # files = sorted(glob.glob('/mnt/hidare-efs/data_20240208/jiang_exp1/png/*.png'))
+    # files = sorted(glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/png/*.png'))
+    # # print('files', files)
 
+    # files = glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/allpng_with_r2r4/png/*.png')
+    # files = glob.glob('/data/zhongz2/HERE101_20x/*.tif')
+    files = glob.glob('/data/zhongz2/CPTAC/patches_256/CONCH/heatmap_files/*/patch1024/top0.png')
+    files = [f for f in files if '_r2.png' not in f and '_r4.png' not in f]
+    
     search_backbone = 'HERE_CONCH'
     search_method = 'faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
     search_project = project_names[0]
@@ -744,23 +752,29 @@ def main():
             del tmpdata
         image_table = pd.DataFrame(image_table, columns=['proj_id', 'svs_prefix_id', 'svs_prefix', 'scale', 'patch_size_vis_level', 'external_link', 'note'])
 
-    save_root = f'/data/zhongz2/CPTAC/search_cancer/{search_backbone}/{search_method}'
+    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}'
+    os.makedirs(os.path.join(save_root, 'retrieved_patches'), exist_ok=True)
 
-    all_results = {}
+    all_results = []
+    all_results_per_slide = []
 
     for _, f in enumerate(files):
+
         print('begin ', f)
-        query_prefix = os.path.basename(f).replace('.png', '')
+        # query_prefix = os.path.basename(f).replace('.png', '')
+        # query_prefix = os.path.splitext(os.path.basename(f))[0]
+        query_prefix = f.split('/')[-3]
 
-        save_dir = os.path.join(save_root, query_prefix)
-        os.makedirs(save_dir, exist_ok=True)
 
-        save_filename = os.path.join(save_dir, f'{query_prefix}.pkl')
-        if os.path.exists(save_filename):
-            continue
+        # save_dir = os.path.join(save_root, query_prefix)
+        # os.makedirs(save_dir, exist_ok=True)
+
+        # save_filename = os.path.join(save_dir, f'{query_prefix}.pkl')
+        # if os.path.exists(save_filename):
+        #     continue
 
         params = {
-            'k': 50,
+            'k': 100,
             'search_project': search_project,
             'search_feature': 'before_attention',
             'search_method': search_method,
@@ -801,6 +815,9 @@ def main():
             x, y = all_coords[ind]
             proj_id, svs_prefix_id, slide_name, scale, patch_size_vis_level, external_link, note = \
                 image_table[(image_table['proj_id']==all_project_ids[ind, 0]) & (image_table['svs_prefix_id']==all_svs_prefix_ids[ind, 0])].values[0]
+
+            if slide_name == query_prefix:
+                continue
 
             scale = float(scale)
             patch_size_vis_level = int(patch_size_vis_level)
@@ -924,80 +941,105 @@ def main():
 
         gc.collect()
 
-        all_results[query_prefix] = {'coxph_html_dict': coxph_html_dict, 'response': final_response, 'ranks': ranks, 'pred_str': pred_str,
-            'images_shown_urls': images_shown_urls, 'minWorH': minWorH}
+        # all_results[query_prefix] = {'coxph_html_dict': coxph_html_dict, 'response': final_response, 'ranks': ranks, 'pred_str': pred_str,
+        #     'images_shown_urls': images_shown_urls, 'minWorH': minWorH}
 
         results = []
         patches_dir = '/data/zhongz2/CPTAC/patches_256/patches'
         svs_dir = '/data/zhongz2/CPTAC/svs'
+
+        # top_n_labels = [all_labels_dict[ind] for ind in sort_inds[:topn]]
+        # top_n_dists = dists_grouped[sort_inds[:topn]]
+        # majority_vote_pred = Counter(top_n_labels).most_common(1)[0][0]
+
+        # gt = all_labels_dict[all_svs_prefixes_reverse[query_prefix]] if query_prefix in all_svs_prefixes_reverse else None
+        # if gt is None:
+        #     continue
+
+        # all_results.append((query_prefix, gt, majority_vote_pred, top_n_labels, top_n_dists))
+
+        # output retrieved patches
+        top_n_labels = []
+        top_n_dists = []
+        retrived_images = [np.array(Image.open(f).convert('RGB').resize((1000, 1000)))]
+
         for ri, (svs_prefix, item) in enumerate(final_response.items()):
 
             if ri >= topn:
                 break
 
-            save_dir = os.path.join(save_root, query_prefix, f'top-{ri}-{svs_prefix}')
-            os.makedirs(save_dir, exist_ok=True)
-
-            with h5py.File(os.path.join(patches_dir, svs_prefix+'.h5'), 'r') as file:
-                all_coords1 = file['coords'][:]
-            coords = np.array([[v['x0'], v['y0']] for v in item['images']])
-            dists_in_slide = np.array(item['scores'])
-            cancer_type = item['cancer_type']
-
-            results.append((svs_prefix, dists_in_slide.min(), dists_in_slide, coords))
+            # save_dir = os.path.join(save_root, query_prefix, f'top-{ri}-{svs_prefix}')
+            # os.makedirs(save_dir, exist_ok=True)
 
             slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
             objective_power = int(slide.properties['openslide.objective-power'])
-            patch_size_20x = 256 # int((objective_power/20.)*1000)
+            patch_size_20x = int((objective_power/20.)*1000)
             patch_level = 0
 
-            W, H = slide.level_dimensions[0]
-            scale = 4000. / max(W, H)
-            size = int(patch_size_20x*scale)
+            coords = np.array([[v['x0'], v['y0']] for v in item['images']])
+            dists_in_slide = np.array(item['scores'])
+            cancer_type = item['cancer_type']
+            top_n_labels.append(cancer_type)
+            top_n_dists.append(dists_in_slide.min())
 
-            thumbnail = slide.get_thumbnail((int(scale*W), int(scale*H)))
-            W, H = thumbnail.size
-            img = thumbnail.copy()  # slide.read_region((0, 0), 0, (W, H)).convert('RGB')
-            draw = ImageDraw.Draw(img)
-            img2 = Image.new(mode='RGB', size=(W, H), color=(255, 255, 255))   # Image.fromarray(255*np.ones((H, W, 3), dtype=np.uint8))
-            draw2 = ImageDraw.Draw(img2)
-            for i2 in range(len(coords)):
-                x, y = coords[i2]
-
-                iii = np.where((coords[:,0]==x)&(coords[:,1]==y))[0]
-                if len(iii) > 0:
-                    text = '{:f}'.format(dists_in_slide[iii][0])
-                else:
-                    text = '0'
-                x, y = int(x*scale), int(y*scale)
-                xy = [x, y, int(x+size), int(y+size)]
-                if len(iii) > 0:
-                    draw2.rectangle(xy, fill=(100, 100, 144))
-                else:
-                    draw2.rectangle(xy, fill=(144, 238, 144))
-                draw.text((x, y),text,(255,255,0),font=font1)
-            img = Image.blend(img, img2, alpha=0.4)
-            img.save(os.path.join(save_root, query_prefix, f'top-{ri}-{svs_prefix}_annos_{cancer_type}.jpg'))
-
-            for i3 in range(min(5, len(coords))):
-                x, y = coords[i3]
+            for ii in range(min(10, len(coords))):
+                x, y = coords[ii]
                 im = np.array(slide.read_region(location=(x, y), level=patch_level, size=(patch_size_20x, patch_size_20x)).convert('RGB'))
 
-                cv2.putText(im,'dist: {:f}'.format(dists_in_slide[i3]), 
-                    (512, 512), 
+                cv2.putText(im,'{}: {:.3f}'.format(ri, dists_in_slide[ii]), 
+                    (8, 512), 
                     font2, 
                     fontScale,
                     fontColor,
                     thickness,
                     lineType)
 
-                cv2.imwrite(os.path.join(save_dir, 'top-{:05d}.jpg'.format(i3)), im[:,:,::-1])  # RGB --> BGR
-                print(i3, ' done')
+                # cv2.imwrite(os.path.join(save_dir, 'top-{:05d}.jpg'.format(ii)), im[:,:,::-1])  # RGB --> BGR
+                retrived_images.append(im)
 
+                break
+        
+        retrived_images = np.concatenate(retrived_images, axis=1)
+        cv2.imwrite(os.path.join(save_root, 'retrieved_patches', query_prefix+'.jpg'), retrived_images[:,:,::-1])
+
+        gt = all_labels_dict[svs_prefix] if svs_prefix in all_labels_dict else None
+        if gt is None:
+            continue
+
+        majority_vote_pred = Counter(top_n_labels).most_common(1)[0][0]
+        all_results.append((query_prefix, gt, majority_vote_pred, top_n_labels, top_n_dists))
+
+        if i % 100 == 0:
+            print(i)
+
+
+    all_results1 = pd.DataFrame(all_results, columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+    labels_dict = {v: i for i,v in enumerate(df['cancer_type'].unique())}
+
+    all_results1['gt'] = all_results1['labelStr'].map(labels_dict)
+    all_results1['pred'] = all_results1['predStr'].map(labels_dict)
+
+    y_true = all_results1['gt'].values
+    y_pred = all_results1['pred'].values
+    labels = np.unique(list(labels_dict.values()))
+
+    c_matrix = confusion_matrix(y_true, y_pred, labels=labels)
+    report_text = classification_report(y_true, y_pred, output_dict=False)
 
     with open(os.path.join(save_root, 'all_results.pkl'), 'wb') as fp:
-        pickle.dump(all_results, fp)
+        pickle.dump({
+            'all_results': all_results,
+            # 'all_results_per_slide': all_results_per_slide,
+            'report_text': report_text,
+            'c_matrix': c_matrix,
+            'y_true': y_true,
+            'y_pred': y_pred,
+            'labels_dict': labels_dict,
+            'all_svs_prefixes': all_svs_prefixes
+        }, fp)
 
+    with open(os.path.join(save_root, 'classification_report.txt'), 'w') as fp:
+        fp.writelines(report_text)
 
 
 
