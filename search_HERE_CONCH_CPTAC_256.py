@@ -678,17 +678,12 @@ def main():
     # files = glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/allpng_with_r2r4/png/*.png')
     # files = glob.glob('/data/zhongz2/HERE101_20x/*.tif')
     # files = glob.glob('/data/zhongz2/CPTAC/patches_256/CONCH/heatmap_files/*/patch1024/top0.png')
-    files = glob.glob('/data/zhongz2/CPTAC/yottixel_bobs/patches/*/patch1024/top0.png')
-
+    files = glob.glob('/data/zhongz2/CPTAC/patches_256/CONCH/heatmap_files/*/patch256/top0.png')
     files = [f for f in files if '_r2.png' not in f and '_r4.png' not in f]
-
+    
     search_backbone = 'HERE_CONCH'
     search_method = 'faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
     search_project = project_names[0]
-
-    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}/Yottixel_results/'
-    os.makedirs(os.path.join(save_root, 'retrieved_patches'), exist_ok=True)
-
 
     cache_dir = '/data/zhongz2/CPTAC/caches'
     os.makedirs(cache_dir, exist_ok=True)
@@ -759,6 +754,9 @@ def main():
             all_project_ids = tmpdata['all_project_ids']
             del tmpdata
         image_table = pd.DataFrame(image_table, columns=['proj_id', 'svs_prefix_id', 'svs_prefix', 'scale', 'patch_size_vis_level', 'external_link', 'note'])
+
+    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}/patch256'
+    os.makedirs(os.path.join(save_root, 'retrieved_patches'), exist_ok=True)
 
     all_results = []
     all_results_per_slide = []

@@ -720,7 +720,9 @@ def prepare_labels_forCPTAC():
 
 def check_results_forCPTAC(model_name='UNI'):
 
-    os.makedirs('/data/zhongz2/CPTAC/predictions/per-cancer', exist_ok=True)
+    save_root = '/data/zhongz2/CPTAC/predictions'
+    save_root = '/data/zhongz2/CPTAC/predictions_v2'
+    os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
     all_files = glob.glob(os.path.join(results_dir, '*.pt'))
@@ -746,10 +748,11 @@ def check_results_forCPTAC(model_name='UNI'):
     df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
 
     result_df1 = result_df.merge(df, left_on='svs_prefix', right_on='svs_prefix').reset_index(drop=True)
-    
+
     all_labels = pd.read_csv('/data/zhongz2/CPTAC/all_labels.csv', index_col=0)
     # ['OV', 'BRCA', 'COAD', 'LUAD', 'CCRCC', 'UCEC', 'GBM', 'PDA', 'SAR', 'LSCC', 'CM', 'AML', 'HNSCC']
     all_scores = {}
+
     for cancer_type in result_df1['cancer_type'].unique():
 
         result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
@@ -776,8 +779,8 @@ def check_results_forCPTAC(model_name='UNI'):
         if len(result_df2) ==0 or len(labels) == 0:
             continue
         
-        labels.to_csv(f'/data/zhongz2/CPTAC/predictions/per-cancer/{cancer_type}_{model_name}_labels.csv')
-        result_df2.to_csv(f'/data/zhongz2/CPTAC/predictions/per-cancer/{cancer_type}_{model_name}_predictions.csv')
+        labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
+        result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
         results = []
         for k, v in CLASSIFICATION_DICT.items():
@@ -785,10 +788,14 @@ def check_results_forCPTAC(model_name='UNI'):
                 results.append(0)
                 continue
 
-            try:
-                valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
+            valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
+            gt = labels.loc[valid_ind, k]
+            a,b = np.unique(gt.values, return_counts=True)
+            if len(a) == 1 or b[0] <= 5 or b[1] <= 5:
+                results.append(0)
+                continue
 
-                gt = labels.loc[valid_ind, k]
+            try:
                 logits = np.concatenate(result_df2.loc[np.where(valid_ind)[0], k].values)
                 probs = softmax_stable(logits)
                 probs = np.delete(probs, IGNORE_INDEX_DICT[k], axis=1)
@@ -822,7 +829,7 @@ def check_results_forCPTAC(model_name='UNI'):
     results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
     results.index = list(all_scores.keys())
 
-    results.to_csv(f'/data/zhongz2/CPTAC/predictions/{model_name}_prediction_scores.csv')
+    results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
 
 
 def do_results():

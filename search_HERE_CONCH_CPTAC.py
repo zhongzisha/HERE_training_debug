@@ -1008,7 +1008,7 @@ def main():
         retrived_images = np.concatenate(retrived_images, axis=1)
         cv2.imwrite(os.path.join(save_root, 'retrieved_patches', query_prefix+'.jpg'), retrived_images[:,:,::-1])
 
-        gt = all_labels_dict[svs_prefix] if svs_prefix in all_labels_dict else None
+        gt = all_labels_dict[query_prefix] if query_prefix in all_labels_dict else None
         if gt is None:
             continue
 
@@ -1052,9 +1052,13 @@ def main():
 
 def get_all_data():
 
-    import sys,os,glob,shutil
+    import sys,os,glob,shutil,pickle
     import numpy as np
-    
+    import pandas as pd
+    from sklearn.metrics import pairwise_distances, confusion_matrix, classification_report, ConfusionMatrixDisplay
+    from collections import Counter
+    from matplotlib import pyplot as plt
+
     results_dirs = {
         'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel',
         'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL',
@@ -1062,7 +1066,32 @@ def get_all_data():
         'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide',
         'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
     }
+    # check results
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search'
+    os.makedirs(check_save_root, exist_ok=True)
 
+    results_dirs = {
+        'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel',
+        'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL',
+        'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch',
+        'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide',
+        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/Yottixel_results'
+    }
+    # check results
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v2'
+    os.makedirs(check_save_root, exist_ok=True)
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    clinical = df
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+
+    alldfs = {}
+    common_svs_prefixes = None
     for method, result_dir in results_dirs.items():
         f = os.path.join(result_dir, 'classification_report.txt')
         if not os.path.exists(f):
@@ -1070,9 +1099,65 @@ def get_all_data():
         with open(f, 'r') as fp:
             lines = fp.read()
 
-        print(method)
-        print(lines)
+        with open(os.path.join(result_dir, 'all_results.pkl'), 'rb') as fp:
+            data = pickle.load(fp)
 
+        df = pd.DataFrame(data['all_results'], columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+        df['labelStr'] = df['svs_prefix'].map(all_labels_dict)
+        if common_svs_prefixes is None:
+            common_svs_prefixes = set(df['svs_prefix'].values)
+        else:
+            common_svs_prefixes = common_svs_prefixes.intersection(set(df['svs_prefix'].values))
+        alldfs[method] = df
+
+    common_svs_prefixes = sorted(list(common_svs_prefixes))
+    for method, df in alldfs.items():
+        df = df[df['svs_prefix'].isin(common_svs_prefixes)].reset_index(drop=True)
+        df['correct'] = df['labelStr'] == df['predStr']
+        alldfs[method] = df
+
+        y_true, y_pred = df['labelStr'].values, df['predStr'].values
+        labels = sorted(df['labelStr'].unique().tolist())
+        c_matrix = confusion_matrix(y_true, y_pred, labels=labels)
+        report_text = classification_report(y_true, y_pred, output_dict=False)
+
+        # np.savetxt(os.path.join(check_save_root, f'confusion_matrix_{method}.txt'), c_matrix, fmt='%d')
+        with open(os.path.join(check_save_root, f'classification_report_{method}.txt'), 'w') as fp:
+            fp.write(report_text)
+        df.to_csv(os.path.join(check_save_root, f'result_df_{method}.csv'))
+        disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix, display_labels=labels)
+        disp.plot(xticks_rotation="vertical")
+        # ax.set_xticklabels(labels, rotation=90, ha='center', va='top')  # Rotate labels by 90 degrees and center them
+        plt.tight_layout()
+        plt.savefig(os.path.join(check_save_root, f'confusion_matrix_{method}.png'))
+        plt.close('all')
+
+    inds1 = np.where((alldfs['Yottixel']['correct']==True)&(alldfs['SISH_slide']['correct']==True)&(alldfs['HERE_CONCH']['correct']==True))[0]
+    inds2 = np.where(((alldfs['Yottixel']['correct']==False)|(alldfs['SISH_slide']['correct']==False))&(alldfs['HERE_CONCH']['correct']==True))[0]
+    inds3 = np.array(list(set(df.index.values) - set(inds1.tolist()) - set(inds2.tolist())))
+
+    for method, df in alldfs.items():
+        df1 = df.iloc[inds2]
+        df1 = df1.groupby('labelStr', group_keys=False).apply(lambda x: x.sample(min(len(x), 5)))
+        check_save_dir = os.path.join(check_save_root, method)
+        os.makedirs(check_save_dir, exist_ok=True)
+        for _, row in df1.iterrows():
+            os.system('cp "{}/retrieved_patches/{}.jpg" "{}/{}_{}_{}.jpg"'.format(results_dirs[method], row['svs_prefix'], check_save_dir, row['labelStr'], row['predStr'], row['svs_prefix']))
+
+    # inds3 = np.random.choice(inds3, 1000)
+    # final_inds = np.concatenate([inds1, inds2, inds3])
+    # output_str = ''
+    # for method, df in alldfs.items():
+    #     output_str+='{} {} {}\n'.format('='*30, method, '='*30)
+    #     df = df.iloc[final_inds].reset_index(drop=True)
+    #     y_true, y_pred = df['labelStr'].values, df['predStr'].values
+    #     labels = sorted(df['labelStr'].unique().tolist())
+    #     c_matrix = confusion_matrix(y_true, y_pred, labels=labels)
+    #     report_text = classification_report(y_true, y_pred, output_dict=False)
+    #     output_str += report_text + '\n\n'
+
+    # with open('/all.txt', 'w') as fp:
+    #     fp.write(output_str)
 
 if __name__ == '__main__':
     main()
