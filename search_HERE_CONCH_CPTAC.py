@@ -754,7 +754,7 @@ def main():
             del tmpdata
         image_table = pd.DataFrame(image_table, columns=['proj_id', 'svs_prefix_id', 'svs_prefix', 'scale', 'patch_size_vis_level', 'external_link', 'note'])
 
-    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}'
+    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}_mut'
     os.makedirs(os.path.join(save_root, 'retrieved_patches'), exist_ok=True)
 
     all_results = []
@@ -987,6 +987,7 @@ def main():
             cancer_type = item['cancer_type']
             top_n_labels.append(cancer_type)
             top_n_dists.append(dists_in_slide.min())
+            all_results_per_slide.append((query_prefix, svs_prefix, ri, dists_in_slide.min(), dists_in_slide, coords))
 
             for ii in range(min(10, len(coords))):
                 x, y = coords[ii]
@@ -1035,7 +1036,7 @@ def main():
     with open(os.path.join(save_root, 'all_results.pkl'), 'wb') as fp:
         pickle.dump({
             'all_results': all_results,
-            # 'all_results_per_slide': all_results_per_slide,
+            'all_results_per_slide': all_results_per_slide,
             'report_text': report_text,
             'c_matrix': c_matrix,
             'y_true': y_true,
@@ -1064,22 +1065,25 @@ def get_all_data():
         'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL',
         'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch',
         'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide',
-        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
+        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8',
+        # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
+        # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
     }
     # check results
-    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search'
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v3'
     os.makedirs(check_save_root, exist_ok=True)
 
-    results_dirs = {
-        'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel',
-        'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL',
-        'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch',
-        'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide',
-        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/Yottixel_results'
-    }
-    # check results
-    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v2'
-    os.makedirs(check_save_root, exist_ok=True)
+    if False: # use Yottixel selected patch as query patch
+        results_dirs = {
+            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel',
+            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL',
+            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch',
+            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide',
+            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/Yottixel_results'
+        }
+        # check results
+        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v2'
+        os.makedirs(check_save_root, exist_ok=True)
 
     with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
         filenames = [line.strip() for line in fp.readlines()]
@@ -1158,6 +1162,70 @@ def get_all_data():
 
     # with open('/all.txt', 'w') as fp:
     #     fp.write(output_str)
+
+
+
+def get_all_results_CPTAC_mutation_search():
+
+
+    import sys,os,glob,shutil,pickle
+    import numpy as np
+    import pandas as pd
+    from sklearn.metrics import pairwise_distances, confusion_matrix, classification_report, ConfusionMatrixDisplay
+    from collections import Counter
+    from matplotlib import pyplot as plt
+
+    results_dirs = {
+        'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel',
+        'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL',
+        'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch',
+        'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide',
+        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8',
+        # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
+        # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
+    }
+    # check results
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v3'
+    os.makedirs(check_save_root, exist_ok=True)
+
+    if False: # use Yottixel selected patch as query patch
+        results_dirs = {
+            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel',
+            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL',
+            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch',
+            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide',
+            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/Yottixel_results'
+        }
+        # check results
+        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_v2'
+        os.makedirs(check_save_root, exist_ok=True)
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    clinical = df
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+
+    all_labels = pd.read_csv('/data/zhongz2/CPTAC/all_labels.csv', index_col=0)
+
+
+    alldfs = {}
+    common_svs_prefixes = None
+    for method, result_dir in results_dirs.items():
+
+        with open(os.path.join(result_dir, 'all_results.pkl'), 'rb') as fp:
+            data = pickle.load(fp)
+
+        df = pd.DataFrame(data['all_results'], columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+        df['labelStr'] = df['svs_prefix'].map(all_labels_dict)
+        if common_svs_prefixes is None:
+            common_svs_prefixes = set(df['svs_prefix'].values)
+        else:
+            common_svs_prefixes = common_svs_prefixes.intersection(set(df['svs_prefix'].values))
+        alldfs[method] = df
 
 if __name__ == '__main__':
     main()

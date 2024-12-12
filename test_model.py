@@ -778,7 +778,7 @@ def check_results_forCPTAC(model_name='UNI'):
 
         if len(result_df2) ==0 or len(labels) == 0:
             continue
-        
+
         labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
         result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
@@ -791,7 +791,7 @@ def check_results_forCPTAC(model_name='UNI'):
             valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
             gt = labels.loc[valid_ind, k]
             a,b = np.unique(gt.values, return_counts=True)
-            if len(a) == 1 or b[0] <= 5 or b[1] <= 5:
+            if len(a) == 0 or b[0] <= 5 or b[1] <= 5:
                 results.append(0)
                 continue
 
@@ -836,6 +836,145 @@ def do_results():
 
     for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
         check_results_forCPTAC(model_name=model_name)
+
+def check_results_forTCGA_v2(model_name='CONCH'):
+
+    import os
+    import pandas as pd
+    import numpy as np
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, PAN_CANCER_SITES
+    import torch
+    from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
+    from scipy.stats import percentileofscore, pearsonr, spearmanr
+
+
+    save_root = '/data/zhongz2/CPTAC/predictions'
+    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA'
+    os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
+
+    best_splits = {
+        'CONCH': 3,
+        'UNI': 3,
+        'ProvGigaPath': 1
+    }
+    best_epochs = {
+        'CONCH': 53,
+        'UNI': 58,
+        'ProvGigaPath': 39
+    }
+
+    split = best_splits[model_name]
+    all_labels = pd.read_csv(f'./splits/test-{split}.csv', low_memory=False)
+    all_labels['cancer_type'] = all_labels['PanCancerSiteID'].map({site_id+1: site_name for site_id, site_name in enumerate(PAN_CANCER_SITES)})
+    all_labels['svs_prefix'] = [os.path.splitext(os.path.basename(row['DX_filename']))[0] for _, row in all_labels.iterrows()]
+    all_labels = all_labels.set_index('svs_prefix')
+
+    results_dir = f'/data/zhongz2/download/TCGA_test{split}/{model_name}/pred_files'
+    results = {}
+    for svs_prefix, row in all_labels.iterrows():
+        results_dict = torch.load(os.path.join(results_dir, svs_prefix+'.pt'))
+        result = {}
+        for k, v in CLASSIFICATION_DICT.items():
+            result[k] = results_dict[k+'_logits']
+        for k in REGRESSION_LIST:
+            result[k] = results_dict[k+'_logits']
+        results[svs_prefix] = result
+
+    result_df = pd.DataFrame(results).T
+    result_df.index.name = 'svs_prefix'
+    result_df = result_df.reset_index(drop=False)
+    result_df['cancer_type'] = all_labels.loc[result_df['svs_prefix'].values, 'cancer_type'].values
+    result_df1 = result_df
+
+    all_scores = {}
+
+    for cancer_type in result_df1['cancer_type'].unique():
+
+        result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
+        if len(result_df2) == 0:
+            continue
+
+        barcodes = []
+        for svs_prefix in result_df2['svs_prefix'].values:
+            found = False
+            for v in all_labels.index.values:
+                if v in svs_prefix:
+                    found = True
+                    break
+            if found:
+                barcodes.append(v)
+            else:
+                barcodes.append('')
+            
+        result_df2['barcode'] = barcodes
+
+        result_df2 = result_df2[result_df2['barcode'].isin(all_labels.index)].reset_index(drop=True)
+        labels = all_labels.loc[result_df2['barcode'].values]
+
+        if len(result_df2) ==0 or len(labels) == 0:
+            continue
+
+        labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
+        result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
+
+        results = []
+        for k, v in CLASSIFICATION_DICT.items():
+            if k not in labels.columns:
+                results.append(0)
+                continue
+
+            valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
+            gt = labels.loc[valid_ind, k]
+            a,b = np.unique(gt.values, return_counts=True)
+            if len(a) == 0: # or b[0] <= 5 or b[1] <= 5:
+                results.append(0)
+                continue
+
+            try:
+                logits = np.concatenate(result_df2.loc[np.where(valid_ind)[0], k].values)
+                probs = softmax_stable(logits)
+                probs = np.delete(probs, IGNORE_INDEX_DICT[k], axis=1)
+                probs = softmax_stable(probs)
+                # logits = np.delete(logits, IGNORE_INDEX_DICT[k], axis=1)
+                # probs = softmax_stable(logits)
+                preds = np.argmax(probs, axis=1)
+                auc = roc_auc_score(y_true=gt, y_score=probs[:, 1], average='weighted', multi_class='ovo',
+                                        labels=np.arange(2))
+                # cm = confusion_matrix(y_true=gt, y_pred=preds)
+                results.append(auc)
+            except Exception as error:
+                print(k, error)
+                results.append(0)
+
+        for k in REGRESSION_LIST:
+            if k not in labels.columns and k[5:] not in labels.columns:
+                results.append(0)
+                continue
+            try:
+                logits = np.concatenate(result_df2.loc[:, k].values)
+                # if 'TIDE_' == k[:5]:
+                #     k = k[5:]
+                gt = labels.loc[:, k]
+                r2score = r2_score(gt, logits)
+                pearson_corr, pearsonr_pvalue = pearsonr(gt, logits)
+                spearmanr_corr, spearmanr_pvalue = spearmanr(gt, logits)
+                results.append(spearmanr_corr)
+            except Exception as error:
+                print(k, error)
+                results.append(0)
+
+        all_scores[cancer_type] = np.array(results).reshape(1, -1)
+
+    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
+    results.index = list(all_scores.keys())
+
+    results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
+
+
+def do_results_TCGA():
+
+    for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
+        check_results_forTCGA_v2(model_name=model_name)
 
 
 def check_results_forTCGA():

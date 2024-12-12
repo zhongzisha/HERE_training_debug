@@ -65,12 +65,12 @@ srun python test_model.py \
 
 exit;
 
-for MODEL_NAME in "CONCH"; do  # "UNI" "CONCH" "ProvGigaPath"
+for MODEL_NAME in "ProvGigaPath"; do  # "UNI" "CONCH" "ProvGigaPath"
 
 sbatch --job-name CPTAC \
---nodes=12 --ntasks-per-node=1 \
+--nodes=20 --ntasks-per-node=1 \
 --cpus-per-task=8 --partition=gpu \
---gres=gpu:v100x:1,lscratch:100 --mem=100gb --time=24:00:00 \
+--gres=gpu:v100x:1,lscratch:100 --mem=100gb --time=108:00:00 \
 job_test_model_CPTAC.sh ${MODEL_NAME}
 
 done

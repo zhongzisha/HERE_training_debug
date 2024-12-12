@@ -988,6 +988,7 @@ def main():
             cancer_type = item['cancer_type']
             top_n_labels.append(cancer_type)
             top_n_dists.append(dists_in_slide.min())
+            all_results_per_slide.append((query_prefix, svs_prefix, ri, dists_in_slide.min(), dists_in_slide, coords))
 
             for ii in range(min(10, len(coords))):
                 x, y = coords[ii]
@@ -1036,7 +1037,7 @@ def main():
     with open(os.path.join(save_root, 'all_results.pkl'), 'wb') as fp:
         pickle.dump({
             'all_results': all_results,
-            # 'all_results_per_slide': all_results_per_slide,
+            'all_results_per_slide': all_results_per_slide,
             'report_text': report_text,
             'c_matrix': c_matrix,
             'y_true': y_true,
