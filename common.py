@@ -264,6 +264,66 @@ HF_MODELS_DICT = {
 
 
 
+ALL_CLASSIFICATION_DICT = {
+    'TP53': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'PIK3CA': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'PTEN': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'KRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'ARID1A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'BRAF': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'APC': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'IDH1': {'Gain_Or_Loss_Or_Unknown_Or_NaN': 0, 'switch': 1, 'Other': 2},
+    'KMT2D': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'FBXW7': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CDKN2A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'NF1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'RB1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'KMT2C': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'ATRX': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CTNNB1': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'NRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'FAT1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'PBRM1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'PIK3R1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'ATM': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'RNF43': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'EGFR': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'KDM6A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'ARID2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CDH1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'SETD2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CTCF': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'EP300': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'NFE2L2': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'CIC': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'SMAD4': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'VHL': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'KMT2B': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'GATA3': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CREBBP': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'ZFHX3': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'ERBB2': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'MAP3K1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'JAK1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'NSD1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'STAG2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'KMT2A': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'BRCA2': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'MGA': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'BAP1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'MSH6': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'HRAS': {'Loss_Or_Unknown_Or_NaN': 0, 'gain': 1, 'Other': 2},
+    'SPOP': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'B2M': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'NOTCH1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'BCORL1': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2},
+    'CASP8': {'Gain_Or_Unknown_Or_NaN': 0, 'loss': 1, 'Other': 2}
+}
+
+
+
+
+
 
 
 

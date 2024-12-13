@@ -53,6 +53,10 @@ PIL.Image.MAX_IMAGE_PIXELS = 12660162500
 from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
+def softmax_stable(x):  # only 2-D
+    x = np.exp(x - np.max(x, axis=1)[:, None])
+    return x / x.sum(axis=1)[:, None]
+
 
 
 def load_cfg_from_json(json_file):
@@ -435,11 +439,6 @@ def main():
         os.system(f'rm -rf "{local_temp_dir}"')
 
 
-def softmax_stable(x):  # only 2-D
-    x = np.exp(x - np.max(x, axis=1)[:, None])
-    return x / x.sum(axis=1)[:, None]
-
-
 def check_case_number():
 
     with open('/data/zhongz2/CPTAC/biospecimen.cohort.2024-12-01.json','r') as fp:
@@ -718,10 +717,19 @@ def prepare_labels_forCPTAC():
     all_labels.to_csv('/data/zhongz2/CPTAC/all_labels.csv')
 
 
-def check_results_forCPTAC(model_name='UNI'):
+def check_results_forCPTAC(model_name='UNI', filter=False):
+
+    import os, glob,json
+    import pandas as pd
+    import numpy as np
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT
+    import torch
+    from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
+    from scipy.stats import percentileofscore, pearsonr, spearmanr
+    from matplotlib import pyplot as plt
 
     save_root = '/data/zhongz2/CPTAC/predictions'
-    save_root = '/data/zhongz2/CPTAC/predictions_v2'
+    save_root = '/data/zhongz2/CPTAC/predictions_v2_filter{}'.format(filter)
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
@@ -750,6 +758,7 @@ def check_results_forCPTAC(model_name='UNI'):
     result_df1 = result_df.merge(df, left_on='svs_prefix', right_on='svs_prefix').reset_index(drop=True)
 
     all_labels = pd.read_csv('/data/zhongz2/CPTAC/all_labels.csv', index_col=0)
+    all_labels.drop(['604'], inplace=True)
     # ['OV', 'BRCA', 'COAD', 'LUAD', 'CCRCC', 'UCEC', 'GBM', 'PDA', 'SAR', 'LSCC', 'CM', 'AML', 'HNSCC']
     all_scores = {}
 
@@ -759,18 +768,32 @@ def check_results_forCPTAC(model_name='UNI'):
         if len(result_df2) == 0:
             continue
 
+        # barcodes = []
+        # for svs_prefix in result_df2['svs_prefix'].values:
+        #     found = False
+        #     for v in all_labels.index.values:
+        #         if v in svs_prefix:
+        #             found = True
+        #             break
+        #     if found:
+        #         barcodes.append(v)
+        #     else:
+        #         barcodes.append('')
         barcodes = []
         for svs_prefix in result_df2['svs_prefix'].values:
-            found = False
+            found = []
             for v in all_labels.index.values:
                 if v in svs_prefix:
-                    found = True
-                    break
-            if found:
-                barcodes.append(v)
-            else:
+                    found.append(v)
+            if len(found) == 1:  # exact one match
+                barcodes.append(found[0])
+            elif len(found) == 0: # no match
                 barcodes.append('')
-            
+            elif svs_prefix in found: # multi match, has one exact match
+                barcodes.append(svs_prefix)
+            else: 
+                print(svs_prefix, found)
+                barcodes.append('')
         result_df2['barcode'] = barcodes
 
         result_df2 = result_df2[result_df2['barcode'].isin(all_labels.index)].reset_index(drop=True)
@@ -791,7 +814,8 @@ def check_results_forCPTAC(model_name='UNI'):
             valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
             gt = labels.loc[valid_ind, k]
             a,b = np.unique(gt.values, return_counts=True)
-            if len(a) == 0 or b[0] <= 5 or b[1] <= 5:
+            print(k, a, b)
+            if filter and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
                 results.append(0)
                 continue
 
@@ -835,9 +859,10 @@ def check_results_forCPTAC(model_name='UNI'):
 def do_results():
 
     for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
-        check_results_forCPTAC(model_name=model_name)
+        check_results_forCPTAC(model_name=model_name, filter=False)
+        check_results_forCPTAC(model_name=model_name, filter=True)
 
-def check_results_forTCGA_v2(model_name='CONCH'):
+def check_results_forTCGA_v2(model_name='CONCH', filter=False):
 
     import os
     import pandas as pd
@@ -849,7 +874,7 @@ def check_results_forTCGA_v2(model_name='CONCH'):
 
 
     save_root = '/data/zhongz2/CPTAC/predictions'
-    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA'
+    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filter{}'.format(filter)
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     best_splits = {
@@ -894,16 +919,32 @@ def check_results_forTCGA_v2(model_name='CONCH'):
         if len(result_df2) == 0:
             continue
 
+
+        # barcodes = []
+        # for svs_prefix in result_df2['svs_prefix'].values:
+        #     found = False
+        #     for v in all_labels.index.values:
+        #         if v in svs_prefix:
+        #             found = True
+        #             break
+        #     if found:
+        #         barcodes.append(v)
+        #     else:
+        #         barcodes.append('')
         barcodes = []
         for svs_prefix in result_df2['svs_prefix'].values:
-            found = False
+            found = []
             for v in all_labels.index.values:
                 if v in svs_prefix:
-                    found = True
-                    break
-            if found:
-                barcodes.append(v)
-            else:
+                    found.append(v)
+            if len(found) == 1:  # exact one match
+                barcodes.append(found[0])
+            elif len(found) == 0: # no match
+                barcodes.append('')
+            elif svs_prefix in found: # multi match, has one exact match
+                barcodes.append(svs_prefix)
+            else: 
+                print(svs_prefix, found)
                 barcodes.append('')
             
         result_df2['barcode'] = barcodes
@@ -926,7 +967,8 @@ def check_results_forTCGA_v2(model_name='CONCH'):
             valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
             gt = labels.loc[valid_ind, k]
             a,b = np.unique(gt.values, return_counts=True)
-            if len(a) == 0: # or b[0] <= 5 or b[1] <= 5:
+            print(k, a, b)
+            if filter and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
                 results.append(0)
                 continue
 
@@ -974,7 +1016,8 @@ def check_results_forTCGA_v2(model_name='CONCH'):
 def do_results_TCGA():
 
     for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
-        check_results_forTCGA_v2(model_name=model_name)
+        check_results_forTCGA_v2(model_name=model_name, filter=False)
+        check_results_forTCGA_v2(model_name=model_name, filter=True)
 
 
 def check_results_forTCGA():
