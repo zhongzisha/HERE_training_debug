@@ -1340,11 +1340,14 @@ def get_all_results_CPTAC_mutation_search():
     for avg_str in ['macro avg', 'weighted avg']:
         all_results2 = {}
         for gene_name, dd in all_results.items():
-            all_results2[gene_name] = {method: vv[avg_str]['f1-score'] for method, vv in dd.items()}
+            if gene_name+'_cls' in CLASSIFICATION_DICT:
+                all_results2[gene_name] = {method: vv[avg_str]['f1-score'] for method, vv in dd.items()}
         all_results2 = pd.DataFrame(all_results2)
+        all_results2 = all_results2.T.sort_values('HERE_CONCH', ascending=False).T
         all_results2.to_csv(os.path.join(check_save_root, f'score_{avg_str}.csv'))
 
 
+    import seaborn as sns
     # plot the heatmap
     for name in ['HERE_CONCH_', 'Yottixel']:
 

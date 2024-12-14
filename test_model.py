@@ -717,7 +717,7 @@ def prepare_labels_forCPTAC():
     all_labels.to_csv('/data/zhongz2/CPTAC/all_labels.csv')
 
 
-def check_results_forCPTAC(model_name='UNI', filter=False):
+def check_results_forCPTAC(model_name='UNI', do_filter=False):
 
     import os, glob,json
     import pandas as pd
@@ -729,7 +729,7 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
     from matplotlib import pyplot as plt
 
     save_root = '/data/zhongz2/CPTAC/predictions'
-    save_root = '/data/zhongz2/CPTAC/predictions_v2_filter{}'.format(filter)
+    save_root = '/data/zhongz2/CPTAC/predictions_v2_filter{}_2'.format(do_filter)
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
@@ -762,9 +762,12 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
     # ['OV', 'BRCA', 'COAD', 'LUAD', 'CCRCC', 'UCEC', 'GBM', 'PDA', 'SAR', 'LSCC', 'CM', 'AML', 'HNSCC']
     all_scores = {}
 
-    for cancer_type in result_df1['cancer_type'].unique():
+    for cancer_type in result_df1['cancer_type'].unique().tolist()+['PanCancer']:
 
-        result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
+        if cancer_type == 'PanCancer':
+            result_df2 = result_df1.reset_index(drop=True)
+        else:
+            result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
         if len(result_df2) == 0:
             continue
 
@@ -805,7 +808,7 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
         labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
         result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
-        results = []
+        results = [len(labels)]
         for k, v in CLASSIFICATION_DICT.items():
             if k not in labels.columns:
                 results.append(0)
@@ -815,7 +818,7 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
             gt = labels.loc[valid_ind, k]
             a,b = np.unique(gt.values, return_counts=True)
             print(k, a, b)
-            if filter and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
+            if  do_filter and (cancer_type != 'PanCancer') and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
                 results.append(0)
                 continue
 
@@ -850,8 +853,9 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
 
         all_scores[cancer_type] = np.array(results).reshape(1, -1)
 
-    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
+    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=['N']+list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
     results.index = list(all_scores.keys())
+    results['N'] = results['N'].map(int)
 
     results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
 
@@ -859,10 +863,10 @@ def check_results_forCPTAC(model_name='UNI', filter=False):
 def do_results():
 
     for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
-        check_results_forCPTAC(model_name=model_name, filter=False)
-        check_results_forCPTAC(model_name=model_name, filter=True)
+        check_results_forCPTAC(model_name=model_name, do_filter=False)
+        check_results_forCPTAC(model_name=model_name, do_filter=True)
 
-def check_results_forTCGA_v2(model_name='CONCH', filter=False):
+def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
 
     import os
     import pandas as pd
@@ -874,7 +878,7 @@ def check_results_forTCGA_v2(model_name='CONCH', filter=False):
 
 
     save_root = '/data/zhongz2/CPTAC/predictions'
-    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filter{}'.format(filter)
+    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filter{}'.format(do_filter)
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     best_splits = {
@@ -913,9 +917,12 @@ def check_results_forTCGA_v2(model_name='CONCH', filter=False):
 
     all_scores = {}
 
-    for cancer_type in result_df1['cancer_type'].unique():
+    for cancer_type in result_df1['cancer_type'].unique().tolist() + ['PanCancer']:
 
-        result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
+        if cancer_type == 'PanCancer':
+            result_df2 = result_df1.copy().reset_index(drop=True)
+        else:
+            result_df2 = result_df1[result_df1['cancer_type'] == cancer_type].reset_index(drop=True)
         if len(result_df2) == 0:
             continue
 
@@ -968,7 +975,7 @@ def check_results_forTCGA_v2(model_name='CONCH', filter=False):
             gt = labels.loc[valid_ind, k]
             a,b = np.unique(gt.values, return_counts=True)
             print(k, a, b)
-            if filter and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
+            if do_filter and (cancer_type != 'PanCancer') and ((len(a) == 0) or (len(a) == 1) or (len(b) == 2 and b[1] <= 5)):
                 results.append(0)
                 continue
 
@@ -1016,8 +1023,8 @@ def check_results_forTCGA_v2(model_name='CONCH', filter=False):
 def do_results_TCGA():
 
     for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
-        check_results_forTCGA_v2(model_name=model_name, filter=False)
-        check_results_forTCGA_v2(model_name=model_name, filter=True)
+        check_results_forTCGA_v2(model_name=model_name, do_filter=False)
+        check_results_forTCGA_v2(model_name=model_name, do_filter=True)
 
 
 def check_results_forTCGA():
