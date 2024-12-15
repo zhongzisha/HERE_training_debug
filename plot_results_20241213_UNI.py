@@ -53,7 +53,10 @@ def Fig3():
     df = pd.read_excel(excel_filename)
 
     # 20241213 Jinin evaluation 6 cases
-    df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES.xlsx', sheet_name='CombinedZZS')
+    # df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES.xlsx', sheet_name='CombinedZZS')
+
+    # 20241215 Jinin evaluation 6 cases
+    df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES_20241215.xlsx', sheet_name='CombinedZZS')
     df1 = df1.groupby('query').agg({'RetCCL': 'mean', 'Yottixel': 'mean', 'SISH': 'mean'})
     df2 = df1.merge(df, left_on='query', right_on='query', how='inner').reset_index()
     df = df2
@@ -118,7 +121,7 @@ def Fig3():
         COLOR_PALETTES[k] = newv
 
 
-    save_root = '/Users/zhongz2/down/temp_20241213/Fig3_4'
+    save_root = '/Users/zhongz2/down/temp_20241215/Fig3_4'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)

@@ -152,15 +152,12 @@ def get_args():
     parser.add_argument('--start_idx', type=int, default=-1)
     parser.add_argument('--end_idx', type=int, default=-1)
     parser.add_argument('--generate_attention_heatmap', type=int, default=0)
-    parser.add_argument("--hidare_checkpoint", type=str, default="/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneUNI_dropout0.25/split_3/snapshot_58.pt", help="Path to HiDARE setp2 checkpoint")
+    parser.add_argument("--hidare_checkpoint", type=str, default="None", help="Path to HiDARE setp2 checkpoint")
     args = parser.parse_args()
     return args
 
 
-def main():
-
-    args = get_args()
-    print('args', args)
+def main(args):
 
     model_name = args.model_name
     model_params = HF_MODELS_DICT[model_name] if model_name in HF_MODELS_DICT else None
@@ -330,15 +327,14 @@ def main():
         all_coords = dset[:]
         patch_level = h5file['coords'].attrs['patch_level']
         patch_size = h5file['coords'].attrs['patch_size']
-
         svs_filename1 = os.path.realpath(os.path.join(args.data_slide_dir, svs_prefix+args.slide_ext))
-        local_svs_filename = os.path.join(local_temp_dir1, os.path.basename(svs_filename1))
-        os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
-        time.sleep(0.5)
-        
+
         backbone_feature_filename = os.path.join(args.feat_dir, 'pt_files', svs_prefix + '.pt')
         if not os.path.exists(backbone_feature_filename):
-
+            local_svs_filename = os.path.join(local_temp_dir1, os.path.basename(svs_filename1))
+            os.system(f'cp -RL "{svs_filename1}" "{local_svs_filename}"')
+            time.sleep(0.5)
+            
             # filter the coords
             slide = openslide.open_slide(local_svs_filename)
             time.sleep(1)
@@ -412,7 +408,7 @@ def main():
 
             save_filename = '{}/pred_files/{}_big_attention_map.tif'.format(args.feat_dir, svs_prefix)
             if not os.path.exists(save_filename):
-                slide = openslide.open_slide(local_svs_filename)
+                slide = openslide.open_slide(svs_filename1)
                 img = visHeatmap(slide, scores=A, coords=all_coords,
                                 vis_level=0, patch_size=(patch_size, patch_size),
                                 convert_to_percentiles=True)
@@ -427,12 +423,18 @@ def main():
                 # time.sleep(1)
                 # del img, img_vips
 
-        
-        os.system(f'rm -rf "{local_svs_filename}"')
-        time.sleep(1)
+        if 'local_svs_filename' in locals() and os.path.exists(local_svs_filename):
+            os.system(f'rm -rf "{local_svs_filename}"')
+            time.sleep(1)
 
         if os.path.isdir(local_temp_dir1):
             os.system(f'rm -rf "{local_temp_dir1}"')
+
+    time.sleep(1)
+    del model
+    del attention_model
+    gc.collect()
+    torch.cuda.empty_cache() 
 
     time.sleep(2)
     if os.path.isdir(local_temp_dir):
@@ -728,6 +730,12 @@ def check_results_forCPTAC(model_name='UNI', do_filter=False):
     from scipy.stats import percentileofscore, pearsonr, spearmanr
     from matplotlib import pyplot as plt
 
+        
+    def softmax_stable(x):  # only 2-D
+        x = np.exp(x - np.max(x, axis=1)[:, None])
+        return x / x.sum(axis=1)[:, None]
+
+
     save_root = '/data/zhongz2/CPTAC/predictions'
     save_root = '/data/zhongz2/CPTAC/predictions_v2_filter{}_2'.format(do_filter)
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
@@ -771,17 +779,6 @@ def check_results_forCPTAC(model_name='UNI', do_filter=False):
         if len(result_df2) == 0:
             continue
 
-        # barcodes = []
-        # for svs_prefix in result_df2['svs_prefix'].values:
-        #     found = False
-        #     for v in all_labels.index.values:
-        #         if v in svs_prefix:
-        #             found = True
-        #             break
-        #     if found:
-        #         barcodes.append(v)
-        #     else:
-        #         barcodes.append('')
         barcodes = []
         for svs_prefix in result_df2['svs_prefix'].values:
             found = []
@@ -866,7 +863,7 @@ def do_results():
         check_results_forCPTAC(model_name=model_name, do_filter=False)
         check_results_forCPTAC(model_name=model_name, do_filter=True)
 
-def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
+def check_results_forTCGA_v2(subset='test', model_name='CONCH', csv_filename=None, do_filter=False, save_root=None, results_dir=None):
 
     import os
     import pandas as pd
@@ -876,29 +873,19 @@ def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
     from sklearn.metrics import confusion_matrix, f1_score, auc, roc_auc_score, roc_curve, classification_report, r2_score
     from scipy.stats import percentileofscore, pearsonr, spearmanr
 
+        
+    def softmax_stable(x):  # only 2-D
+        x = np.exp(x - np.max(x, axis=1)[:, None])
+        return x / x.sum(axis=1)[:, None]
 
-    save_root = '/data/zhongz2/CPTAC/predictions'
-    save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filter{}'.format(do_filter)
-    os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
+    if save_root is not None:
+        os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
-    best_splits = {
-        'CONCH': 3,
-        'UNI': 3,
-        'ProvGigaPath': 1
-    }
-    best_epochs = {
-        'CONCH': 53,
-        'UNI': 58,
-        'ProvGigaPath': 39
-    }
-
-    split = best_splits[model_name]
-    all_labels = pd.read_csv(f'./splits/test-{split}.csv', low_memory=False)
+    all_labels = pd.read_csv(csv_filename, low_memory=False)
     all_labels['cancer_type'] = all_labels['PanCancerSiteID'].map({site_id+1: site_name for site_id, site_name in enumerate(PAN_CANCER_SITES)})
     all_labels['svs_prefix'] = [os.path.splitext(os.path.basename(row['DX_filename']))[0] for _, row in all_labels.iterrows()]
     all_labels = all_labels.set_index('svs_prefix')
 
-    results_dir = f'/data/zhongz2/download/TCGA_test{split}/{model_name}/pred_files'
     results = {}
     for svs_prefix, row in all_labels.iterrows():
         results_dict = torch.load(os.path.join(results_dir, svs_prefix+'.pt'))
@@ -926,18 +913,6 @@ def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
         if len(result_df2) == 0:
             continue
 
-
-        # barcodes = []
-        # for svs_prefix in result_df2['svs_prefix'].values:
-        #     found = False
-        #     for v in all_labels.index.values:
-        #         if v in svs_prefix:
-        #             found = True
-        #             break
-        #     if found:
-        #         barcodes.append(v)
-        #     else:
-        #         barcodes.append('')
         barcodes = []
         for svs_prefix in result_df2['svs_prefix'].values:
             found = []
@@ -962,10 +937,11 @@ def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
         if len(result_df2) ==0 or len(labels) == 0:
             continue
 
-        labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
-        result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
+        if save_root is not None:
+            labels.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_labels.csv')
+            result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
-        results = []
+        results = [len(labels)]
         for k, v in CLASSIFICATION_DICT.items():
             if k not in labels.columns:
                 results.append(0)
@@ -1014,17 +990,62 @@ def check_results_forTCGA_v2(model_name='CONCH', do_filter=False):
 
         all_scores[cancer_type] = np.array(results).reshape(1, -1)
 
-    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
+    results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=['N']+list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
     results.index = list(all_scores.keys())
+    results['N'] = results['N'].map(int)
 
-    results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
+    if save_root is not None:
+        results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
+    
+    return results
 
 
-def do_results_TCGA():
+def do_results_TCGA_v2():
+    best_splits = {
+        'CONCH': 3,
+        'UNI': 3,
+        'ProvGigaPath': 1
+    }
+    best_epochs = {
+        'CONCH': 53,
+        'UNI': 58,
+        'ProvGigaPath': 39
+    }
+    for subset in ['trainval', 'test']:
+        for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
+            for do_filter in [True, False]:
+                split = best_splits[model_name]
+                csv_filename = f'/data/zhongz2/temp29/debug/splits/{subset}-{split}.csv'
+                save_root = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filter{}_2/{}'.format(do_filter, subset)
+                results_dir = f'/data/zhongz2/download/TCGA_{subset}{split}/{model_name}/pred_files'
+                check_results_forTCGA_v2(subset=subset, model_name=model_name, \
+                    csv_filename=csv_filename, do_filter=do_filter, save_root=save_root, \
+                        results_dir=results_dir)
 
-    for model_name in ['UNI', 'ProvGigaPath', 'CONCH']:
-        check_results_forTCGA_v2(model_name=model_name, do_filter=False)
-        check_results_forTCGA_v2(model_name=model_name, do_filter=True)
+
+def do_results_TCGA_v3():
+    
+    import sys,os,glob
+    from natsort import natsorted
+
+    subset = 'test'
+    model_name = 'CONCH'
+    split = 3
+    csv_filename = f'/data/zhongz2/temp29/debug/splits/{subset}-{split}.csv'
+    do_filter = False
+    
+    files = natsorted(glob.glob(f'/data/zhongz2/download/ngpus2_accum4_backbone{model_name}_dropout0.25/split_{split}/snapshot_*.pt'))
+    
+    results = {}
+    for i, f in enumerate(files):
+        print(f)
+        save_root = f[:-3]
+        if not os.path.isdir(save_root):
+            continue
+        results_dir = os.path.join('{}/pred_files'.format(f[:-3]))
+        results[i] = check_results_forTCGA_v2(subset=subset, model_name=model_name, \
+            csv_filename=csv_filename, do_filter=do_filter, save_root=save_root, \
+                results_dir=results_dir)
 
 
 def check_results_forTCGA():
@@ -1086,7 +1107,10 @@ def check_results_forTCGA():
         scores = pd.DataFrame(scores, columns=list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
 
 if __name__ == '__main__':
-    main()
+    args = get_args()
+    print('args', args)
+
+    main(args)
 
 
 
