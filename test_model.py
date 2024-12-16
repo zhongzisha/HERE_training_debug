@@ -1024,9 +1024,12 @@ def do_results_TCGA_v2():
 
 
 def do_results_TCGA_v3():
-    
+
     import sys,os,glob
     from natsort import natsorted
+    import pandas as pd
+    import numpy as np
+    from matplotlib import pyplot as plt
 
     subset = 'test'
     model_name = 'CONCH'
@@ -1034,7 +1037,7 @@ def do_results_TCGA_v3():
     csv_filename = f'/data/zhongz2/temp29/debug/splits/{subset}-{split}.csv'
     do_filter = False
     
-    files = natsorted(glob.glob(f'/data/zhongz2/download/ngpus2_accum4_backbone{model_name}_dropout0.25/split_{split}/snapshot_*.pt'))
+    files = natsorted(glob.glob(f'/data/zhongz2/temp29/debug/results_20241215_e100_debug/ngpus2_accum4_backbone{model_name}_dropout0.25/split_{split}/snapshot_*.pt'))
     
     results = {}
     for i, f in enumerate(files):
@@ -1043,9 +1046,19 @@ def do_results_TCGA_v3():
         if not os.path.isdir(save_root):
             continue
         results_dir = os.path.join('{}/pred_files'.format(f[:-3]))
+        save_filename = f'{save_root}/{model_name}_prediction_scores.csv'
+        if os.path.exists(save_filename):
+            results[i] = pd.read_csv(save_filename)
+            continue
         results[i] = check_results_forTCGA_v2(subset=subset, model_name=model_name, \
             csv_filename=csv_filename, do_filter=do_filter, save_root=save_root, \
                 results_dir=results_dir)
+
+    scores = np.array([v.values[-1, 2:] for k,v in results.items()])
+
+    plt.plot(scores.sum(axis=1))
+    plt.savefig('/data/zhongz2/a.png')
+    plt.close('all')
 
 
 def check_results_forTCGA():

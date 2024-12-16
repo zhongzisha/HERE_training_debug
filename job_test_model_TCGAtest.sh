@@ -78,7 +78,7 @@ for SPLIT in 3; do  # 0 1 2 3 4
 
 CSV_PATH="./splits/test-${SPLIT}.csv"
 
-for HIDARE_CHECKPOINT in `ls /data/zhongz2/download/ngpus2_accum4_backbone${MODEL_NAME}_dropout0.25/split_${SPLIT}/snapshot_*.pt`; do
+for HIDARE_CHECKPOINT in `ls /data/zhongz2/temp29/debug/results_20241215_e100_debug/ngpus2_accum4_backbone${MODEL_NAME}_dropout0.25/split_${SPLIT}/snapshot_*.pt`; do
 
 RESULT_DIR=${HIDARE_CHECKPOINT::-3}
 echo $RESULT_DIR
