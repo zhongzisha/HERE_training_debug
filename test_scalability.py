@@ -136,3 +136,25 @@ def check_memory_usage():
 
 
 
+    font_size = 30
+    figure_height = 8
+    figure_width = 8
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    ax = plt.gca()
+
+    keys = ['Yottixel', 'RetCCL', 'SISH', 'HERE']
+    values = [pixel_counts[k]/1e9 for k in keys]
+    plt.bar(keys, values)
+    plt.xlabel('Methods')
+    plt.ylabel("Number of pixels ($\\times 10^9$)")
+    plt.title('Comparison on search space in pixels')
+
+    plt.savefig(f'number_of_pixels_comparison.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'number_of_pixels_comparison.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'number_of_pixels_comparison.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    plt.close('all')
+
+
+
