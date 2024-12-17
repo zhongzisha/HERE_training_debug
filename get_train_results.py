@@ -325,7 +325,9 @@ TCGA-ALL2, best_epoch: 44, best_split: 1, mean value: [33.00725942],
  [33.1197163 ]
  [32.48041149]]
 """
+
 def compare_attention_with_noattention():
+
     atten_values = {
         'PLIP': [[29.86416785],
                 [28.85635187],

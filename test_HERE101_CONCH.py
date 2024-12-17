@@ -39,7 +39,7 @@ import cv2
 from conch.open_clip_custom import create_model_from_pretrained, get_tokenizer, tokenize
 from conch.downstream.zeroshot_path import zero_shot_classifier, run_mizero, topj_pooling
 from conch.downstream.wsi_datasets import WSIEmbeddingDataset
-
+import re
 
 def main():
 
@@ -48,13 +48,32 @@ def main():
     print('files', files)
 
     jinlin_df = pd.read_excel('/data/zhongz2/test_CONCH_ProvGigaPath_UNI/refined Ver0831.xlsx')
-    classnames = [v.replace('\xa0','') for v in jinlin_df['key_point'].values if not isinstance(v, float)]
+    CONCH_labels = []
+    for _, row in jinlin_df.iterrows():
+        if isinstance(row['key_point'], float):
+            label = ''
+        else:
+            label = re.sub(' +', ' ', row['key_point'].replace('\xa0',' ').replace('KP:', ' ').replace('D/D:', ' ').replace('+',' ').replace('/',' ').replace(':',' ').strip())
+            # label = re.sub(r'[^a-zA-Z_]+', ' ', label)
+        CONCH_labels.append(label)
+    jinlin_df['CONCH_label'] = CONCH_labels
+
+    # classnames = [v for v in jinlin_df['CONCH_label'].values if v!='']
+    classnames = []
+    for v in jinlin_df['CONCH_label'].values:
+        if v!='':
+            v = [vv.strip() for vv in v.split(',')]
+            classnames.extend([vv for vv in v if len(vv)>1])
+
     classnames = np.unique(classnames).tolist()
     n_classes = len(classnames)
     classnames_text = [[v] for v in classnames]
 
     save_dir = '/data/zhongz2/test_CONCH_ProvGigaPath_UNI/CONCH'
     os.makedirs(save_dir, exist_ok=True)
+
+    with open(os.path.join(save_dir, 'classnames.txt'), 'w') as fp:
+        fp.write('\n'.join(classnames))
 
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     checkpoint_path = 'CONCH_weights_pytorch_model.bin'
@@ -105,10 +124,12 @@ def main():
     results = []
     for _, row in jinlin_df.iterrows():
         query_prefix = row['query']
-        if not isinstance(row['key_point'], float):
-            label = row['key_point'].replace('\xa0','')
-        else:
-            label = ''
+        # if not isinstance(row['key_point'], float):
+        #     label = row['key_point'].replace('\xa0','')
+        # else:
+        #     label = ''
+        key_point = row['key_point']
+        label = row['CONCH_label']
         f = f'/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/png/{query_prefix}.png'
         image = Image.open(f)
         image = preprocess(image).unsqueeze(0)
@@ -126,11 +147,23 @@ def main():
             pred = preds[1].detach().cpu().numpy()[0]
 
             pred = classnames_text[pred][0]
-        results.append((query_prefix, label, pred))
+        results.append((query_prefix, key_point, label, pred))
 
-    results_df = pd.DataFrame(results, columns=['query_prefix', 'key_point', 'prediction'])
+    results_df = pd.DataFrame(results, columns=['query_prefix', 'key_point', 'label', 'prediction'])
+
+    scores = []
+    for _, row in results_df.iterrows():
+        gt = row['label'] 
+        pred = row['prediction']
+        gt = [v for v in gt.split(' ') if len(v)>1]
+        pred = [v for v in pred.split(' ') if len(v)>1]
+        overlap = set(gt).intersection(set(pred))
+        union = set(gt).union(set(pred))
+        score = len(overlap)/len(union)
+        scores.append(score)
+
+    results_df['score'] = scores
     results_df.to_csv(os.path.join(save_dir, 'results.csv'))
-
 
     # results, dump = run_mizero(model, zeroshot_weights, dataloader, device, \
     #     dump_results=True, metrics=['bacc', 'weighted_f1'])

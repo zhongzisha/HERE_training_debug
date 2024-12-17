@@ -1497,6 +1497,453 @@ def get_all_results_CPTAC_mutation_search():
 
 
 
+
+
+def cal_mAP_mMV(results, labels_dict, save_filename=None):
+
+    from collections import defaultdict, Counter
+    import time
+    import pickle
+    import math
+
+    total_slide = defaultdict(int)
+    for v in results.values():
+        total_slide[v['label_query']] += 1
+
+    metric_dict = {k: {'Acc': 0, 'Percision': 0, 'total_patch': 0}
+                   for k in total_slide.keys()}
+    topk_MV = 5
+    ret_dict = defaultdict(list)
+    t_start = time.time()
+    for evlb in total_slide.keys():
+
+        # Evaluating the result diagnosis by diagnoiss
+        corr = 0
+        percision = 0
+        avg_percision = 0
+        count = 0
+        for patch in results.keys():
+            test_patch_result = results[patch]['results']
+            label_query = results[patch]['label_query']
+            if label_query != evlb:
+                continue
+            else:
+                # Process to calculate the final ret slide
+                ret_final = [r[1] for r in test_patch_result[0:topk_MV]]
+                ap_at_k = 0
+                corr_index = []
+                for lb in range(len(ret_final)):
+                    if ret_final[lb] == evlb:
+                        corr_index.append(lb)
+                if len(corr_index) == 0:
+                    avg_percision += ap_at_k
+                else:
+                    for i_corr in corr_index:
+                        ap_at_idx_tmp = 0
+                        for j in range(i_corr + 1):
+                            if ret_final[j] == evlb:
+                                ap_at_idx_tmp += 1
+                        ap_at_idx_tmp /= (i_corr + 1)
+                        ap_at_k += ap_at_idx_tmp
+                    ap_at_k /= 5
+                    avg_percision += ap_at_k
+                if len(ret_final) != 0:
+                    hit_label = Counter(ret_final).most_common(1)[0][0]
+                else:
+                    hit_label = 'NA'
+
+                if hit_label == label_query:
+                    if len(ret_final) == topk_MV:
+                        corr += 1
+                    elif len(ret_final) < topk_MV and\
+                            Counter(ret_final).most_common(1)[0][1] >= math.ceil(topk_MV):
+                        corr += 1
+                else:
+                    pass
+                count += 1
+        metric_dict[evlb]['Acc'] = corr / count
+        metric_dict[evlb]['Percision'] = avg_percision / count
+        metric_dict[evlb]['total_patch'] = count
+    print(time.time() - t_start)
+    print(metric_dict)
+
+    metric_dict = dict(sorted(metric_dict.items()))
+    labels_dict_reverse = {v: k for k,v in labels_dict.items()}
+    df = pd.DataFrame({labels_dict_reverse[k]: v for k, v in metric_dict.items()})
+    if save_filename is not None:
+        df.to_csv(save_filename)
+
+        with open(save_filename.replace('.csv', '.pkl'), 'wb') as fp:
+            pickle.dump(results, fp)
+
+    return df
+
+
+def get_all_data_mAP_mMV():
+
+
+    import sys,os,glob,shutil,pickle
+    import numpy as np
+    import pandas as pd
+    from sklearn.metrics import pairwise_distances, confusion_matrix, classification_report, ConfusionMatrixDisplay
+    from collections import Counter
+    from matplotlib import pyplot as plt
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
+
+    results_dirs = {
+        'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut',
+        'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut',
+        'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut',
+        'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut',
+        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut',
+        # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
+        # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
+    }
+    # check results
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_cancer_mAP_mMV/HERE_CONCH_Patches'
+    os.makedirs(check_save_root, exist_ok=True)
+
+    if True: # use Yottixel selected patch as query patch
+        results_dirs = {
+            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut',
+            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut',
+            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut',
+            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut',
+            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/Yottixel_results'
+        }
+        # check results
+        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_cancer_mAP_mMV/YottixelPatches'
+        os.makedirs(check_save_root, exist_ok=True)
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    clinical = df
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+    labels_dict = {v: i for i,v in enumerate(clinical['cancer_type'].unique())}
+
+    alldfs = {}
+    common_svs_prefixes = None
+    for method, result_dir in results_dirs.items():
+        f = os.path.join(result_dir, 'classification_report.txt')
+        if not os.path.exists(f):
+            continue
+        with open(f, 'r') as fp:
+            lines = fp.read()
+
+        if os.path.exists(os.path.join(result_dir, 'all_results.pkl')):
+            with open(os.path.join(result_dir, 'all_results.pkl'), 'rb') as fp:
+                data = pickle.load(fp)
+        else:
+            result_files = glob.glob(os.path.join(result_dir, 'retrieved_results', '*.pkl'))
+            data = {'all_results': [], 'all_results_per_slide': []}
+            for ff in result_files:
+                with open(ff, 'rb') as fp:
+                    data1 = pickle.load(fp)
+                data['all_results'].append(data1['all_results'])
+                data['all_results_per_slide'].extend(data1['all_results_per_slide'])
+
+        df = pd.DataFrame(data['all_results'], columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+        df['labelStr'] = df['svs_prefix'].map(all_labels_dict)
+        if common_svs_prefixes is None:
+            common_svs_prefixes = set(df['svs_prefix'].values)
+        else:
+            common_svs_prefixes = common_svs_prefixes.intersection(set(df['svs_prefix'].values))
+        alldfs[method] = df
+
+    common_svs_prefixes = sorted(list(common_svs_prefixes))
+    all_results = {}
+
+    for method, result_dir in results_dirs.items():
+
+
+        if os.path.exists(os.path.join(result_dir, 'all_results.pkl')):
+            with open(os.path.join(result_dir, 'all_results.pkl'), 'rb') as fp:
+                data = pickle.load(fp)
+        else:
+            result_files = glob.glob(os.path.join(result_dir, 'retrieved_results', '*.pkl'))
+            data = {'all_results': [], 'all_results_per_slide': []}
+            for ff in result_files:
+                with open(ff, 'rb') as fp:
+                    data1 = pickle.load(fp)
+                data['all_results'].append(data1['all_results'])
+                data['all_results_per_slide'].extend(data1['all_results_per_slide'])
+
+        df = pd.DataFrame(data['all_results'], columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+        df['labelStr'] = df['svs_prefix'].map(all_labels_dict)     
+        df = df[df['svs_prefix'].isin(common_svs_prefixes)].reset_index(drop=True)
+        df = df.sort_values('svs_prefix').reset_index(drop=True)
+        df['correct'] = df['labelStr'] == df['predStr']
+        alldfs[method] = df
+        df1 = pd.DataFrame(data['all_results_per_slide'], columns=['query_prefix', 'svs_prefix', 'rank', 'minDist', 'dists', 'coords'])
+
+        items = {}
+        for _, row in df.iterrows():
+            query_prefix = row['svs_prefix']
+            query_label = labels_dict[all_labels_dict[query_prefix]]
+            results = []
+            for _, row1 in df1[df1['query_prefix']==query_prefix].iterrows():
+                results.append((row1['minDist'], labels_dict[all_labels_dict[row1['svs_prefix']]], row1['svs_prefix']))
+            items[query_prefix] = {'results': results, 'label_query': query_label}
+        
+        cal_mAP_mMV(items, labels_dict, save_filename=os.path.join(check_save_root, f'mAP_mMV_{method}.csv'))
+
+        y_true, y_pred = df['labelStr'].values, df['predStr'].values
+        labels = sorted(df['labelStr'].unique().tolist())
+        c_matrix = confusion_matrix(y_true, y_pred, labels=labels)
+        report_text = classification_report(y_true, y_pred, output_dict=False)
+        all_results[method] = classification_report(y_true, y_pred, output_dict=True)
+
+        # np.savetxt(os.path.join(check_save_root, f'confusion_matrix_{method}.txt'), c_matrix, fmt='%d')
+        with open(os.path.join(check_save_root, f'classification_report_{method}.txt'), 'w') as fp:
+            fp.write(report_text)
+        df.to_csv(os.path.join(check_save_root, f'result_df_{method}.csv'))
+        disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix, display_labels=labels)
+        disp.plot(xticks_rotation="vertical")
+        # ax.set_xticklabels(labels, rotation=90, ha='center', va='top')  # Rotate labels by 90 degrees and center them
+        plt.tight_layout()
+        plt.savefig(os.path.join(check_save_root, f'confusion_matrix_{method}.png'))
+        plt.close('all')
+    
+    if False:
+
+        # all_results[gene_name][method]['macro avg']['f1-score']
+        for avg_str in ['macro avg', 'weighted avg']:
+            all_results2 = {method: vv[avg_str]['f1-score'] for method, vv in all_results.items()}
+            with open(os.path.join(check_save_root, f'score_{avg_str}.json'), 'w') as fp:
+                json.dump(all_results2, fp)
+
+
+        inds1 = np.where((alldfs['Yottixel']['correct']==True)&(alldfs['SISH_slide']['correct']==True)&(alldfs['HERE_CONCH']['correct']==True))[0]
+        inds2 = np.where(((alldfs['Yottixel']['correct']==False)|(alldfs['SISH_slide']['correct']==False))&(alldfs['HERE_CONCH']['correct']==True))[0]
+        inds3 = np.array(list(set(df.index.values) - set(inds1.tolist()) - set(inds2.tolist())))
+
+        for method, df in alldfs.items():
+            df1 = df.iloc[inds2]
+            df1 = df1.groupby('labelStr', group_keys=False).head() # .apply(lambda x: x.sample(min(len(x), 5)))
+            check_save_dir = os.path.join(check_save_root, method)
+            os.makedirs(check_save_dir, exist_ok=True)
+            for _, row in df1.iterrows():
+                os.system('cp "{}/retrieved_patches/{}.jpg" "{}/{}_{}_{}.jpg"'.format(results_dirs[method], row['svs_prefix'], check_save_dir, row['labelStr'], row['predStr'], row['svs_prefix']))
+
+
+
+
+
+
+
+def get_all_results_CPTAC_mutation_search_v2():
+
+
+    import sys,os,glob,shutil,pickle
+    import numpy as np
+    import pandas as pd
+    from sklearn.metrics import pairwise_distances, confusion_matrix, classification_report, ConfusionMatrixDisplay
+    from collections import Counter
+    from matplotlib import pyplot as plt
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
+
+    results_dirs = {
+        'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut',
+        'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut',
+        'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut',
+        'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut',
+        'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut',
+        # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
+        # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
+    }
+    # check results
+    check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_mutation_v2/HERE_CONCH_Patches'
+    os.makedirs(check_save_root, exist_ok=True)
+
+    if True: # use Yottixel selected patch as query patch
+        results_dirs = {
+            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut',
+            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut',
+            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut',
+            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut',
+            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/Yottixel_results'
+        }
+        # check results
+        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_mutation_v2/YottixelPatches'
+        os.makedirs(check_save_root, exist_ok=True)
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    clinical = df
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+
+    all_labels = pd.read_csv('/data/zhongz2/CPTAC/all_labels.csv', index_col=0)
+    all_labels.drop(['604'], inplace=True) # remove this case        
+    mut_cols = [col for col in all_labels.columns if '_cls' in col]
+
+    alldfs = {}
+    common_svs_prefixes = None
+    for method, result_dir in results_dirs.items():
+
+
+        if os.path.exists(os.path.join(result_dir, 'all_results.pkl')):
+            with open(os.path.join(result_dir, 'all_results.pkl'), 'rb') as fp:
+                data = pickle.load(fp)
+        else:
+            result_files = glob.glob(os.path.join(result_dir, 'retrieved_results', '*.pkl'))
+            data = {'all_results': [], 'all_results_per_slide': []}
+            for ff in result_files:
+                with open(ff, 'rb') as fp:
+                    data1 = pickle.load(fp)
+                data['all_results'].append(data1['all_results'])
+                data['all_results_per_slide'].extend(data1['all_results_per_slide'])
+
+        df = pd.DataFrame(data['all_results'], columns=['svs_prefix', 'labelStr', 'predStr', 'mvPred', 'mvDist'])
+        df['labelStr'] = df['svs_prefix'].map(all_labels_dict)
+        df1 = pd.DataFrame(data['all_results_per_slide'], columns=['query_prefix', 'svs_prefix', 'rank', 'minDist', 'dists', 'coords'])
+
+        barcodes = []
+        for svs_prefix in df['svs_prefix'].values:
+            found = []
+            for v in all_labels.index.values:
+                if v in svs_prefix:
+                    found.append(v)
+            if len(found) == 1:  # exact one match
+                barcodes.append(found[0])
+            elif len(found) == 0: # no match
+                barcodes.append('')
+            elif svs_prefix in found: # multi match, has one exact match
+                barcodes.append(svs_prefix)
+            else: 
+                print(svs_prefix, found)
+                barcodes.append('')
+
+        df['barcode'] = barcodes
+        df = df[df['barcode']!=''].reset_index()
+        for col in mut_cols:
+            gene_name = col.replace('_cls','')
+            df[col+"_label"] = all_labels.loc[df['barcode']][col].values 
+        df.to_csv(os.path.join(check_save_root, f'labels_{method}.csv'))
+
+        barcodes = []
+        for svs_prefix in df1['svs_prefix'].values:
+            found = []
+            for v in all_labels.index.values:
+                if v in svs_prefix:
+                    found.append(v)
+            if len(found) == 1:  # exact one match
+                barcodes.append(found[0])
+            elif len(found) == 0: # no match
+                barcodes.append('')
+            elif svs_prefix in found: # multi match, has one exact match
+                barcodes.append(svs_prefix)
+            else: 
+                print(svs_prefix, found)
+                barcodes.append('')
+        df1['barcode'] = barcodes
+        df1 = df1[df1['barcode']!=''].reset_index()
+        for col in mut_cols:
+            gene_name = col.replace('_cls','')
+            df1[col+"_pred"] = all_labels.loc[df1['barcode']][col].values
+        df1.to_csv(os.path.join(check_save_root, f'predictions_{method}.csv'))
+        df1 = df1.groupby('query_prefix').agg({col+"_pred": 'max' for col in mut_cols}).reset_index()
+        df = df.merge(df1, left_on='svs_prefix', right_on='query_prefix', how="inner")
+
+        if common_svs_prefixes is None:
+            common_svs_prefixes = set(df['svs_prefix'].values)
+        else:
+            common_svs_prefixes = common_svs_prefixes.intersection(set(df['svs_prefix'].values))
+
+        alldfs[method] = df
+
+        df.to_csv(os.path.join(check_save_root, f'final_{method}.csv'))
+
+
+    common_svs_prefixes = sorted(list(common_svs_prefixes))
+    for method, df in alldfs.items():
+        df = df[df['svs_prefix'].isin(common_svs_prefixes)].reset_index(drop=True)
+        for col in mut_cols:
+            df[col+'_correct'] = df[col+"_label"] == df[col+"_pred"]
+        alldfs[method] = df
+
+    all_results = {}
+    for col in mut_cols:
+
+        gene_name = col.replace('_cls', '')
+        save_dir = os.path.join(check_save_root, gene_name)
+        os.makedirs(save_dir, exist_ok=True)
+        all_results[gene_name] = {}
+        for method, df in alldfs.items():
+
+            y_true, y_pred = df[col+"_label"].values, df[col+"_pred"].values
+            labels = np.arange(2)
+            c_matrix = confusion_matrix(y_true, y_pred, labels=labels)
+            report_text = classification_report(y_true, y_pred, output_dict=False)
+            report_dict = classification_report(y_true, y_pred, output_dict=True)
+            all_results[gene_name][method] = report_dict
+
+            with open(os.path.join(save_dir, f'classification_report_{method}.txt'), 'w') as fp:
+                fp.write(report_text)
+            disp = ConfusionMatrixDisplay(confusion_matrix=c_matrix, display_labels=labels)
+            disp.plot(xticks_rotation="vertical")
+            # ax.set_xticklabels(labels, rotation=90, ha='center', va='top')  # Rotate labels by 90 degrees and center them
+            plt.tight_layout()
+            plt.savefig(os.path.join(save_dir, f'confusion_matrix_{method}.png'))
+            plt.close('all')
+
+        inds1 = np.where((alldfs['Yottixel'][col+'_correct']==True)&(alldfs['SISH_slide'][col+'_correct']==True)&(alldfs['HERE_CONCH'][col+'_correct']==True))[0]
+        inds2 = np.where(((alldfs['Yottixel'][col+'_correct']==False)|(alldfs['SISH_slide'][col+'_correct']==False))&(alldfs['HERE_CONCH'][col+'_correct']==True))[0]
+        inds3 = np.array(list(set(df.index.values) - set(inds1.tolist()) - set(inds2.tolist())))
+
+        for method, df in alldfs.items():
+            df1 = df.iloc[inds2]
+            df1 = df1.groupby(col+"_label", group_keys=False).head() # .apply(lambda x: x.sample(min(len(x), 3)))
+            check_save_dir = os.path.join(save_dir, method)
+            os.makedirs(check_save_dir, exist_ok=True)
+            for _, row in df1.iterrows():
+                os.system('cp "{}/retrieved_patches/{}.jpg" "{}/{}_{}_{}.jpg"'.format(results_dirs[method], row['svs_prefix'], check_save_dir, row[col+"_label"], row[col+"_pred"], row['svs_prefix']))
+
+    # all_results[gene_name][method]['macro avg']['f1-score']
+    for avg_str in ['macro avg', 'weighted avg']:
+        all_results2 = {}
+        for gene_name, dd in all_results.items():
+            if gene_name+'_cls' in CLASSIFICATION_DICT:
+                all_results2[gene_name] = {method: vv[avg_str]['f1-score'] for method, vv in dd.items()}
+        all_results2 = pd.DataFrame(all_results2)
+        all_results2 = all_results2.T.sort_values('HERE_CONCH', ascending=False).T
+        all_results2.to_csv(os.path.join(check_save_root, f'score_{avg_str}.csv'))
+
+
+    import seaborn as sns
+    # plot the heatmap
+    for name in ['HERE_CONCH_', 'Yottixel']:
+
+        csv_filename = '{}/../{}Patches/score_macro avg.csv'.format(check_save_root, name)
+        if not os.path.exists(csv_filename):
+            continue
+        df = pd.read_csv(csv_filename, index_col=0)
+        df = df.loc[['RetCCL', 'SISH_slide', 'Yottixel', 'HERE_CONCH']]
+        df.index = ['RetCCL', 'SISH', 'Yottixel', 'HERE_CONCH']
+        df = df.T.sort_values('HERE_CONCH', ascending=False).T
+        df = df.iloc[:, :10]
+        font_size = 24
+        figure_height = 7
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        ax = plt.gca()
+
+        sns.heatmap(df, cmap='jet', ax=ax)
+
+        plt.savefig(csv_filename.replace('.csv', '.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.close('all')
+
+
+
 if __name__ == '__main__':
     main()
 
