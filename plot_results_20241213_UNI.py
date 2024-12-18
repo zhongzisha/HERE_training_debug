@@ -311,7 +311,7 @@ def main_20240708_encoder_comparision():
 
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
-    save_root = '/Users/zhongz2/down/temp_20240902/encoder_comparison'
+    save_root = '/Users/zhongz2/down/temp_20241218/encoder_comparison'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -439,7 +439,8 @@ def main_20240708_encoder_comparision():
         # g.set_yscale("log")
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall performance")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of average precision")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -467,7 +468,8 @@ def main_20240708_encoder_comparision():
         g.set_ylim([30, 38])
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall performance")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of average precision")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -724,7 +726,8 @@ def main_20240708_encoder_comparision():
         g=sns.barplot(all_df, x="method", y="score", hue="method", palette=palette, legend=False)
         g.tick_params(pad=10)
         g.set_xlabel("")
-        g.set_ylabel("Overall performance")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of average precision")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -840,7 +843,7 @@ def plot_search_time_tcga_ncidata():
     sns.despine(top=False, right=False)
 
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
-    save_root = '/Users/zhongz2/down/temp_20240902/hashing_comparison2'
+    save_root = '/Users/zhongz2/down/temp_20241218/hashing_comparison2'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1046,7 +1049,8 @@ def plot_search_time_tcga_ncidata():
             fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
             g=sns.barplot(all_df, x="method", y="score", hue="method", palette='colorblind', legend=False)
             g.set_xlabel("")
-            g.set_ylabel("Overall performance")
+            # g.set_ylabel("Overall performance")
+            g.set_ylabel("Sum of average precision")
             # g.legend.set_title("")
             g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
             g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -2479,43 +2483,492 @@ def compare_attention_with_noattention():
 
 
 
-def plot_cancer_search_CPTAC():
-
-    # {"Yottixel": 0.8202760888688103, "RetCCL": 0.41538449320193827, "SISH_patch": 0.6572220514646598, "SISH_slide": 0.657120058214001, "HERE_CONCH": 0.8600900922703782}
-    data = {"Yottixel": 0.8202760888688103, "RetCCL": 0.41538449320193827, "SISH": 0.657120058214001, "HERE": 0.8600900922703782}
-
-    xs = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
-    ys = [data[x] for x in xs]
 
 
-    font_size = 28
-    figure_width = 7
-    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica'})
-    # plt.tick_params(pad = 10)
-    # fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+# 20241218 CPTAC cancer search plot
+def main_20241218_CPTAC_cancer_type_search_comparision():
 
-    plt.close('all')
-    fig, ax = plt.subplots(nrows=1, ncols=1)
+    import numpy as np
+    import pandas as pd
+    import pickle
+    import os
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from matplotlib.cbook import get_sample_data
+    from matplotlib.offsetbox import (AnnotationBbox, DrawingArea, OffsetImage, TextArea)
+    from matplotlib.patches import Circle
+    # sns.set_theme(style="whitegrid")
 
-    plt.bar(np.arange(len(xs)), ys)
+    root = '/Volumes/data-1/temp_20240801'
+    root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
+    root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
+    save_root = '/Users/zhongz2/down/temp_20241218/CPTAC_cancer_search'
+    if os.path.exists(save_root):
+        os.system('rm -rf "{}"'.format(save_root))
+    os.makedirs(save_root, exist_ok=True)
+    dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
+    dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['CPTAC']
+    dataset_names1 = ['CPTAC']
 
-    plt.xticks([i for i in range(len(xs))], xs)
-    plt.xlabel(None)
-    plt.ylabel('mAP@5')
-    # plt.legend()
-    plt.title('')
-    # plt.tight_layout()
-    save_filename = '/Users/zhongz2/down/cancer_search_CPTAC.png'
-    plt.savefig(save_filename, bbox_inches='tight', transparent=True)
-    plt.savefig(save_filename.replace('.png', '.svg'), bbox_inches='tight', transparent=True)
-    plt.savefig(save_filename.replace('.png', '.pdf'), bbox_inches='tight', transparent=True)
-    plt.close()
+    all_dfs = {}
+    for di, dataset_name in enumerate(dataset_names): 
+        
+        methods = ['YottixelKimiaNet', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HiDARE_ProvGigaPath', 'CONCH', 'HiDARE_CONCH', 'UNI', 'HiDARE_UNI']
+        label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
+        methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
+        label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
+        if True:
+            data = []
+            dfs = []
+            for method, label_name in zip(methods, label_names):
+                method1 = 'Yottixel' if method == 'YottixelKimiaNet' else method
+                filename = f'{root}/{dataset_name}_{method1}_feats_results1.csv'
+                filename = f'{root}/mAP_mMV_{method1}.csv'
+                # if not os.path.exists(filename) and 'kather100k' in dataset_name and ('Yottixel' in method or 'SISH' in method):
+                #     filename = filename.replace('.csv', '_random100_random100.csv')
+                # if True:# 'HiDARE_' in method1 or 'ProvGigaPath' in method1 or 'CONCH' in method1:
+                #     filename = filename.replace(method1, f'{method1}_0')
+                if not os.path.exists(filename):
+                    print(filename, ' not existed')
+                    break
+                print(filename)
+                df = pd.read_csv(filename, index_col=0)
+                if dataset_name == 'NuCLS':
+                    df = df.drop(['AMBIGUOUS', 'other_nucleus'], axis=1)
+                data.append(df.values[:2, :])
+
+                df1 = pd.read_csv(filename, index_col=0)
+                if dataset_name == 'NuCLS':
+                    df1 = df1.drop(['AMBIGUOUS', 'other_nucleus'], axis=1)
+                df1 = df1.T
+                df1['method'] = label_name
+                df1.index.name = 'label'
+                dfs.append(df1)
+            df2 = pd.concat(dfs).reset_index()
+            all_dfs[dataset_name] = df2
 
 
+            if len(data) != len(methods):
+                print('wrong data')
+                break
+
+            for jj, name in enumerate(['Acc', 'Percision']):
+                name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+                species = df.columns.values
+                penguin_means1 = {
+                    method: [float('{:.4f}'.format(v)) for v in data[mi][jj].tolist()]
+                    for mi, method in enumerate(methods)
+                }
+                penguin_means = {
+                    method: [v for v in data[mi][jj].tolist()]
+                    for mi, method in enumerate(methods)
+                }
+
+                # plt.tight_layout()
+                df1 =pd.DataFrame(penguin_means)
+                df1.columns = label_names
+                df2 = df1.T
+                df2.columns = species
+                df2.to_csv(f'{save_root}/{dataset_name}_{name1}.csv')
+
+    dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k'] 
+    dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['CPTAC']
+    dataset_names1 = ['CPTAC']
+    xticklabels = {
+        'BCSS': ['Tumor', 'Stroma', 'Lymphocyte', 'Necrosis', 'Fat', 'Plasma', 'Other infil', 'Vessel'],
+        'NuCLS': ['Lymphocyte', 'Macrophage', 'Stroma', 'Plasma', 'Tumor'],
+        'PanNuke': ['Neoplastic', 'Inflammatory', 'Connective', 'Dead', 'Epithelial'],
+        'Kather100K': ['Adipose', 'Background', 'Debris', 'Lymphocytes', 'Mucus', 'Muscle', 'Mucosa', 'Stroma', 'Adeno epithelium'],
+        'CPTAC': ['AML','BRCA','CCRCC','CM','COAD','GBM','HNSCC','LSCC','LUAD','OV','PDA','SAR','UCEC']
+    }
+    palette = sns.color_palette('colorblind')
+    palette = [
+        '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+        '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+        '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+    ]
+
+    #get the ranking
+    for name in ['Percision', 'Acc']:
+        name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+        all_df = None
+        for dataset_name in dataset_names:
+            df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
+            
+            df = df.sum(axis=1)
+            if all_df is None:
+                all_df = df.copy()
+            else:
+                all_df += df
+        all_df=pd.DataFrame(all_df, columns=['score'])
+        all_df = all_df.sort_values('score', ascending=False)
+        all_df.to_csv(f'{save_root}/ranking_{name1}.csv')
+
+        all_df.index.name = 'method'
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
+        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
+        all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
+        all_df1 = all_df.copy()
+        all_df1['score1'] = np.log(all_df1['score'] - 30)
+        all_df1['score2'] = all_df1['score']
+
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of {}".format(name1))
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        plt.close()
+
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
+        # g.set_ylim([30, 38])
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of {}".format(name1))
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        for ci, tick_label in enumerate(g.get_xticklabels()):
+            tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        plt.close()
+
+        # 
+        hue_order = all_df['method'].values
+        ylims = {
+            'BCSS': [0, 1],
+            'Kather100K': [0, 1],
+            'PanNuke': [0, 1],
+            'NuCLS': [0, 1],
+            'CPTAC': [0, 1]
+        }
+        for di, dataset_name in enumerate(dataset_names):
+            if dataset_name not in all_dfs:
+                continue
+            df2 = all_dfs[dataset_name]
+            # Draw a nested barplot by species and sex
+            plt.close()
+
+            num_labels = len(df2['label'].value_counts())
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            g = sns.catplot(
+                data=df2, kind="bar",
+                x="label", y=name, hue="method", hue_order=hue_order,
+                errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
+            )
+            sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
+            g.ax.yaxis.tick_right()
+            g.ax.set_ylim(ylims[dataset_names1[di]])
+            g.ax.yaxis.set_label_position("right")
+            g.set_axis_labels("", name1)
+            print(name1, g.ax.get_yticklabels())
+            g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
+            g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
+            plt.title(dataset_names1[di], fontsize=font_size)
+            plt.savefig(os.path.join(save_root, '{}_{}.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, '{}_{}.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, '{}_{}.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
+            df2.to_csv(os.path.join(save_root, '{}_{}.csv'.format(dataset_names[di], name1)))
+            plt.close()
+
+
+
+
+# 20241218 CPTAC mutation search plot
+def main_20241218_CPTAC_mutation_search_comparision():
+
+    import numpy as np
+    import pandas as pd
+    import pickle
+    import os
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    from matplotlib.cbook import get_sample_data
+    from matplotlib.offsetbox import (AnnotationBbox, DrawingArea, OffsetImage, TextArea)
+    from matplotlib.patches import Circle
+    from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
+
+
+    # sns.set_theme(style="whitegrid")
+
+    root = '/Volumes/data-1/temp_20240801'
+    root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
+    root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
+    root = '/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches'
+    save_root = '/Users/zhongz2/down/temp_20241218/CPTAC_mutation_search'
+    if os.path.exists(save_root):
+        os.system('rm -rf "{}"'.format(save_root))
+    os.makedirs(save_root, exist_ok=True)
+    dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
+    dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['CPTAC']
+    dataset_names1 = ['CPTAC']
+
+    all_dfs = {}
+    for di, dataset_name in enumerate(dataset_names): 
+        
+        methods = ['YottixelKimiaNet', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HiDARE_ProvGigaPath', 'CONCH', 'HiDARE_CONCH', 'UNI', 'HiDARE_UNI']
+        label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
+        methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
+        label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
+        if True:
+            data = []
+            dfs = []
+            for method, label_name in zip(methods, label_names):
+                method1 = 'Yottixel' if method == 'YottixelKimiaNet' else method
+                filename = f'{root}/{dataset_name}_{method1}_feats_results1.csv'
+                filename = f'{root}/mAP_mMV_{method1}.csv'
+                # if not os.path.exists(filename) and 'kather100k' in dataset_name and ('Yottixel' in method or 'SISH' in method):
+                #     filename = filename.replace('.csv', '_random100_random100.csv')
+                # if True:# 'HiDARE_' in method1 or 'ProvGigaPath' in method1 or 'CONCH' in method1:
+                #     filename = filename.replace(method1, f'{method1}_0')
+                if not os.path.exists(filename):
+                    print(filename, ' not existed')
+                    break
+                print(filename)
+                df = pd.read_csv(filename, index_col=0)
+                if dataset_name == 'NuCLS':
+                    df = df.drop(['AMBIGUOUS', 'other_nucleus'], axis=1)
+                data.append(df.values[:2, :])
+
+                df1 = pd.read_csv(filename, index_col=0)
+                if dataset_name == 'NuCLS':
+                    df1 = df1.drop(['AMBIGUOUS', 'other_nucleus'], axis=1)
+                df1 = df1.T
+                df1['method'] = label_name
+                df1.index.name = 'label'
+                dfs.append(df1)
+            df2 = pd.concat(dfs).reset_index()
+            all_dfs[dataset_name] = df2
+
+
+            if len(data) != len(methods):
+                print('wrong data')
+                break
+
+            for jj, name in enumerate(['Acc', 'Percision']):
+                name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+                species = df.columns.values
+                penguin_means1 = {
+                    method: [float('{:.4f}'.format(v)) for v in data[mi][jj].tolist()]
+                    for mi, method in enumerate(methods)
+                }
+                penguin_means = {
+                    method: [v for v in data[mi][jj].tolist()]
+                    for mi, method in enumerate(methods)
+                }
+
+                # plt.tight_layout()
+                df1 =pd.DataFrame(penguin_means)
+                df1.columns = label_names
+                df2 = df1.T
+                df2.columns = species
+                df2.to_csv(f'{save_root}/{dataset_name}_{name1}.csv')
+
+    dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k'] 
+    dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['CPTAC']
+    dataset_names1 = ['CPTAC']
+    xticklabels = {
+        'BCSS': ['Tumor', 'Stroma', 'Lymphocyte', 'Necrosis', 'Fat', 'Plasma', 'Other infil', 'Vessel'],
+        'NuCLS': ['Lymphocyte', 'Macrophage', 'Stroma', 'Plasma', 'Tumor'],
+        'PanNuke': ['Neoplastic', 'Inflammatory', 'Connective', 'Dead', 'Epithelial'],
+        'Kather100K': ['Adipose', 'Background', 'Debris', 'Lymphocytes', 'Mucus', 'Muscle', 'Mucosa', 'Stroma', 'Adeno epithelium'],
+        # 'CPTAC': ['AML','BRCA','CCRCC','CM','COAD','GBM','HNSCC','LSCC','LUAD','OV','PDA','SAR','UCEC']
+        'CPTAC': ['TP53','PIK3CA','PTEN','KRAS','ARID1A','BRAF','APC','IDH1','ATRX','CDH1']
+    }
+    palette = sns.color_palette('colorblind')
+    palette = [
+        '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+        '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+        '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+    ]
+
+    #get the ranking
+    for name in ['Percision', 'Acc']:
+
+        name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+        all_df = None
+        for dataset_name in dataset_names:
+            df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
+            
+            df = df.sum(axis=1)
+            if all_df is None:
+                all_df = df.copy()
+            else:
+                all_df += df
+        all_df=pd.DataFrame(all_df, columns=['score'])
+        all_df = all_df.sort_values('score', ascending=False)
+        all_df.to_csv(f'{save_root}/ranking_{name1}.csv')
+
+        all_df.index.name = 'method'
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
+        selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
+        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
+        all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
+        all_df1 = all_df.copy()
+        all_df1['score1'] = np.log(all_df1['score'] - 30)
+        all_df1['score2'] = all_df1['score']
+
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of mAP@5" if name == 'Percision' else "Sum of mMV@5")
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        plt.close()
+
+        plt.close()
+        font_size = 30
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        # plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=palette, legend=False)
+        # g.set_yscale("log")
+        # g.set_ylim([30, 38])
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Sum of mAP@5" if name == 'Percision' else "Sum of mMV@5")
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        print(name1, g.get_yticklabels())
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        for ci, tick_label in enumerate(g.get_xticklabels()):
+            tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        plt.close()
+
+        # 
+        hue_order = all_df['method'].values
+        ylims = {
+            'BCSS': [0, 1],
+            'Kather100K': [0, 1],
+            'PanNuke': [0, 1],
+            'NuCLS': [0, 1],
+            'CPTAC': [0, 1]
+        }
+        for di, dataset_name in enumerate(dataset_names):
+            if dataset_name not in all_dfs:
+                continue
+            df2 = all_dfs[dataset_name]
+            # Draw a nested barplot by species and sex
+            plt.close()
+
+            num_labels = len(df2['label'].value_counts())
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            g = sns.catplot(
+                data=df2, kind="bar",
+                x="label", y=name, hue="method", hue_order=hue_order,
+                errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
+            )
+            sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
+            g.ax.yaxis.tick_right()
+            g.ax.set_ylim(ylims[dataset_names1[di]])
+            g.ax.yaxis.set_label_position("right")
+            g.set_axis_labels("", "mMV@5" if 'mAP' not in name1 else 'mAP@5')
+            print(name1, g.ax.get_yticklabels())
+            g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
+            g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
+            plt.title(dataset_names1[di], fontsize=font_size)
+            plt.savefig(os.path.join(save_root, '{}_{}.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, '{}_{}.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, '{}_{}.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
+            df2.to_csv(os.path.join(save_root, '{}_{}.csv'.format(dataset_names[di], name1)))
+            plt.close()
 
 
 
 if __name__ == '__main__':
+    main_20241218_CPTAC_mutation_search_comparision()
+    main_20241218_CPTAC_cancer_type_search_comparision()    
     main_20240708_encoder_comparision()
     plot_search_time_tcga_ncidata()
 

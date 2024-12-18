@@ -6,23 +6,30 @@ import pandas as pd
 import torch
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
+from sklearn.metrics import silhouette_score, silhouette_samples
 from sklearn import cluster, neighbors
 from scipy.spatial import distance_matrix
 import h5py
+import umap
 
 import dash
 import dash_deck
 from dash import html
 import pydeck
 
+from matplotlib import pyplot as plt
+
 
 root = '/data/zhongz2/ST_256'
 df = pd.read_excel(f'{root}/all_20231117.xlsx')
+df1 = pd.read_excel('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/ST_list_cancer.xlsx')
+df = df[df['slide_id'].isin(df1['ID'].values)]
+df = df.sort_values('slide_id').reset_index(drop=True)
 patches_dir = f'{root}/patches'
 prefixes = [os.path.basename(f).replace('.h5', '') for f in glob.glob(os.path.join(patches_dir, '*.h5'))]
 invalid_slide_ids = [
-    '10x_Parent_Visium_Human_Glioblastoma_1.2.0',
-    '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0'
+    # '10x_Parent_Visium_Human_Glioblastoma_1.2.0',
+    # '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0'
 ]
 prefixes = [v for v in prefixes if v not in invalid_slide_ids]
 df = df[df['slide_id'].isin(prefixes)].reset_index(drop=True)
@@ -30,7 +37,7 @@ df = df[df['slide_id'].isin(prefixes)].reset_index(drop=True)
 slide_ids = df['slide_id'].to_dict()
 colors = np.random.randint(0, 255, size=(len(slide_ids), 3), dtype=np.uint8)
 
-for backbone in ['PLIP', 'ProvGigaPath', 'CONCH']:
+for backbone in ['CONCH']:
     save_filename = f'ST_{backbone}_umap3d.csv'
     if os.path.exists(save_filename):
         continue
@@ -40,8 +47,10 @@ for backbone in ['PLIP', 'ProvGigaPath', 'CONCH']:
     X0 = []
     Y0 = []
     all_coords = []
+
     for row_ind, row in df.iterrows():
         x = torch.load(os.path.join(feats_dir, row['slide_id']+'.pt'), weights_only=True).cpu().numpy()
+
         X0.append(x)
         Y0.append(row_ind * np.ones((x.shape[0],), dtype=np.int32))
 
@@ -51,6 +60,38 @@ for backbone in ['PLIP', 'ProvGigaPath', 'CONCH']:
     X0 = np.concatenate(X0)
     Y0 = np.concatenate(Y0)
     all_coords = np.concatenate(all_coords)
+
+    sil_scores = silhouette_samples(X0, Y0)
+
+    plt.hist(sil_scores)
+    plt.savefig(f'ST_{backbone}_silhouette_score_hist.png', format='png')
+    plt.savefig(f'ST_{backbone}_silhouette_score_hist.svg', format='svg')
+    plt.savefig(f'ST_{backbone}_silhouette_score_hist.pdf', format='pdf')
+    plt.close('all')
+
+    case_level_values = []
+    for label in np.unique(Y0):
+        inds = np.where(Y0==label)[0]
+        vals = sil_scores[inds]
+        case_level_values.append([np.mean(vals), np.std(vals)])
+    case_level_values = pd.DataFrame(case_level_values, columns=['mean', 'std'])
+    case_level_values = case_level_values.sort_values('mean').reset_index(drop=True)
+
+
+    # Create the scatter plot
+    plt.figure(figsize=(10, 6))
+    plt.errorbar(x=case_level_values.index, y=case_level_values['mean'], yerr=case_level_values['std'], fmt='o', ecolor='gray', elinewidth=1, capsize=3, label='Data with Std Dev')
+
+    # Add labels and title
+    plt.xlabel('Sample Index')
+    plt.ylabel('Mean Value')
+    plt.title('Scatter Plot with Standard Deviation')
+    plt.legend()
+    plt.savefig(f'ST_{backbone}_silhouette_score_mean_std.png', format='png')
+    plt.savefig(f'ST_{backbone}_silhouette_score_mean_std.svg', format='svg')
+    plt.savefig(f'ST_{backbone}_silhouette_score_mean_std.pdf', format='pdf')
+    plt.close('all')
+
 
     is_reduced_sample = False
     kmeans0_Y = None
