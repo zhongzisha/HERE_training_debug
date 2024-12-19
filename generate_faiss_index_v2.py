@@ -9,7 +9,7 @@ import openslide
 from utils import _assertLevelDownsamplesV2
 import faiss
 import PIL
-PIL.Image.MAX_IMAGE_PIXELS = 12660162500
+PIL.Image.MAX_IMAGE_PIXELS = None
 from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
 
@@ -259,6 +259,39 @@ def merge_background_samples_for_deployment_v2():
 
 
 
+def merge_background_samples_for_deployment_v2_20241219_CPTAC():
+    import os
+    import pickle
+    import numpy as np
+    data = {}
+    for method in ['HERE_CONCH']: # ['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 'HERE_UNI']:
+        if method not in data:
+            data[method] = {}
+        for project_name in ['KenData_20240814', 'ST', 'TCGA-COMBINED', 'CPTAC']:# ['KenData_20240814', 'ST_20240903', 'TCGA-COMBINED']:
+            if project_name == 'ST_20240903' or project_name == 'CPTAC':
+                version = 'V20240908'
+            else:
+                version = 'V6'
+            filename = f'randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
+            if project_name in data[method] or not os.path.exists(filename):
+                print('wrong')
+                import pdb
+                pdb.set_trace()
+                continue
+            with open(filename, 'rb') as fp:
+                data1 = pickle.load(fp)
+            if project_name == 'TCGA-COMBINED' or project_name == 'KenData_20240814':
+                embeddings = data1[method][project_name]['embeddings']
+                data[method][project_name] = embeddings[np.random.randint(0, len(embeddings), 10000), :]
+            else:
+                data[method][project_name] = data1[method][project_name]['embeddings']
+        data[method]['ALL'] = np.concatenate([
+            vv for kk, vv in data[method].items() 
+        ])
+    with open('randomly_1000_data_with_PLIP_ProvGigaPath_CONCH_20241219.pkl', 'wb') as fp:
+        pickle.dump(data, fp)
+
+
 
 def get_all_scales_20240813():
 
@@ -327,6 +360,85 @@ def get_all_scales_20240813():
     os.makedirs(save_dir, exist_ok=True)
     with open(f'{save_dir}/all_scales_{version}_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
         pickle.dump(all_results, fp)
+
+
+
+
+
+def get_all_scales_20241219_CPTAC():
+
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
+    # project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST_20240903'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST', 'CPTAC'] # get_project_names()
+    version = '20240814'
+    version = '20240908'
+    version = '20241219'
+
+    save_dir = f'/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
+    os.makedirs(save_dir, exist_ok=True)
+    all_results = {}
+    with open(f'{save_dir}/all_scales_20240908_newKenData.pkl', 'rb') as fp:
+        all_results = pickle.load(fp)
+    project_names = ['CPTAC']
+
+    image_ext = '.svs'
+    for project_name in project_names:
+
+        assert project_name in project_names, 'check project_name'
+
+        # allfeats_dir, image_ext, svs_dir, patches_dir = get_allfeats_dir(
+        #     project_name)
+        svs_dir = f'/data/zhongz2/{project_name}_256/svs'
+        patches_dir = f'/data/zhongz2/{project_name}_256/patches'
+
+        h5filenames = sorted(glob.glob(patches_dir + '/*.h5'))
+        for file_index, h5filename in enumerate(h5filenames):
+
+            svs_prefix = os.path.basename(h5filename).replace('.h5', '')
+            svs_filename = os.path.join(svs_dir, svs_prefix + image_ext)
+            slide = openslide.open_slide(svs_filename)
+
+            h5file = h5py.File(h5filename, 'r')
+            patch_level = h5file['coords'].attrs['patch_level']
+            patch_size = h5file['coords'].attrs['patch_size']
+            h5file.close()
+
+            if len(slide.level_dimensions) == 1:
+                vis_level = 0
+            else:
+                dimension = slide.level_dimensions[1] if len(
+                    slide.level_dimensions) > 1 else slide.level_dimensions[0]
+                if dimension[0] > 100000 or dimension[1] > 100000:
+                    vis_level = 2
+                else:
+                    vis_level = 1
+                if len(slide.level_dimensions) == 1:
+                    vis_level = 0
+
+            level_downsamples = _assertLevelDownsamplesV2(
+                slide.level_dimensions, slide.level_downsamples)
+            downsample0 = level_downsamples[patch_level]
+            downsample = level_downsamples[vis_level]
+            scale = [downsample0[0] / downsample[0], downsample0[1] /
+                     downsample[1]]  # Scaling from 0 to desired level
+            # scale = [1 / downsample[0], 1 / downsample[1]]
+            patch_size_vis_level = np.ceil(patch_size * scale[0]).astype(int)
+
+            all_results['{}_{}'.format(project_name, svs_prefix)] = {
+                'patch_level': patch_level,
+                'patch_size': patch_size,
+                'vis_level': vis_level,
+                'level_dimensions': slide.level_dimensions,
+                'level_downsamples': slide.level_downsamples,
+                'scale': scale,
+                'patch_size_vis_level': patch_size_vis_level
+            }
+
+            slide.close()
+
+    with open(f'{save_dir}/all_scales_{version}_newKenData.pkl', 'wb') as fp:  # TCGA-COMBINED
+        pickle.dump(all_results, fp)
+
 
 
 def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
@@ -462,6 +574,146 @@ def gen_faiss_infos_to_mysqldb_v2(): # combined to reduce memory
     conn.close()
     time.sleep(1)
 
+
+
+
+
+def gen_faiss_infos_to_mysqldb_v2_20241219_CPTAC(): # combined to reduce memory
+    # tcga_names = ["TCGA-ACC", "TCGA-BLCA", "TCGA-BRCA", "TCGA-CESC", "TCGA-CHOL",
+    #               "TCGA-COAD", "TCGA-DLBC", "TCGA-ESCA", "TCGA-GBM", "TCGA-HNSC",
+    #               "TCGA-KICH", "TCGA-KIRC", "TCGA-KIRP", "TCGA-LGG", "TCGA-LIHC",
+    #               "TCGA-LUAD", "TCGA-LUSC", "TCGA-MESO", "TCGA-OV", "TCGA-PAAD",
+    #               "TCGA-PCPG", "TCGA-PRAD", "TCGA-READ", "TCGA-SARC", "TCGA-SKCM",
+    #               "TCGA-STAD", "TCGA-TGCT", "TCGA-THCA", "TCGA-THYM", "TCGA-UCEC",
+    #               "TCGA-UCS", "TCGA-UVM"]
+    # project_names = ['Adoptive_TIL_Breast', 'TransNEO', 'WiemDataCheck', 'METABRIC',
+    #                  'ST', 'ShebaV3', 'BintrafuspAlfa', 'Mouse'] + tcga_names + ['KenData']
+
+    import os,h5py,glob,time,pickle
+    import pymysql
+    import numpy as np
+    import json
+    import pandas as pd
+
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST_20240903'] # get_project_names()
+    project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST', 'CPTAC'] # get_project_names()
+
+    data_root = 'data_HiDARE_PLIP_20240208'
+    version = '20240812' # for TCGA-COMBINED
+    version = '20240814' # for KenData_20240814
+    version = '20240903' # for ST_20240903
+    version = '20241219'
+
+    DB_USER = os.environ['HERE_DB_USER']
+    DB_PASSWORD = os.environ['HERE_DB_PASSWORD']
+    DB_HOST = os.environ['HERE_DB_HOST']
+    DB_DATABASE = os.environ['HERE_DB_DATABASE']
+
+    conn = pymysql.connect(user=DB_USER, password=DB_PASSWORD, host=DB_HOST, database=DB_DATABASE)
+    conn.autocommit = False
+    cur = conn.cursor()
+
+    sql_command = f'CREATE TABLE IF NOT EXISTS image_table_{version} '\
+        '(rowid BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, '\
+            'project_id INT NOT NULL, '\
+                'svs_prefix_id INT NOT NULL, svs_prefix VARCHAR(1024) NOT NULL, '\
+                    'scale FLOAT NOT NULL, patch_size_vis_level SMALLINT NOT NULL, external_link VARCHAR(2048), note TEXT);'
+    cur.execute(sql_command)
+    sql_command = f'CREATE TABLE IF NOT EXISTS project_table_{version} '\
+        '(rowid BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, '\
+            'project_id INT NOT NULL, project_name VARCHAR(256) NOT NULL);'
+    cur.execute(sql_command)
+
+    with open(f'{data_root}/assets/all_scales_{version}_newKenData.pkl', 'rb') as fp:
+        all_scales = pickle.load(fp) # proj_name+svs_prefix
+    with open(f'{data_root}/assets/all_notes_all.pkl', 'rb') as fp:
+        all_notes = pickle.load(fp) # svs_prefix
+    case_uuids = {}
+    with open(f'{data_root}/assets/metadata.repository.2024-08-13.json', 'r') as fp:
+        case_uuids = {item['file_name'].replace('.svs', ''): item['associated_entities'][0]['case_id'] for item in json.load(fp)}
+    ST_df = pd.read_excel(f'{data_root}/assets/ST_list_cancer.xlsx')
+    # ST_df = pd.read_excel(f'{data_root}/assets/ST_{version}.xlsx')
+
+    all_items = []
+    project_items = []
+    for proj_id, project_name in enumerate(project_names):
+        project_items.append((proj_id, project_name))
+        print(f'begin {project_name}')
+        patches_dir = os.path.join(
+            data_root, 'assets', 'all_patches', project_name, 'patches')
+
+        h5filenames = sorted(glob.glob(patches_dir + '/*.h5'))
+
+        for svs_prefix_id, h5filename in enumerate(h5filenames):
+            
+            svs_prefix = os.path.basename(h5filename).replace('.h5', '')
+
+            key = '{}_{}'.format(project_name, svs_prefix)
+            if key in all_scales:
+                scale = all_scales[key]['scale'][0]
+                patch_size_vis_level = all_scales[key]['patch_size_vis_level']
+            else:
+                scale = 1.0
+                patch_size_vis_level = 256
+            note = all_notes[svs_prefix] if svs_prefix in all_notes else svs_prefix
+            # if 'TCGA' == svs_prefix[:4] and svs_prefix in case_uuids:
+            #     note = f'Link: <a href=\"https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}\" target=\"_blank\">{svs_prefix}</a>\n\n' + note
+            external_link = ''
+            if project_name == 'ST':
+                external_link = ST_df.loc[ST_df['ID']==svs_prefix, 'Source'].values[0]
+            elif project_name == 'TCGA-COMBINED':
+                external_link = f'https://portal.gdc.cancer.gov/cases/{case_uuids[svs_prefix]}' if svs_prefix in case_uuids else ''
+            
+            all_items.append((proj_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, external_link, note))
+    cur.executemany(f"INSERT INTO project_table_{version} (project_id, project_name) VALUES (%s, %s)",
+                    project_items)
+    conn.commit()
+    cur.executemany(f"INSERT INTO image_table_{version} (project_id, svs_prefix_id, svs_prefix, scale, patch_size_vis_level, external_link, note) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    all_items)
+    conn.commit()
+
+
+
+    #################
+    sql_command = f'CREATE TABLE IF NOT EXISTS faiss_table_{version} '\
+        '(rowid BIGINT NOT NULL PRIMARY KEY AUTO_INCREMENT, '\
+            'x INT NOT NULL, '\
+                'y INT NOT NULL, svs_prefix_id INT NOT NULL, project_id INT NOT NULL);'
+    cur.execute(sql_command)
+
+    total_count = 0 
+    for proj_id, project_name in enumerate(project_names):
+        print(f'begin {project_name}')
+        patches_dir = os.path.join(
+            data_root, 'assets', 'all_patches', project_name, 'patches')
+
+        h5filenames = sorted(glob.glob(patches_dir + '/*.h5'))
+
+        for svs_prefix_id, h5filename in enumerate(h5filenames):
+
+            svs_prefix = os.path.basename(h5filename).replace('.h5', '')
+
+            with h5py.File(h5filename, 'r') as file:
+                coords = file['coords'][()].astype(np.int32)
+
+            total_count += len(coords)
+            svs_prefix_ids = svs_prefix_id * \
+                np.ones((len(coords), 1), dtype=np.int32)
+            project_ids = proj_id * np.ones((len(coords), 1), dtype=np.int32) 
+
+            cur.executemany(f"INSERT INTO faiss_table_{version} (x, y, svs_prefix_id, project_id) VALUES (%s, %s, %s, %s)",
+                            np.concatenate([coords, svs_prefix_ids, project_ids], axis=1).tolist())
+            conn.commit()
+
+            if svs_prefix_id % 1000 == 0:
+                print(svs_prefix_id, svs_prefix)
+        print(f'end {project_name}')
+
+
+    conn.close()
+    time.sleep(1)
+    print('total_count', total_count)
 
 
 

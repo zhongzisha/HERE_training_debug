@@ -44,13 +44,12 @@ def main():
 
         slide = openslide.open_slide(local_svs_filename)
         dimension = slide.level_dimensions[1] if len(slide.level_dimensions) > 1 else slide.level_dimensions[0]
-        # if dimension[0] > 100000 or dimension[1] > 100000:
-        #     vis_level = 2
-        # else:
-        #     vis_level = 1
-        # if len(slide.level_dimensions) == 1:
-        #     vis_level = 0
-        vis_level = 0
+        if dimension[0] > 100000 or dimension[1] > 100000:
+            vis_level = 2
+        else:
+            vis_level = 1
+        if len(slide.level_dimensions) == 1:
+            vis_level = 0
 
         save_filename = '{}/{}_big_orig.zip'.format(save_root, svs_prefix)
         if not os.path.exists(save_filename):
