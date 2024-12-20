@@ -72,6 +72,11 @@ def CPTAC():
     import numpy as np
     from common import CLASSIFICATION_DICT, ALL_CLASSIFICATION_DICT, REGRESSION_LIST
 
+    clinical2 = pd.read_csv('/Users/zhongz2/down/clinical.project-cptac-2.2024-12-20/clinical.tsv', sep='\t')
+    clinical3 = pd.read_csv('/Users/zhongz2/down/clinical.project-cptac-3.2024-12-20/clinical.tsv', sep='\t')
+    clinical = pd.concat([clinical2, clinical3], axis=0)
+    clinical = clinical.groupby('case_submitter_id').first().reset_index()
+
     df1 = pd.read_csv('splits/PanCancer_CONCH_labels.csv')
     df2 = pd.read_csv('splits/PanCancer_CONCH_predictions.csv', index_col=0)
     df3 = pd.read_csv('splits/TP53_HERE_CONCH_results.csv', index_col=0)
@@ -97,10 +102,11 @@ def CPTAC():
     df2['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df2['image_filename'].values]
     df2['cancer_type'] = [f.split('/')[-2] for f in df2['image_filename'].values]
 
-    df = df.merge(df2, left_on='svs_prefix', right_on='svs_prefix', how='inner').reset_index(drop=True)
+    # df = df.merge(df2, left_on='svs_prefix', right_on='svs_prefix', how='inner').reset_index(drop=True)
+    df = df2.merge(df, left_on='svs_prefix', right_on='svs_prefix', how='left').reset_index(drop=True)
 
     cols1 = [col for col in df.columns if '_cls' in col]
-    cols2 = [col for col in df.columns if 'HALLMARK' in col]
+    cols2 = [col for col in df.columns if 'HALLMARK_' in col]
 
     mapper_column_names = {'barcode': 'ID', 'svs_prefix': 'slide_id'}
     gene_mut_cols = []
@@ -111,6 +117,32 @@ def CPTAC():
     for col in cols2:
         gene_exp_cols.append(col.replace('_sum', ''))
         mapper_column_names[col] = col.replace('_sum', '')
+
+    if True:
+        df1 = df.copy()
+        barcodes = []
+        for svs_prefix in df['svs_prefix'].values:
+            found = []
+            for v in clinical['case_submitter_id'].values:
+                if v in svs_prefix:
+                    found.append(v)
+            if len(found) == 1:  # exact one match
+                barcodes.append(found[0])
+            elif len(found) == 0: # no match
+                barcodes.append('FAKE_CASE')
+            elif svs_prefix in found: # multi match, has one exact match
+                barcodes.append(svs_prefix)
+            else: 
+                found1 = [v for v in found if v not in ['604', '1488']]
+                print(svs_prefix, found, found1)
+                barcodes.append(found1[0])
+        df1['barcode'] = barcodes
+        clinical.loc['FAKE_CASE'] = [pd.NA for _ in range(len(clinical.columns))]
+        df2 = df1.merge(clinical, left_on='barcode', right_on='case_submitter_id', how='left').reset_index(drop=True)
+
+        df2['image_filename'] = [f.replace('/data/zhongz2/CPTAC/allsvs/', '') for f in df2['image_filename'].values]
+
+        df2.to_excel('splits/CPTAC_all.xlsx')
 
     df = df.rename(columns=mapper_column_names)
     df = df[['ID','cancer_type', 'slide_id', 'image_filename']+gene_mut_cols+gene_exp_cols]
