@@ -359,7 +359,9 @@ def main_20240708_encoder_comparision():
                 df1.index.name = 'label'
                 dfs.append(df1)
             df2 = pd.concat(dfs).reset_index()
-            all_dfs[dataset_name] = df2
+            df3 = df2.copy()
+            df3['dataset_name'] = dataset_names1[di]
+            all_dfs[dataset_name] = df2 
 
 
             if len(data) != len(methods):
@@ -400,11 +402,15 @@ def main_20240708_encoder_comparision():
         '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
     ]
 
+    datadata = pd.concat([v for k,v in all_dfs.items()],axis=0).reset_index(drop=True)
+
     #get the ranking
-    # for name in ['Percision']:
-    if True: 
-        name = 'Percision'
+    for name in ['Percision', 'Acc']: 
+
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+
+
+
         all_df = None
         for dataset_name in dataset_names:
             df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
@@ -428,6 +434,35 @@ def main_20240708_encoder_comparision():
         all_df1 = all_df.copy()
         all_df1['score1'] = np.log(all_df1['score'] - 30)
         all_df1['score2'] = all_df1['score']
+
+        datadata1 = []
+        for m in all_df['method'].values:
+            datadata1.append(datadata[datadata['method']==m])
+        datadata1 = pd.concat(datadata1,axis=0).reset_index(drop=True)
+
+        # boxplot
+        plt.close('all')
+        font_size = 30
+        figure_height = 7
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        ax = plt.gca()
+        g=sns.boxplot(data=datadata1, x="method",  palette=palette, y=name, showfliers=False, legend=False, ax=ax) 
+        # g.set(ylabel=None)
+        # g.set(xlabel=None)
+        # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+        g.set(ylabel=name1)
+        g.set(xlabel=None)
+        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        datadata1.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
+        plt.close()
 
         plt.close()
         font_size = 30
@@ -924,8 +959,9 @@ def plot_search_time_tcga_ncidata():
                 df1.index.name = 'label'
                 dfs.append(df1)
             df2 = pd.concat(dfs).reset_index()
-
-            all_dfs[dataset_name][fe_method] = df2
+            df3 = df2.copy()
+            df3['dataset_name'] = dataset_names1[di] 
+            all_dfs[dataset_name][fe_method] = df3
 
 
             if len(data) != len(methods):
@@ -978,12 +1014,21 @@ def plot_search_time_tcga_ncidata():
         'Kather100K': ['Adipose', 'Background', 'Debris', 'Lymphocytes', 'Mucus', 'Muscle', 'Mucosa', 'Stroma', 'Adeno epithelium']
     }
     fe_methods = ['HiDARE_CONCH']
-    fe_label_names = ['HERE_CONCN']
+    fe_label_names = ['HERE_CONCH']
     palette = sns.color_palette('colorblind')
-    for name in ['Percision']:
+
+
+
+    for name in ['Percision', 'Acc']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         hue_orders = {}
         for fe_method in fe_methods:
+            
+            datadata = []
+            for kk,vv in all_dfs.items():
+                datadata.append(vv[fe_method])
+            datadata = pd.concat(datadata, axis=0).reset_index(drop=True)
+
             #get the ranking 
             all_df = None
             for dataset_name in dataset_names:
@@ -1033,6 +1078,7 @@ def plot_search_time_tcga_ncidata():
                 'HNSW+IVFPQ(32,256)',
                 # 'ITQ+LSH(128)', 
                 'Original']
+            mappers = {kk:vv for kk,vv in zip(indexes, label_names)}
             label_names.reverse()
             all_df.index = label_names
             all_df.index.name = 'method'
@@ -1040,6 +1086,38 @@ def plot_search_time_tcga_ncidata():
             all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
             hue_order = all_df['method'].values
             hue_orders[fe_method] = hue_order
+
+            datadata11 = datadata.copy()
+            datadata11['method'] = datadata11['method'].map(mappers)
+            datadata1 = []
+            for m in all_df['method'].values:
+                datadata1.append(datadata11[datadata11['method']==m])
+            datadata1 = pd.concat(datadata1,axis=0).reset_index(drop=True)
+
+
+            # boxplot
+            plt.close('all')
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+            g=sns.boxplot(data=datadata1, x="method",  palette=palette, y=name, showfliers=False, legend=False, ax=ax) 
+            # g.set(ylabel=None)
+            # g.set(xlabel=None)
+            # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+            g.set(ylabel=name1)
+            g.set(xlabel=None)
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+
+            plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            datadata1.to_csv(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.csv'))
+            plt.close()
             
             font_size = 30
             figure_height = 7
@@ -1050,7 +1128,7 @@ def plot_search_time_tcga_ncidata():
             g=sns.barplot(all_df, x="method", y="score", hue="method", palette='colorblind', legend=False)
             g.set_xlabel("")
             # g.set_ylabel("Overall performance")
-            g.set_ylabel("Sum of average precision")
+            g.set_ylabel("Sum of {}".format(name1))
             # g.legend.set_title("")
             g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
             g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -2359,132 +2437,6 @@ def plot_violin_server(): #helix down
     final_df1.to_excel('final_data.xlsx')
 
 
-
-
-
-
-
-
-
-
-
-
-def compare_attention_with_noattention():
-
-    import pandas as pd
-    import numpy as np
-    import pickle
-    import os
-    from statsmodels.stats.multitest import multipletests
-    from scipy.stats import ranksums
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-    atten_values = {
-        'PLIP': [[29.86416785],
-                [28.85635187],
-                [28.72621062],
-                [30.07893741],
-                [28.75004294]],
-        'ProvG': [[33.26106165],
-                [33.49437003],
-                [33.0977323 ],
-                [33.37102611],
-                [32.98334629]],
-        'CONCH':
-                [[33.35970299],
-                [33.56453657],
-                [34.04463461],
-                [35.49385124],
-                [34.36209713]],
-        'UNI':
-                [[33.28786349],
-                [33.84315466],
-                [33.62571556],
-                [33.92088263],
-                [33.59210872]]
-    }
-
-    noatten_values = {
-        'PLIP': [[28.57568554],
-                [29.89418162],
-                [28.20150555],
-                [29.74166515],
-                [29.18278191]],
-        'ProvG': [[33.32756371],
-            [32.95985017],
-            [32.40131981],
-            [32.75990765],
-            [32.27114829]],
-                    'CONCH':
-            [[32.7633769 ],
-            [34.12984309],
-            [32.72588764],
-            [33.79433179],
-            [33.63733268]],
-                    'UNI':
-            [[33.0650199 ],
-            [33.75186445],
-            [32.61928498],
-            [33.1197163 ],
-            [32.48041149]]
-    }
-
-    keys = ['PLIP', 'ProvG', 'UNI', 'CONCH']
-
-    plt.close('all')
-
-
-
-    font_size = 24
-    figure_width = 10
-    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica'})
-    # plt.tick_params(pad = 10)
-    # fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-
-
-    if False:
-        fig, axes = plt.subplots(nrows=2, ncols=2)
-        for i, key in enumerate(keys):
-            ii,jj=i%2, i//2
-            ax = axes[ii,jj]
-
-            val0 = np.array(atten_values[key])
-            val1 = np.array(noatten_values[key])
-
-            ax.plot(val0, marker='.', color='r', ls='-', label='w attention')
-            ax.plot(val1, marker='.', color='g', ls='-', label='w/o attention')
-            ax.title.set_text(key)
-            ax.set_xticks([0,1,2,3,4],[f'run{i}' for i in range(5)])
-        fig.suptitle('Sum of scores on 5 independent runs')
-        # plt.tight_layout()
-        save_filename = '/Users/zhongz2/down/compare_withornot_atten_a.png'
-        plt.savefig(save_filename, bbox_inches='tight', transparent=True)
-        plt.savefig(save_filename.replace('.png', '.svg'), bbox_inches='tight', transparent=True)
-        plt.savefig(save_filename.replace('.png', '.pdf'), bbox_inches='tight', transparent=True)
-        plt.close()
-
-    plt.close('all')
-    fig, ax = plt.subplots(nrows=1, ncols=1)
-    means = [[np.array(atten_values[k]).mean() for k in keys],
-        [np.array(noatten_values[k]).mean() for k in keys]]
-    ax.plot(means[0], marker='.', color='r', ls='-', label='w attention')
-    ax.plot(means[1], marker='.', color='g', ls='-', label='w/o attention')
-    plt.xticks([i for i in range(len(keys))], keys)
-    plt.legend()
-    plt.title('Mean scores with 5 independent runs on TCGA test set')
-    # plt.tight_layout()
-    save_filename = '/Users/zhongz2/down/compare_withornot_atten_b.png'
-    plt.savefig(save_filename, bbox_inches='tight', transparent=True)
-    plt.savefig(save_filename.replace('.png', '.svg'), bbox_inches='tight', transparent=True)
-    plt.savefig(save_filename.replace('.png', '.pdf'), bbox_inches='tight', transparent=True)
-    plt.close()
-
-
-
-
-
-
 # 20241218 CPTAC cancer search plot
 def main_20241218_CPTAC_cancer_type_search_comparision():
 
@@ -2518,6 +2470,8 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
         methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
         label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
+        methods = ['RetCCL','SISH_slide','Yottixel', 'HERE_CONCH'][::-1]
+        label_names = [ 'RetCCL','SISH', 'Yottixel', 'HERE'][::-1]
         if True:
             data = []
             dfs = []
@@ -2546,7 +2500,9 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
                 df1.index.name = 'label'
                 dfs.append(df1)
             df2 = pd.concat(dfs).reset_index()
-            all_dfs[dataset_name] = df2
+            df3 = df2.copy()
+            df3['dataset_name'] = dataset_names1[di]
+            all_dfs[dataset_name] = df3
 
 
             if len(data) != len(methods):
@@ -2590,9 +2546,43 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
     ]
 
+    datadata = pd.concat([v for k,v in all_dfs.items()],axis=0)
     #get the ranking
     for name in ['Percision', 'Acc']:
+
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+
+        # selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
+        # palette_all = ['#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690']
+        # selected_methods_all = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvG', 'CONCH', 'UNI']
+        # selected_methods_all = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvG', 'HERE', 'UNI']
+        # method_pallette_dict = {m:p for m,p in zip(selected_methods_all, palette_all[:len(selected_methods_all)])}
+        # palette1 = [method_pallette_dict[m] for m in selected_methods]
+        # palette1 = ['#686789','#E5E2B9','#A79A89','#E8D3C0']
+
+        # boxplot
+        plt.close('all')
+        font_size = 30
+        figure_height = 7
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        ax = plt.gca()
+        g=sns.boxplot(data=datadata, x="method",  palette=palette, y=name, showfliers=False, legend=False, ax=ax) 
+        g.set(ylabel=None)
+        g.set(xlabel=None)
+        g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+        g.set(ylabel=name1)
+        g.set(xlabel=None)
+        
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        datadata.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
+        plt.close()
+
+
         all_df = None
         for dataset_name in dataset_names:
             df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
@@ -2713,7 +2703,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
-            plt.title(dataset_names1[di], fontsize=font_size)
+            # plt.title(dataset_names1[di], fontsize=font_size)
             plt.savefig(os.path.join(save_root, '{}_{}.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, '{}_{}.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
             plt.savefig(os.path.join(save_root, '{}_{}.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
@@ -2760,6 +2750,8 @@ def main_20241218_CPTAC_mutation_search_comparision():
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
         methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
         label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
+        methods = ['RetCCL','SISH_slide','Yottixel', 'HERE_CONCH'][::-1]
+        label_names = [ 'RetCCL','SISH', 'Yottixel', 'HERE'][::-1]
         if True:
             data = []
             dfs = []
@@ -2788,6 +2780,8 @@ def main_20241218_CPTAC_mutation_search_comparision():
                 df1.index.name = 'label'
                 dfs.append(df1)
             df2 = pd.concat(dfs).reset_index()
+            df3 = df2.copy()
+            df3['dataset_name'] = dataset_names1[di]
             all_dfs[dataset_name] = df2
 
 
@@ -2833,10 +2827,38 @@ def main_20241218_CPTAC_mutation_search_comparision():
         '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
     ]
 
+    datadata = pd.concat([v for k,v in all_dfs.items()],axis=0)
+
     #get the ranking
     for name in ['Percision', 'Acc']:
 
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
+
+
+        # boxplot
+        plt.close('all')
+        font_size = 30
+        figure_height = 7
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        ax = plt.gca()
+        g=sns.boxplot(data=datadata, x="method",  palette=palette, y=name, showfliers=False, legend=False, ax=ax) 
+        g.set(ylabel=None)
+        g.set(xlabel=None)
+        g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+        g.set(ylabel=name1)
+        g.set(xlabel=None)
+        
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+        datadata.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
+        plt.close()
+
+
+
         all_df = None
         for dataset_name in dataset_names:
             df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
@@ -2861,6 +2883,10 @@ def main_20241218_CPTAC_mutation_search_comparision():
         all_df1 = all_df.copy()
         all_df1['score1'] = np.log(all_df1['score'] - 30)
         all_df1['score2'] = all_df1['score']
+
+
+
+
 
         plt.close()
         font_size = 30
@@ -2938,6 +2964,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
             plt.close()
 
             num_labels = len(df2['label'].value_counts())
+
             font_size = 30
             figure_height = 7
             figure_width = 7
@@ -2957,7 +2984,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
-            plt.title(dataset_names1[di], fontsize=font_size)
+            # plt.title(dataset_names1[di], fontsize=font_size)
             plt.savefig(os.path.join(save_root, '{}_{}.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, '{}_{}.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
             plt.savefig(os.path.join(save_root, '{}_{}.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
@@ -2966,10 +2993,146 @@ def main_20241218_CPTAC_mutation_search_comparision():
 
 
 
+
+
+
+def compare_attention_with_noattention():
+
+    import pandas as pd
+    import numpy as np
+    import pickle
+    import os
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    save_root = '/Users/zhongz2/down/temp_20241218/attention_or_not_comparision'
+    os.makedirs(save_root, exist_ok=True)
+
+
+    atten_values = {
+        'PLIP': [[29.86416785],
+                [28.85635187],
+                [28.72621062],
+                [30.07893741],
+                [28.75004294]],
+        'ProvG': [[33.26106165],
+                [33.49437003],
+                [33.0977323 ],
+                [33.37102611],
+                [32.98334629]],
+        'CONCH':
+                [[33.35970299],
+                [33.56453657],
+                [34.04463461],
+                [35.49385124],
+                [34.36209713]],
+        'UNI':
+                [[33.28786349],
+                [33.84315466],
+                [33.62571556],
+                [33.92088263],
+                [33.59210872]]
+    }
+
+    noatten_values = {
+        'PLIP': [[28.57568554],
+                [29.89418162],
+                [28.20150555],
+                [29.74166515],
+                [29.18278191]],
+        'ProvG': [[33.32756371],
+            [32.95985017],
+            [32.40131981],
+            [32.75990765],
+            [32.27114829]],
+                    'CONCH':
+            [[32.7633769 ],
+            [34.12984309],
+            [32.72588764],
+            [33.79433179],
+            [33.63733268]],
+                    'UNI':
+            [[33.0650199 ],
+            [33.75186445],
+            [32.61928498],
+            [33.1197163 ],
+            [32.48041149]]
+    }
+
+    for k,v in atten_values.items():
+        atten_values[k] = np.array(v).reshape(-1)
+    for k,v in noatten_values.items():
+        noatten_values[k] = np.array(v).reshape(-1)
+    df1 = pd.DataFrame(atten_values)
+    df2 = pd.DataFrame(noatten_values)
+
+    selected_methods = ['PLIP', 'ProvG', 'UNI', 'CONCH']
+    df1 = pd.melt(df1, value_vars=['PLIP', 'ProvG', 'UNI', 'CONCH'], var_name='method', value_name='score')
+    df1['hue'] = 'w attention'
+    df2 = pd.melt(df2, value_vars=['PLIP', 'ProvG', 'UNI', 'CONCH'], var_name='method', value_name='score')
+    df2['hue'] = 'w/o attention'
+    df = pd.concat([df1, df2], axis=0).reset_index(drop=True)
+
+    hue_order = ['w/o attention', 'w attention']
+    palette_all = ['#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690']
+    selected_methods_all = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvG', 'CONCH', 'UNI']
+    method_pallette_dict = {m:p for m,p in zip(selected_methods_all, palette_all[:len(selected_methods_all)])}
+    palette = [method_pallette_dict[m] for m in selected_methods]
+    palette = ['red', 'blue']
+
+    plt.close('all')
+    font_size = 30
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    ax = plt.gca()
+    # g = sns.catplot(
+    #     data=df, kind="box",
+    #     x="method", y="score", hue="hue", hue_order=hue_order,
+    #     errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
+    # )
+    # g=sns.catplot(data=df, x="method", y="score", hue="hue", kind="box", palette=palette, ax=ax, order=hue_order)
+    g=sns.boxplot(data=df, x="method", y="score", hue="hue", hue_order=hue_order, showfliers=False, palette=palette, legend=True, ax=ax) 
+    g.set(ylabel=None)
+    g.set(xlabel=None)
+    # g.legend.set_title("")
+    # plt.legend(loc="lower right", title='')
+    sns.move_legend(
+        ax, "lower right",
+        title=None
+    )
+    # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+    # g.set(ylabel=None)
+    # g.set(xlabel=None)
+    # plt.ylim([0.5, 5.5])  
+    # plt.yticks(ticks=[1, 2, 3, 4, 5], labels=[1,2,3,4,5])
+    # plt.yticks(np.arange(0.5, 5.5, 0.5))
+    # sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
+    # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+    #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+    #     order=hue_order)
+    # g.map_dataframe(sns.stripplot, x='method', y="score", hue="hue", legend=False, dodge=True, 
+    #     marker="$\\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+    #     order=hue_order)
+    g=sns.stripplot(data=df, palette=[(0,0,0),(0,0,0)],x="method", y="score", hue="hue",hue_order=hue_order, legend=False, dodge=True, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+    g.set(ylabel='Overall scores')
+    g.set(xlabel=None)
+
+    plt.savefig(f'{save_root}/with_attention_or_not.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_root}/with_attention_or_not.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_root}/with_attention_or_not.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    plt.close('all') 
+    
+
+
 if __name__ == '__main__':
-    main_20241218_CPTAC_mutation_search_comparision()
-    main_20241218_CPTAC_cancer_type_search_comparision()    
-    main_20240708_encoder_comparision()
+    # compare_attention_with_noattention()
+    # main_20241218_CPTAC_cancer_type_search_comparision()
+    # main_20241218_CPTAC_mutation_search_comparision()
+    # main_20240708_encoder_comparision()
     plot_search_time_tcga_ncidata()
 
 

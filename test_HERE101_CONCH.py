@@ -173,6 +173,35 @@ def main():
     # for metric, metric_dict in results.items():
     #     print(f"{metric}: {metric_dict[best_j]:.3f}")
 
+    results_df = pd.read_csv(os.path.join(save_dir, 'results.csv'))
+
+    font_size = 30
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    ax = plt.gca()
+
+    a,b = np.histogram(results_df['score'].values, bins=[0, 0.05, 0.25])
+    # plt.hist(results_df['score'].values, bins=[0, 0.05, 0.25])
+    xs = ['[0, 0.05)', '[0.05, 1)']
+
+    plt.bar(xs, a, width=0.5)
+    for i in range(len(xs)):
+        plt.text(i, a[i]+1, '{:d}'.format(a[i]), ha = 'center')
+
+    plt.xlabel('Jaccard coefficient')
+    plt.ylabel('Count')
+    plt.ylim([0, 105])
+    # plt.grid()
+
+    plt.savefig(f'{save_dir}/CONCH_HERE101_histogram.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_dir}/CONCH_HERE101_histogram.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_dir}/CONCH_HERE101_histogram.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    plt.close('all')
+
+
 
 if __name__ == '__main__':
     main()

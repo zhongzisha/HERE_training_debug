@@ -38,7 +38,9 @@ slide_ids = df['slide_id'].to_dict()
 colors = np.random.randint(0, 255, size=(len(slide_ids), 3), dtype=np.uint8)
 
 for backbone in ['CONCH']:
+
     save_filename = f'ST_{backbone}_umap3d.csv'
+    
     if os.path.exists(save_filename):
         continue
 
@@ -62,6 +64,12 @@ for backbone in ['CONCH']:
     all_coords = np.concatenate(all_coords)
 
     sil_scores = silhouette_samples(X0, Y0)
+
+    with open(save_filename.replace('.csv', '_data.pkl'), 'wb') as fp:
+        pickle.dump({
+            'X0': X0, 'Y0': Y0, 'df': df,
+            'sil_scores': sil_scores
+        }, fp)
 
     plt.hist(sil_scores)
     plt.savefig(f'ST_{backbone}_silhouette_score_hist.png', format='png')
