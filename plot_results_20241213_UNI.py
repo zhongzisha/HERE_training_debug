@@ -121,7 +121,7 @@ def plot_jinlin_evaluation_boxplots():
         COLOR_PALETTES[k] = newv
 
 
-    save_root = '/Users/zhongz2/down/temp_20241215/Fig3_4'
+    save_root = '/Users/zhongz2/down/temp_20241215'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1438,7 +1438,7 @@ def plot_search_time_tcga_ncidata():
 
 
 
-def Fig3():
+def Fig3_4():
 
     # 20240831 update different colors for R0 vs R2|R4, HERE_CONCH
     import os
@@ -1497,6 +1497,12 @@ def Fig3():
     reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
     HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
 
+    sites = df['site'].value_counts().index.values
+    site_mappers = {kk:kk for kk in sites[:10]}
+    site_mappers.update({kk:'others' for ii,kk in enumerate(sites) if ii>=10})
+    df['tissue site'] = df['site'].values
+    df['tissue site'] = df['tissue site'].map(site_mappers)
+    sites = ['lung', 'liver', 'ovary', 'stomach', 'breast', 'lymph node', 'soft tissue', 'testis', 'kidney', 'colon', 'others']
 
     def hex_to_rgb(value):
         """Convert a hex color to an RGB tuple."""
@@ -1505,6 +1511,11 @@ def Fig3():
     # groups = ['structure']
     COLOR_PALETTES={
         'structure': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'tissue site': [
             '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
             '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
             # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
@@ -1542,7 +1553,7 @@ def Fig3():
         COLOR_PALETTES[k] = newv
 
 
-    save_root = '/Users/zhongz2/down/temp_20240920/Fig3_4'
+    save_root = '/Users/zhongz2/down/temp_20241218/Fig3_4'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1701,13 +1712,15 @@ def Fig3():
         print(col, '='*20)
         print(df[col].value_counts())
 
-    groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label']
+    groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label', 'tissue site']
+    # groups = ['structure','tissue site']
     group_names = {
         'structure': 'tissue structure',
         'cell type': 'cell type',
         'cell shape': 'cellular shape',
         'cytoplasm': 'cytoplasm',
-        'label': 'tissue composition'
+        'label': 'tissue composition',
+        'tissue site': 'tissue site'
     }
     
     # df = df[df['label'].notna()].reset_index(drop=True)
@@ -1751,6 +1764,9 @@ def Fig3():
             hue_orders[expname][group] = hue_order
             if group == 'label' and expname != 'overall':
                 hue_order = hue_orders['overall'][group]
+            if group == 'tissue site':
+                hue_order = sites
+            print('hue_order', hue_order)
             if expname == 'overall':
                 # df4 = df3[group].value_counts().loc[hue_order].reset_index()
                 # print('df4', df4)
@@ -1830,7 +1846,7 @@ def Fig3():
                 df4.to_excel(f'{save_root}/count_forPieChart_{group}_{expname}.xlsx')
 
             # boxplot-v2 (20240522)
-            if True:
+            if False:
                 mapper_dict = {row[group]: '(n={}) {}'.format(row['count'], row[group]) for _, row in df4.iterrows()}
                 df31 = df3.replace({group: mapper_dict})
                 hue_order_new = []
@@ -3128,12 +3144,201 @@ def compare_attention_with_noattention():
     
 
 
+def plot_gene_mutation_and_regression_plots():
+
+    import os
+    import numpy as np
+    import pandas as pd
+    # from matplotlib import pyplot as plt
+    import seaborn as sns
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums, wilcoxon
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    import matplotlib.colors
+    import matplotlib.lines
+    from matplotlib.transforms import Bbox, TransformedBbox
+    from matplotlib.legend_handler import HandlerBase
+    from matplotlib.image import BboxImage
+    from matplotlib.patches import Circle
+    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                    AnnotationBbox)
+    from matplotlib.cbook import get_sample_data
+
+    def cohend(d1, d2) -> pd.Series:
+        # calculate the size of samples
+        n1, n2 = len(d1), len(d2)
+        # calculate the variance of the samples
+        s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+        # calculate the pooled standard deviation
+        s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+        # calculate the means of the samples
+        u1, u2 = np.mean(d1, axis=0), np.mean(d2, axis=0)
+        # return the effect size
+        return (u1 - u2) / s
+
+
+    save_root = '/Users/zhongz2/down/temp_20241218/gene_mutation_TCGA_and_CPTAC'
+    if os.path.exists(save_root):
+        os.system('rm -rf "{}"'.format(save_root))
+    os.makedirs(save_root, exist_ok=True)
+
+    root = '/Volumes/data-1/CPTAC/'
+
+    TCGA_test_df = pd.read_csv(f'{root}/predictions_v2_TCGA_filterTrue_2/test/CONCH_prediction_scores.csv')
+    CPTAC_df = pd.read_csv(f'{root}/predictions_v2_filterTrue_2/CONCH_prediction_scores.csv')
+
+    TCGA_test_df = TCGA_test_df.iloc[-1, 2:].reset_index()
+    TCGA_test_df.columns = ['var', 'score']
+    TCGA_test_df['dataset'] = 'TCGA (test)'
+    CPTAC_df = CPTAC_df.iloc[-1, 2:].reset_index()
+    CPTAC_df.columns = ['var', 'score']
+    CPTAC_df['dataset'] = 'CPTAC'
+
+    df = pd.concat([TCGA_test_df, CPTAC_df])
+    gene_cls_vars = [v for v in df['var'].unique() if '_cls' in v]
+    gene_reg_vars = [v for v in df['var'].unique() if '_sum' in v]
+    df1 = df[df['var'].isin(gene_cls_vars)].reset_index(drop=True)
+    df2 = df[df['var'].isin(gene_reg_vars)].reset_index(drop=True)
+    df1['var'] = [v.replace('_cls', '').replace('_sum','') for v in df1['var'].values]
+    df2['var'] = [v.replace('_cls', '').replace('_sum','') for v in df2['var'].values]
+    df2['group'] = 'Gene set regression'
+    df1 = df1[df1['var']!='GATA3'].reset_index(drop=True)
+
+    palette = sns.color_palette('colorblind')
+    palette = [
+        '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+        '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+        '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+    ]
+
+
+    # gene mutation barplots
+    font_size = 30
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    g = sns.catplot(
+        data=df1, kind="bar",
+        x="var", y="score", hue="dataset",
+        errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
+    )
+
+    plt.axhline(y=0.5, color='blue', linestyle='dashed', linewidth=1.5)
+
+    sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
+    g.ax.yaxis.tick_right()
+    g.ax.set_ylim([0, 1])
+    g.ax.yaxis.set_label_position("right")
+    g.set_axis_labels("", "AUC scores")
+    g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
+    g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+
+    plt.savefig(os.path.join(save_root, 'mutation.png'), bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(os.path.join(save_root, 'mutation.svg'), bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(os.path.join(save_root, 'mutation.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+    df2.to_csv(os.path.join(save_root, 'mutation.csv'))
+    plt.close()
+
+
+
+    plt.close('all')
+    font_size = 28
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    ax = plt.gca()
+    g=sns.boxplot(data=df2, x="group", y="score", hue="dataset", showfliers=False, palette=palette, legend=True, ax=ax) 
+
+    plt.axhline(y=0, color='blue', linestyle='dashed', linewidth=1.5)
+
+    g.set(ylabel=None)
+    g.set(xlabel=None)
+    sns.move_legend(
+        ax, "upper right",
+        title=None,
+        fontsize="x-small"
+    )
+    g=sns.stripplot(data=df2, palette=[(0,0,0),(0,0,0)],x="group", y="score", hue="dataset", legend=False, dodge=True, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+    g.set(ylabel='Spearmanr correlation score')
+    g.set(xlabel=None)
+
+    plt.savefig(os.path.join(save_root, 'generegression.png'), bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(os.path.join(save_root, 'generegression.svg'), bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(os.path.join(save_root, 'generegression.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+    df2.to_csv(os.path.join(save_root, 'generegression.csv'))
+    plt.close()
+
+"""
+We follow the segmentation pipeline proposed in [CLAM] to extract the tissue regions in whole-slide images (WSIs).
+Specifically, we first convert eash WSI from RGB to the HSV colour space and apply an median bluring to the saturation 
+channel to smooth the edges. 
+Then based on the thresholding segmentation on this channel, a binary mask is generated for the tissue region.
+Further, an additional morphological closing operation was adopted to fill out the small gaps and holes.
+
+TCGA-06-0124-01Z-00-DX2.b3bd2a52-1a9a-409e-8908-6a2f30878080
+"""
+
+def plot_segmentation():
+
+    import sys,os,glob,shutil,json,pickle,h5py
+    import numpy as np
+    import cv2
+    from PIL import Image
+    import openslide
+    from utils import _assertLevelDownsamples
+
+    svs_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/svs'
+    masks_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/preset_tcga_256_orignalcode/masks'
+    patches_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/preset_tcga_256_orignalcode/patches'
+    
+    svs_prefix = 'TCGA-06-0124-01Z-00-DX2.b3bd2a52-1a9a-409e-8908-6a2f30878080'
+    
+    slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
+
+    im = cv2.imread(os.path.join(masks_dir, svs_prefix+'.jpg'))
+
+    file = h5py.File(os.path.join(patches_dir, svs_prefix+'.h5'), 'r')
+    all_coords = file['coords'][:]
+    patch_size = file['coords'].attrs['patch_size']
+    patch_level = file['coords'].attrs['patch_level']
+
+    vis_level = slide.get_best_level_for_downsample(64)
+
+    level_downsamples = _assertLevelDownsamples(slide)
+    downsample_patch = level_downsamples[patch_level]
+    downsample_seg = level_downsamples[vis_level]
+    downsample = (int(downsample_seg[0])/int(downsample_patch[0]),  int(downsample_seg[1])/int(downsample_patch[1]))
+    coords1 = np.copy(all_coords)
+    coords1[:, 0] = coords1[:, 0] / downsample[0]
+    coords1[:, 1] = coords1[:, 1] / downsample[1]
+    coords1 = coords1.astype(np.int32)
+    downsamples = slide.level_downsamples[vis_level]
+    patch_size1 = tuple((np.array((patch_size, patch_size)) * slide.level_downsamples[patch_level]).astype(np.int32))
+    patch_size2 = tuple(np.ceil((np.array(patch_size1)/np.array(downsamples))).astype(np.int32))
+
+    file.close()
+
+    im1 = im.copy()
+    for x, y in coords1:
+        cv2.rectangle(im1, (x, y), (x+patch_size2[0], y+patch_size2[1]), (0, 255, 0), 2)
+    cv2.imwrite(f'/data/zhongz2/{svs_prefix}_patching.jpg', im1)
+    
+
+
 if __name__ == '__main__':
     # compare_attention_with_noattention()
     # main_20241218_CPTAC_cancer_type_search_comparision()
     # main_20241218_CPTAC_mutation_search_comparision()
     # main_20240708_encoder_comparision()
-    plot_search_time_tcga_ncidata()
+    # plot_search_time_tcga_ncidata()
+    # Fig3_4()
+
+    plot_gene_mutation_and_regression_plots()
 
 
 

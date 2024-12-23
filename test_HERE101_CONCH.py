@@ -186,6 +186,7 @@ def main():
     a,b = np.histogram(results_df['score'].values, bins=[0, 0.05, 0.25])
     # plt.hist(results_df['score'].values, bins=[0, 0.05, 0.25])
     xs = ['[0, 0.05)', '[0.05, 1)']
+    xs = ['0', '[0.05, 0.25]']
 
     plt.bar(xs, a, width=0.5)
     for i in range(len(xs)):

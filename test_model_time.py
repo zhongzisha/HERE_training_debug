@@ -52,6 +52,8 @@ import PIL
 PIL.Image.MAX_IMAGE_PIXELS = 12660162500
 from PIL import Image, ImageFile, ImageDraw
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+import pickle
+
 
 def softmax_stable(x):  # only 2-D
     x = np.exp(x - np.max(x, axis=1)[:, None])
@@ -417,6 +419,7 @@ def main(args):
         time_elapsed = time.time() - time_start
 
         if args.generate_attention_heatmap:
+
             import pyvips
             A = np.copy(results_dicts['A_raw'])[0]
 

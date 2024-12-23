@@ -73,6 +73,7 @@ def check_search_time():
     import psutil
     import numpy as np
     import time
+    import pickle
 
     mapper_dict = {
         # 'IndexFlatIP': 'Original',
@@ -118,20 +119,53 @@ def check_search_time():
         all_search_times[index_NAME] = search_times
 
 
+    save_dir = '/data/zhongz2/temp_20241204_scalability/'
+
+    num_patches1 = []
+    for v in num_patches:
+        if v=='TCGA_NCI_CPTAC':
+            v = 'TCGA_NCI_CPTAC\n(3.2E8)'
+        num_patches1.append(v) 
+
+    num_patches2 = []
+    for v in num_patches:
+        if v=='TCGA_NCI_CPTAC':
+            v = '3.2E8'
+        num_patches2.append(v.replace('e', 'E')) 
+
+    with open(os.path.join(save_dir, 'index_time.pkl'), 'wb') as fp:
+        pickle.dump({
+    'all_search_times':  all_search_times,
+    'num_patches': num_patches,
+    'num_patches1': num_patches1,
+    'num_patches2': num_patches2
+        }, fp)
+
     from matplotlib import pyplot as plt
+
+
+    font_size = 24
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
 
     key = 'HNSW+IVFPQ(32,128)'
     fig, axes = plt.subplots(nrows=1, ncols=1)
     y = all_search_times[key]
-    plt.bar(num_patches, all_search_times[key])
+    plt.bar(num_patches2, all_search_times[key])
     # for i in range(len(num_patches)):
     #     if i!=len(num_patches)-1:
     #         continue
     #     plt.text(i, y[i], str(all_real_sizes[key][i]), ha = 'center')
-    plt.xlabel('number of patches')
-    plt.ylabel('Search time (s)'.format(key))
-    plt.title('Comparison on search time in database scalability')
-    plt.savefig('/data/zhongz2/temp_20241204_scalability/result_time.png')
+    plt.xlabel('Number of patches')
+    plt.ylabel('Retrieval time (s)'.format(key))
+    plt.title('Comparison on retrieval time in database scalability')
+
+    plt.savefig(f'{save_dir}/index_time.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_dir}/index_time.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_dir}/index_time.pdf', bbox_inches='tight', transparent=True, format='pdf')
     plt.close('all')
 
 
@@ -185,23 +219,81 @@ def check_memory_usage():
         all_sizes[index_NAME] = sizes
         all_real_sizes[index_NAME] = real_sizes
 
+    num_patches1 = []
+    for v in num_patches:
+        if v=='TCGA_NCI_CPTAC':
+            v = 'TCGA_NCI_CPTAC\n(3.2E8)'
+        num_patches1.append(v) 
 
+    with open(os.path.join(save_dir, 'index_size.pkl'), 'wb') as fp:
+        pickle.dump({
+    'all_mems':  all_mems,
+    'all_sizes': all_sizes,
+    'all_real_sizes' :all_real_sizes,
+    'num_patches': num_patches,
+    'num_patches1': num_patches1
+        }, fp)
 
     from matplotlib import pyplot as plt
 
+
+    font_size = 30
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+
+
     key = 'HNSW+IVFPQ(32,128)'
-    fig, axes = plt.subplots(nrows=1, ncols=1)
+    fig, ax = plt.subplots(nrows=1, ncols=1)
     y = all_sizes[key]
-    plt.bar(num_patches, all_sizes[key])
+
+    plt.bar(num_patches1, all_sizes[key])
     # for i in range(len(num_patches)):
     #     if i!=len(num_patches)-1:
     #         continue
     #     plt.text(i, y[i], str(all_real_sizes[key][i]), ha = 'center')
-    plt.xlabel('number of patches')
+    plt.xlabel('Number of patches')
     plt.ylabel('Index size (Gb)'.format(key))
     plt.title('Comparison on database scalability')
-    plt.savefig('/data/zhongz2/temp_20241204_scalability/result.png')
+    ax.set_xticklabels(num_patches1, rotation=45)
+    # plt.savefig('/data/zhongz2/temp_20241204_scalability/result.png')
+    # plt.close('all')
+
+    save_dir = '/data/zhongz2/temp_20241204_scalability/'
+    plt.savefig(f'{save_dir}/index_size.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_dir}/index_size.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_dir}/index_size.pdf', bbox_inches='tight', transparent=True, format='pdf')
     plt.close('all')
+
+
+    font_size = 24
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    key = 'HNSW+IVFPQ(32,128)'
+    fig, ax = plt.subplots(nrows=1, ncols=1)
+    y = all_sizes[key]
+
+    num_patches2 = []
+    for v in num_patches:
+        if v=='TCGA_NCI_CPTAC':
+            v = '3.2E8'
+        num_patches2.append(v.replace('e', 'E')) 
+    plt.bar(num_patches2, all_sizes[key])
+    plt.xlabel('Number of patches')
+    plt.ylabel('Index size (Gb)'.format(key))
+    plt.title('Comparison on database scalability')
+    # ax.set_xticklabels(num_patches1, rotation=45)
+    save_dir = '/data/zhongz2/temp_20241204_scalability/'
+    plt.savefig(f'{save_dir}/index_size2.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_dir}/index_size2.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_dir}/index_size2.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    plt.close('all')
+
 
     # 322848965
 
