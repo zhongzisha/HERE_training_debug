@@ -31,8 +31,8 @@ def main():
 
     pt_files = glob.glob(os.path.join(preds_dir, '*.pt'))
     # existed_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in glob.glob(os.path.join(save_root, '*.tif'))]
-    existed_prefixes = [f for f in os.listdir(save_root) if '.tif' not in f and f[0]!='.']
-    needtodo_files = [f for f in pt_files if os.path.splitext(os.path.basename(f))[0] not in existed_prefixes]
+    existed_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in os.listdir(save_root) if f[0]!='.']
+    needtodo_files = [f for f in pt_files if os.path.splitext(os.path.basename(f))[0]+"_heatmap" not in existed_prefixes]
 
     print('existing files: ', len(existed_prefixes))
     print('needtodo', len(needtodo_files))
@@ -56,14 +56,14 @@ def main():
 
         slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
 
-        try:
+        if True: # try:
             A = np.copy(A_raw)[0]
             save_filename = '{}/{}_heatmap.tif'.format(save_root, svs_prefix)
             img = visHeatmap(slide, scores=A, coords=all_coords,
                             vis_level=0, patch_size=(patch_size, patch_size),
                             convert_to_percentiles=True)
             print(type(img), img.size)
-            img.save(save_filename)
+            # img.save(save_filename)
             img_vips = pyvips.Image.new_from_array(img)
             # img_vips.dzsave(save_filename, tile_size=1024)
             img_vips.tiffsave(save_filename, compression="jpeg",
@@ -72,8 +72,8 @@ def main():
             # img_vips.write_to_file(save_filename, tile=True, compression="jpeg", bigtiff=True, pyramid=True)
             # time.sleep(1)
             # del img, img_vips
-        except:
-            print(f'error {f}')
+        # except:
+        #     print(f'error {f}')
 
 
 if __name__ == '__main__':

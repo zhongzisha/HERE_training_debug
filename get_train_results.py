@@ -23,6 +23,8 @@ COMMON_COLORS = {
     'CONCH': 'blue',
     'UNI': '#008080',# '#029370', morandi_colors[-1]
 }
+from plot_results_20250113_UNI import all_colors
+COMMON_COLORS = all_colors
 
 def set_box_color(bp, color):
     plt.setp(bp['boxes'], color=color)
@@ -477,7 +479,7 @@ def check_best_split_v2():
 
 
 
-def main():
+def main(results_dir):
 
     proj_name = 'TCGA-ALL2'
     per_cancer = 0
@@ -510,14 +512,17 @@ def main():
         'UNI': 1024
     }
 
-    sub_epochs = [1]
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
     save_root = '/Users/zhongz2/down/figures_20240902_e100_top4' # Add UNI 
     save_root = '/Users/zhongz2/down/figures_20241129_e100_top4' # Add UNI 
 
-    results_dir = 'results_20241128_e100_noattention'
-    save_root = '/Users/zhongz2/down/figures_20241203_e100_top4_noattention' # Add UNI 
+    sub_epochs = [1]
+    # results_dir = 'results_20241128_e100_noattention'
+    # results_dir = 'results_20240724_e100'
+    save_root = f'/Users/zhongz2/down/temp_20250113/train_figures_{results_dir}' # Add UNI 
+    if os.path.isdir(save_root):
+        shutil.rmtree(save_root, ignore_errors=True)
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
@@ -749,4 +754,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    results_dir = 'results_20241128_e100_noattention'
+    main(results_dir)
+    results_dir = 'results_20240724_e100'
+    main(results_dir)
