@@ -98,6 +98,7 @@ def check_search_time():
     num_loops = 100
     topk_MV = 5
     query_embedding = np.random.rand(1, 256).astype(np.float32)
+    HERE101_all_feats = np.load('/data/zhongz2/temp_20241204_scalability/HERE101_feats.npy')
 
     all_search_times = {}
     for index_name, index_NAME in mapper_dict.items():
@@ -110,12 +111,13 @@ def check_search_time():
             # mem1 = psutil.virtual_memory().used/1024/1024/1024
             index = faiss.read_index(faiss_bin_filename)
 
-            search_time = 0
-            for i in range(num_loops):
+            search_time_this_method = []
+            for i in range(len(HERE101_all_feats)):
+                query_embedding = HERE101_all_feats[i]
                 t_search_start = time.time()
                 tempdist, I = index.search(query_embedding, topk_MV*2)
-                search_time += time.time() - t_search_start
-            search_times.append(search_time / num_loops)
+                search_time_this_method.append(time.time() - t_search_start)
+            search_times.append(search_time_this_method)
         all_search_times[index_NAME] = search_times
 
 

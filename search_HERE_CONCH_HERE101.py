@@ -1,0 +1,747 @@
+
+import sys,os,json,glob
+import pandas as pd
+import numpy as np
+import tarfile
+import io
+import gc
+import re
+import faiss
+from sklearn.metrics import pairwise_distances, confusion_matrix, classification_report
+from collections import Counter
+import base64
+import lmdb
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+from torchvision import transforms
+from timm.data.transforms_factory import create_transform
+from timm.data import resolve_data_config
+import timm
+import pickle
+import time
+from PIL import Image, ImageDraw, ImageFont
+
+from matplotlib import pyplot as plt
+import matplotlib as mpl
+mpl.use('agg')
+import random
+import pymysql
+import pyarrow.parquet as pq
+from transformers import CLIPModel, CLIPProcessor
+import psutil
+# print(psutil.virtual_memory().used/1024/1024/1024, "GB")
+import h5py
+import openslide
+import cv2
+import idr_torch
+
+DATA_DIR = f'/data/zhongz2/CPTAC'
+# project_names = ['TCGA-COMBINED', 'KenData_20240814', 'ST']  # do not change the order
+# project_start_ids = {'TCGA-COMBINED': 0, 'KenData_20240814': 159011314, 'ST': 281115587}
+# backbones = ['HERE_CONCH', 'HERE_UNI'] # choices: 'HERE_CONCH', 'HERE_PLIP', 'HERE_ProvGigaPath', 'HERE_UNI'
+
+# cancer_types = ['AML', 'BRCA', 'CCRCC', 'CM', 'COAD', 'GBM', 'HNSCC', 'LSCC', 'LUAD', 'OV', 'PDA', 'SAR', 'UCEC']
+# project_names = ['CPTAC'] + [f'CPTAC_{cancer_type}' for cancer_type in cancer_types] # do not change the order
+# project_start_ids = {'CPTAC': 0}
+# for i, cancer_type in enumerate(cancer_types):
+#     project_start_ids[f'CPTAC_{cancer_type}'] = i + 1
+
+project_names = ['CPTAC']
+project_start_ids = {'CPTAC': 0}
+backbones = ['HERE_CONCH'] # choices: 'HERE_CONCH', 'HERE_PLIP', 'HERE_ProvGigaPath', 'HERE_UNI'
+
+
+
+class Attn_Net_Gated(nn.Module):
+    def __init__(self, L=1024, D=256, dropout=False, n_classes=1):
+        r"""
+        Attention Network with Sigmoid Gating (3 fc layers)
+
+        args:
+            L (int): input feature dimension
+            D (int): hidden layer dimension
+            dropout (bool): whether to apply dropout (p = 0.25)
+            n_classes (int): number of classes
+        """
+        super(Attn_Net_Gated, self).__init__()
+        self.attention_a = [
+            nn.Linear(L, D),
+            nn.Tanh()]
+
+        self.attention_b = [nn.Linear(L, D), nn.Sigmoid()]
+        if dropout:
+            self.attention_a.append(nn.Dropout(0.25))
+            self.attention_b.append(nn.Dropout(0.25))
+
+        self.attention_a = nn.Sequential(*self.attention_a)
+        self.attention_b = nn.Sequential(*self.attention_b)
+        self.attention_c = nn.Linear(D, n_classes)
+
+    def forward(self, x):
+        a = self.attention_a(x)  # 1 x num_patches x 256
+        b = self.attention_b(x)  # 1 x num_patches x 256
+        A = a.mul(b)  # 1 x num_patches x 256
+        A = self.attention_c(A)  # N x n_tasks, num_patches x 512
+        return A, x
+
+
+"""
+/data/zhongz2/results_histo256_generated7fp_hf_TCGA-ALL2_32_2gpus/adam_RegNormNone_Encoderimagenetmobilenetv3_CLSLOSSweighted_ce_accum4_wd1e-4_reguNone1e-4/split_3/snapshot_22.pt
+"""
+
+# survival not shared, all other shared
+class AttentionModel_bak(nn.Module):
+    def __init__(self):
+        super().__init__()
+        fc = [nn.Linear(1280, 256)]
+        self.attention_net = nn.Sequential(*fc)
+
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        # initialize nn.Linear and nn.LayerNorm
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # we use xavier_uniform following official JAX ViT:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
+    def forward(self, x, label=None, instance_eval=False, return_features=False, attention_only=False):
+
+        x_path = x.squeeze(0)  # 1 x num_patches x 512  1 x 10000 x 512 --> all 256x256 pacthces
+
+        return self.attention_net(x_path)
+
+
+BACKBONE_DICT = {
+    'CLIP': 512,
+    'PLIP': 512,
+    'MobileNetV3': 1280,
+    'mobilenetv3': 1280,
+    'ProvGigaPath': 1536,
+    'CONCH': 512
+}
+
+# survival not shared, all other shared
+class AttentionModel(nn.Module):
+    def __init__(self, backbone='PLIP'):
+        super().__init__()
+
+        self.classification_dict = {
+            'CDH1_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'GATA3_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'PIK3CA_cls': ['Loss_Or_Unknown_Or_NaN', 'Gain', 'Other'],
+            'TP53_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'KRAS_cls': ['Loss_Or_Unknown_Or_NaN', 'Gain', 'Other'],
+            'ARID1A_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'PTEN_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'BRAF_cls': ['Loss_Or_Unknown_Or_NaN', 'Gain', 'Other'],
+            'APC_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'ATRX_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss', 'Other'],
+            'IDH1_cls': ['Gain_Or_Unknown_Or_NaN', 'Loss_Or_Switch', 'Other']
+        }
+        self.regression_list = [
+            'Cytotoxic_T_Lymphocyte',
+            'TIDE_CAF',
+            'TIDE_Dys',
+            'TIDE_M2',
+            'TIDE_MDSC',
+            'HALLMARK_ADIPOGENESIS_sum',
+            'HALLMARK_ALLOGRAFT_REJECTION_sum',
+            'HALLMARK_ANDROGEN_RESPONSE_sum',
+            'HALLMARK_ANGIOGENESIS_sum',
+            'HALLMARK_APICAL_JUNCTION_sum',
+            'HALLMARK_APICAL_SURFACE_sum',
+            'HALLMARK_APOPTOSIS_sum',
+            'HALLMARK_BILE_ACID_METABOLISM_sum',
+            'HALLMARK_CHOLESTEROL_HOMEOSTASIS_sum',
+            'HALLMARK_COAGULATION_sum',
+            'HALLMARK_COMPLEMENT_sum',
+            'HALLMARK_DNA_REPAIR_sum',
+            'HALLMARK_E2F_TARGETS_sum',
+            'HALLMARK_EPITHELIAL_MESENCHYMAL_TRANSITION_sum',
+            'HALLMARK_ESTROGEN_RESPONSE_EARLY_sum',
+            'HALLMARK_ESTROGEN_RESPONSE_LATE_sum',
+            'HALLMARK_FATTY_ACID_METABOLISM_sum',
+            'HALLMARK_G2M_CHECKPOINT_sum',
+            'HALLMARK_GLYCOLYSIS_sum',
+            'HALLMARK_HEDGEHOG_SIGNALING_sum',
+            'HALLMARK_HEME_METABOLISM_sum',
+            'HALLMARK_HYPOXIA_sum',
+            'HALLMARK_IL2_STAT5_SIGNALING_sum',
+            'HALLMARK_IL6_JAK_STAT3_SIGNALING_sum',
+            'HALLMARK_INFLAMMATORY_RESPONSE_sum',
+            'HALLMARK_INTERFERON_ALPHA_RESPONSE_sum',
+            'HALLMARK_INTERFERON_GAMMA_RESPONSE_sum',
+            'HALLMARK_KRAS_SIGNALING_DN_sum',
+            'HALLMARK_KRAS_SIGNALING_UP_sum',
+            'HALLMARK_MITOTIC_SPINDLE_sum',
+            'HALLMARK_MTORC1_SIGNALING_sum',
+            'HALLMARK_MYC_TARGETS_V1_sum',
+            'HALLMARK_MYC_TARGETS_V2_sum',
+            'HALLMARK_MYOGENESIS_sum',
+            'HALLMARK_NOTCH_SIGNALING_sum',
+            'HALLMARK_OXIDATIVE_PHOSPHORYLATION_sum',
+            'HALLMARK_P53_PATHWAY_sum',
+            'HALLMARK_PANCREAS_BETA_CELLS_sum',
+            'HALLMARK_PEROXISOME_sum',
+            'HALLMARK_PI3K_AKT_MTOR_SIGNALING_sum',
+            'HALLMARK_PROTEIN_SECRETION_sum',
+            'HALLMARK_REACTIVE_OXYGEN_SPECIES_PATHWAY_sum',
+            'HALLMARK_SPERMATOGENESIS_sum',
+            'HALLMARK_TGF_BETA_SIGNALING_sum',
+            'HALLMARK_TNFA_SIGNALING_VIA_NFKB_sum',
+            'HALLMARK_UNFOLDED_PROTEIN_RESPONSE_sum',
+            'HALLMARK_UV_RESPONSE_DN_sum',
+            'HALLMARK_UV_RESPONSE_UP_sum',
+            'HALLMARK_WNT_BETA_CATENIN_SIGNALING_sum',
+            'HALLMARK_XENOBIOTIC_METABOLISM_sum'
+        ]
+
+        self.attention_net = nn.Sequential(*[
+            nn.Linear(BACKBONE_DICT[backbone], 256), 
+            nn.ReLU(), 
+            nn.Dropout(0.25),
+            Attn_Net_Gated(L=256, D=256, dropout=0.25, n_classes=1)
+        ])
+        self.rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(0.25)])
+
+        classifiers = {}
+        for k, labels in self.classification_dict.items():
+            classifiers[k] = nn.Linear(256, len(labels))
+        self.classifiers = nn.ModuleDict(classifiers)
+        regressors = {}
+        for k in self.regression_list:
+            regressors[k] = nn.Linear(256, 1)
+        self.regressors = nn.ModuleDict(regressors)
+
+        self.initialize_weights()
+
+    def initialize_weights(self):
+        # initialize nn.Linear and nn.LayerNorm
+        self.apply(self._init_weights)
+
+    def _init_weights(self, m):
+        if isinstance(m, nn.Linear):
+            # we use xavier_uniform following official JAX ViT:
+            torch.nn.init.xavier_uniform_(m.weight)
+            if isinstance(m, nn.Linear) and m.bias is not None:
+                nn.init.constant_(m.bias, 0)
+        elif isinstance(m, nn.LayerNorm):
+            nn.init.constant_(m.bias, 0)
+            nn.init.constant_(m.weight, 1.0)
+
+    def forward(self, x, label=None, instance_eval=False, return_features=False, attention_only=False):
+        x_path = x.squeeze(0)  # 1 x num_patches x 512  1 x 10000 x 512 --> all 256x256 pacthces
+
+        A, h = self.attention_net(x_path)  # num_patches x num_tasks, num_patches x 512
+        A = torch.transpose(A, 1, 0)  # num_tasks x num_patches
+        # A_raw = A  # 1 x num_patches
+        if attention_only:
+            return {'A_raw': A}
+
+        results_dict = {}
+        A = F.softmax(A, dim=1)  # num_tasks x num_patches, normalized
+        h = torch.mm(A, h)  # A: num_tasks x num_patches, h_path: num_patches x 256  --> num_tasks x 256
+        results_dict['global_feat'] = h
+        results_dict['A'] = A
+        h = self.rho(h)
+
+        for k, classifier in self.classifiers.items():
+            logits_k = classifier(h[0].unsqueeze(0))
+            results_dict[k + '_logits'] = logits_k
+
+        for k, regressor in self.regressors.items():
+            values_k = regressor(h[0].unsqueeze(0)).squeeze(1)
+            results_dict[k + '_logits'] = values_k
+
+        return results_dict
+
+
+def load_cfg_from_json(json_file):
+    with open(json_file, "r", encoding="utf-8") as reader:
+        text = reader.read()
+    return json.loads(text)
+
+def load_model_config_from_hf(model_id: str):
+    cached_file = f'{DATA_DIR}/assets/ProvGigaPath/config.json'
+
+    hf_config = load_cfg_from_json(cached_file)
+    if 'pretrained_cfg' not in hf_config:
+        # old form, pull pretrain_cfg out of the base dict
+        pretrained_cfg = hf_config
+        hf_config = {}
+        hf_config['architecture'] = pretrained_cfg.pop('architecture')
+        hf_config['num_features'] = pretrained_cfg.pop('num_features', None)
+        if 'labels' in pretrained_cfg:  # deprecated name for 'label_names'
+            pretrained_cfg['label_names'] = pretrained_cfg.pop('labels')
+        hf_config['pretrained_cfg'] = pretrained_cfg
+
+    # NOTE currently discarding parent config as only arch name and pretrained_cfg used in timm right now
+    pretrained_cfg = hf_config['pretrained_cfg']
+    pretrained_cfg['hf_hub_id'] = model_id  # insert hf_hub id for pretrained weight load during model creation
+    pretrained_cfg['source'] = 'hf-hub'
+
+    # model should be created with base config num_classes if its exist
+    if 'num_classes' in hf_config:
+        pretrained_cfg['num_classes'] = hf_config['num_classes']
+
+    # label meta-data in base config overrides saved pretrained_cfg on load
+    if 'label_names' in hf_config:
+        pretrained_cfg['label_names'] = hf_config.pop('label_names')
+    if 'label_descriptions' in hf_config:
+        pretrained_cfg['label_descriptions'] = hf_config.pop('label_descriptions')
+
+    model_args = hf_config.get('model_args', {})
+    model_name = hf_config['architecture']
+    return pretrained_cfg, model_name, model_args
+
+from timm.layers import set_layer_config
+from timm.models import is_model, model_entrypoint, load_checkpoint
+
+def split_model_name_tag(model_name: str, no_tag: str = ''):
+    model_name, *tag_list = model_name.split('.', 1)
+    tag = tag_list[0] if tag_list else no_tag
+    return model_name, tag
+
+from urllib.parse import urlsplit
+
+def parse_model_name(model_name: str):
+    if model_name.startswith('hf_hub'):
+        # NOTE for backwards compat, deprecate hf_hub use
+        model_name = model_name.replace('hf_hub', 'hf-hub')
+    parsed = urlsplit(model_name)
+    assert parsed.scheme in ('', 'timm', 'hf-hub')
+    if parsed.scheme == 'hf-hub':
+        # FIXME may use fragment as revision, currently `@` in URI path
+        return parsed.scheme, parsed.path
+    else:
+        model_name = os.path.split(parsed.path)[-1]
+        return 'timm', model_name
+
+
+def create_model():
+    model_name = 'hf_hub:prov-gigapath/prov-gigapath'
+    model_source, model_name = parse_model_name(model_name)
+    pretrained_cfg, model_name, model_args = load_model_config_from_hf(model_name)
+    kwargs = {}
+    if model_args:
+        for k, v in model_args.items():
+            kwargs.setdefault(k, v)
+    create_fn = model_entrypoint(model_name)
+    with set_layer_config(scriptable=None, exportable=None, no_jit=None):
+        model = create_fn(
+            pretrained=False,
+            pretrained_cfg=pretrained_cfg,
+            pretrained_cfg_overlay=None,
+            **kwargs
+        )
+    load_checkpoint(model, f'{DATA_DIR}/assets/ProvGigaPath/pytorch_model.bin')
+
+    return model
+
+print('before loading backbones ', psutil.virtual_memory().used/1024/1024/1024, "GB")
+models_dict = {}
+for search_backbone in backbones:
+    models_dict[search_backbone] = {}
+    if search_backbone == 'HERE_PLIP':
+        models_dict[search_backbone]['feature_extractor'] = CLIPModel.from_pretrained(f"{DATA_DIR}/assets/vinid_plip")
+        models_dict[search_backbone]['image_processor_or_transform'] = CLIPProcessor.from_pretrained(f"{DATA_DIR}/assets/vinid_plip")
+        models_dict[search_backbone]['attention_model'] = AttentionModel()
+        models_dict[search_backbone]['state_dict'] = torch.load(f"{DATA_DIR}/assets/snapshot_66_HERE_PLIP.pt", map_location='cpu') #, weights_only=True)
+    elif search_backbone == 'HERE_CONCH':
+        from conch.open_clip_custom import create_model_from_pretrained
+        models_dict[search_backbone]['feature_extractor'], models_dict[search_backbone]['image_processor_or_transform'] = create_model_from_pretrained('conch_ViT-B-16', checkpoint_path=f'{DATA_DIR}/assets/CONCH_weights_pytorch_model.bin')
+        models_dict[search_backbone]['attention_model'] = AttentionModel(backbone='CONCH')
+        models_dict[search_backbone]['state_dict'] = torch.load(f"{DATA_DIR}/assets/snapshot_53_HERE_CONCH.pt", map_location='cpu') #, weights_only=True)
+    elif search_backbone == 'HERE_ProvGigaPath':
+        models_dict[search_backbone]['feature_extractor'] = create_model()
+        models_dict[search_backbone]['image_processor_or_transform'] = transforms.Compose(
+            [
+                transforms.Resize(256, interpolation=transforms.InterpolationMode.BICUBIC),
+                transforms.CenterCrop(224),
+                transforms.ToTensor(),
+                transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+            ]
+        )
+        models_dict[search_backbone]['attention_model'] = AttentionModel(backbone='ProvGigaPath')
+        models_dict[search_backbone]['state_dict'] = torch.load(f"{DATA_DIR}/assets/snapshot_39_HERE_ProvGigaPath.pt", map_location='cpu') #, weights_only=True)
+    elif search_backbone == 'HERE_UNI':
+        models_dict[search_backbone]['feature_extractor'] = timm.create_model(
+            "vit_large_patch16_224", img_size=224, patch_size=16, init_values=1e-5, num_classes=0, dynamic_img_size=True
+        )
+        # models_dict[search_backbone]['feature_extractor'].load_state_dict(torch.load(f"{DATA_DIR}/assets/UNI_pytorch_model.bin", map_location="cpu", weights_only=True), strict=True)
+        models_dict[search_backbone]['feature_extractor'].load_state_dict(torch.load(f"{DATA_DIR}/assets/UNI_pytorch_model.bin", map_location="cpu"), strict=True)
+        models_dict[search_backbone]['image_processor_or_transform'] = create_transform(**resolve_data_config(models_dict[search_backbone]['feature_extractor'].pretrained_cfg, model=models_dict[search_backbone]['feature_extractor']))
+        models_dict[search_backbone]['attention_model'] = AttentionModel(backbone='UNI')
+        models_dict[search_backbone]['state_dict'] = torch.load(f"{DATA_DIR}/assets/snapshot_58_HERE_UNI.pt", map_location='cpu')#, weights_only=True)
+    
+    models_dict[search_backbone]['feature_extractor'].eval()
+    models_dict[search_backbone]['attention_model'].load_state_dict(models_dict[search_backbone]['state_dict']['MODEL_STATE'], strict=False)
+    models_dict[search_backbone]['attention_model'].eval()
+
+print('after loading backbones ', psutil.virtual_memory().used/1024/1024/1024, "GB")
+
+faiss_indexes = {}
+# faiss_types = ['faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8', 'faiss_IndexFlatL2']
+faiss_types = ['faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8']
+for backbone in backbones:
+    faiss_indexes[backbone] = {}
+    for faiss_type in faiss_types:
+        faiss_indexes[backbone][faiss_type] = {}
+        for project_name in project_names:
+            faiss_bin_filename = f"{DATA_DIR}/assets/faiss_bins/all_data_feat_before_attention_feat_{faiss_type}_{project_name}_{backbone}.bin"
+            if os.path.exists(faiss_bin_filename):
+                faiss_indexes[backbone][faiss_type][project_name] = faiss.read_index(faiss_bin_filename)
+
+print('after loading faiss indexes ', psutil.virtual_memory().used/1024/1024/1024, "GB")
+
+# with open(f'{DATA_DIR}/assets/randomly_1000_data_with_PLIP_ProvGigaPath_CONCH_20240814.pkl', 'rb') as fp: # with HERE_ProvGigaPath, with CONCH, random normal distribution
+#     randomly_1000_data = pickle.load(fp)
+randomly_1000_data = {}
+for method in ['HERE_CONCH']: #['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 'HERE_UNI']:
+    if method not in randomly_1000_data:
+        randomly_1000_data[method] = {}
+    for project_name in project_names: #['KenData_20240814', 'ST_20240903', 'TCGA-COMBINED']:
+        if project_name == 'ST_20240903':
+            version = 'V20240908'
+        elif project_name[:5] == 'CPTAC':
+            version = 'V20240908'
+        else:
+            version = 'V6'
+        filename = f'{DATA_DIR}/assets/randomly_background_samples_for_train_{project_name}_{method}{version}.pkl'
+        if project_name in randomly_1000_data[method] or not os.path.exists(filename):
+            print('wrong')
+            import pdb
+            pdb.set_trace()
+            continue
+        with open(filename, 'rb') as fp:
+            data1 = pickle.load(fp)
+        if project_name == 'TCGA-COMBINED' or project_name == 'KenData_20240814':
+            embeddings = data1[method][project_name]['embeddings']
+            randomly_1000_data[method][project_name] = embeddings[np.random.randint(0, len(embeddings), 10000), :]
+        else:
+            randomly_1000_data[method][project_name] = data1[method][project_name]['embeddings']
+    # randomly_1000_data[method]['ALL'] = np.concatenate([
+    #     vv for kk, vv in randomly_1000_data[method].items() 
+    # ])
+    randomly_1000_data[method]['ALL'] = randomly_1000_data[method]['CPTAC']
+
+
+font = ImageFont.truetype("Gidole-Regular.ttf", size=36)
+print('before loading lmdb ', psutil.virtual_memory().used/1024/1024/1024, "GB")
+
+
+
+def knn_search_images_by_faiss(query_embedding, k=10, search_project="ALL", search_method='faiss', search_backbone='HERE_PLIP'):
+    if search_project == 'ALL':
+        Ds, Is = {}, {}
+        for iiiii, project_name in enumerate(project_names):
+            Di, Ii = faiss_indexes[search_backbone][search_method][project_name].search(query_embedding, k)
+            Di = np.array([dd for dd, ii in zip(Di[0], Ii[0]) if ii>=0])
+            beginid = project_start_ids[project_name]
+            Ii = [beginid+ii for ii in Ii[0] if ii>=0]
+            Ds[project_name] = Di
+            Is[project_name] = Ii
+
+        D = np.concatenate(list(Ds.values()))
+        I = np.concatenate(list(Is.values()))
+        if 'HNSW' in search_method or 'IndexFlatL2' in search_method:
+            inds = np.argsort(D)[:k]
+        else:  # IP or cosine similarity, the larger, the better
+            inds = np.argsort(D)[::-1][:k]
+        return D[inds], I[inds]
+
+    else:
+        Di, Ii = faiss_indexes[search_backbone][search_method][search_project].search(query_embedding, k)
+
+        Di = np.array([dd for dd, ii in zip(Di[0], Ii[0]) if ii>=0])
+        beginid = project_start_ids[search_project]
+        Ii = np.array([beginid+ii for ii in Ii[0] if ii>=0])
+        return Di, Ii
+
+
+def compute_mean_std_cosine_similarity_from_random1000_bak(query_embedding, search_project='ALL', search_backbone='HERE_PLIP'):
+    distances = 1 - pairwise_distances(query_embedding.reshape(1, -1),
+                                       randomly_1000_data[search_backbone][search_project if search_project in randomly_1000_data[search_backbone].keys() else 'ALL'],
+                                       metric='cosine')[0]
+    return np.mean(distances), np.std(distances), distances
+def compute_mean_std_cosine_similarity_from_random1000(query_embedding, search_project='ALL', search_backbone='HERE_PLIP'):
+    distances = pairwise_distances(query_embedding.reshape(1, -1), randomly_1000_data[search_backbone][search_project if search_project in randomly_1000_data[search_backbone].keys() else 'ALL'])[0]
+    return np.mean(distances), np.std(distances), distances
+
+
+def get_image_patches(image, sizex=256, sizey=256):
+    # w = 2200
+    # h = 2380
+    # sizex, sizey = 256, 256
+    w, h = image.size
+    if w < sizex:
+        image1 = Image.new(image.mode, (sizey, h), (0, 0, 0))
+        image1.paste(image, ((sizex - w) // 2, 0))
+        image = image1
+    w, h = image.size
+    if h < sizey:
+        image1 = Image.new(image.mode, (w, sizex), (0, 0, 0))
+        image1.paste(image, (0, (sizey - h) // 2))
+        image = image1
+    w, h = image.size
+    # creating new Image object
+    image_shown = image.copy()
+    img1 = ImageDraw.Draw(image_shown)
+
+    num_x = np.floor(w / sizex)
+    num_y = np.floor(h / sizey)
+    box_w = int(num_x * sizex)
+    box_y = int(num_y * sizey)
+    startx = w // 2 - box_w // 2
+    starty = h // 2 - box_y // 2
+    patches = []
+    r = 5
+    patch_coords = []
+    for x1 in range(startx, w, sizex):
+        x2 = x1 + sizex
+        if x2 > w:
+            continue
+        for y1 in range(starty, h, sizey):
+            y2 = y1 + sizey
+            if y2 > h:
+                continue
+            img1.line((x1, y1, x1, y2), fill="white", width=1)
+            img1.line((x1, y2, x2, y2), fill="white", width=1)
+            img1.line((x2, y2, x2, y1), fill="white", width=1)
+            img1.line((x2, y1, x1, y1), fill="white", width=1)
+            cx, cy = x1 + sizex // 2, y1 + sizey // 2
+            patch_coords.append((cx, cy))
+            img1.ellipse((cx - r, cy - r, cx + r, cy + r), fill=(255, 0, 0, 0))
+            patches.append(image.crop((x1, y1, x2, y2)))
+    return patches, patch_coords, image_shown
+
+
+
+def get_query_embedding(img_urls, resize=0, search_backbone='HERE_PLIP'):
+    image_patches_all = []
+    patch_coords_all = []
+    image_shown_all = []
+    minWorH = 1e8
+    sizex, sizey = 256, 256
+    # if 'CONCH' in search_backbone:
+    #     sizex, sizey = 512, 512
+    for img_url in img_urls:
+        if img_url[:4] == 'http':
+            image = Image.open(img_url.replace(
+                'https://hidare-dev.ccr.cancer.gov/', '')).convert('RGB')
+        elif img_url[:4] == 'data':
+            image_data = re.sub('^data:image/.+;base64,', '', img_url)
+            image = Image.open(io.BytesIO(
+                base64.b64decode(image_data))).convert('RGB')
+        else:
+            image = Image.open(img_url).convert('RGB')
+
+        W, H = image.size        
+        minWorH = min(min(W, H), minWorH)
+        if 0 < resize:
+            resize_scale = 1. / 2**resize
+            newW, newH = int(W*resize_scale), int(H*resize_scale)
+            minWorH = min(min(newW, newH), minWorH)
+            image = image.resize((newW, newH))
+        if search_backbone == 'ProvGigaPath':
+            image = image.resize((256, 256))
+        patches, patch_coords, image_shown = get_image_patches(image, sizex=sizex, sizey=sizey)
+        image_patches_all.append(patches)
+        patch_coords_all.append(patch_coords)
+        image_shown_all.append(image_shown)
+
+    image_patches = [
+        patch for patches in image_patches_all for patch in patches]
+    image_urls_all = {}
+    results_dict = {}
+    with torch.no_grad():
+
+        if search_backbone in ['HERE_PLIP', 'HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_UNI']:
+            if search_backbone == 'HERE_PLIP':
+                images = models_dict[search_backbone]['image_processor_or_transform'](images=image_patches, return_tensors='pt')['pixel_values']
+                feat_after_encoder_feat = models_dict[search_backbone]['feature_extractor'].get_image_features(images).detach()
+                # extract feat_before_attention_feat
+                embedding = feat_after_encoder_feat @ models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.weight'].T + \
+                    models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.bias']
+                # get the attention scores
+                results_dict = models_dict[search_backbone]['attention_model'](feat_after_encoder_feat.unsqueeze(0))
+            elif search_backbone == 'HERE_ProvGigaPath':
+                images = torch.stack([models_dict[search_backbone]['image_processor_or_transform'](example) for example in image_patches])
+                feat_after_encoder_feat = models_dict[search_backbone]['feature_extractor'](images).detach()
+                # extract feat_before_attention_feat
+                embedding = feat_after_encoder_feat @ models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.weight'].T + \
+                    models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.bias']
+                # get the attention scores
+                results_dict = models_dict[search_backbone]['attention_model'](feat_after_encoder_feat.unsqueeze(0))
+            elif search_backbone == 'HERE_CONCH':
+                images = torch.stack([models_dict[search_backbone]['image_processor_or_transform'](example) for example in image_patches])
+                feat_after_encoder_feat = models_dict[search_backbone]['feature_extractor'].encode_image(images, proj_contrast=False, normalize=False).detach()
+                # extract feat_before_attention_feat
+                embedding = feat_after_encoder_feat @ models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.weight'].T + \
+                    models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.bias']
+                # get the attention scores
+                results_dict = models_dict[search_backbone]['attention_model'](feat_after_encoder_feat.unsqueeze(0))
+            elif search_backbone == 'HERE_UNI':
+                images = torch.stack([models_dict[search_backbone]['image_processor_or_transform'](example) for example in image_patches])
+                feat_after_encoder_feat = models_dict[search_backbone]['feature_extractor'](images).detach()
+                # extract feat_before_attention_feat
+                embedding = feat_after_encoder_feat @ models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.weight'].T + \
+                    models_dict[search_backbone]['state_dict']['MODEL_STATE']['attention_net.0.bias']
+                # get the attention scores
+                results_dict = models_dict[search_backbone]['attention_model'](feat_after_encoder_feat.unsqueeze(0))
+            # weighted the features using attention scores
+            embedding = torch.mm(results_dict['A'], embedding)
+            # embedding = results_dict['global_feat'].detach().numpy()
+            embedding = embedding.detach().numpy()
+
+            if len(image_patches_all) > 1:
+                atten_scores = np.split(results_dict['A'].detach().numpy()[0], np.cumsum(
+                    [len(patches) for patches in image_patches_all])[:-1])
+            else:
+                atten_scores = [results_dict['A'].detach().numpy()[0]]
+            for ii, atten_scores_ in enumerate(atten_scores):
+                I1 = ImageDraw.Draw(image_shown_all[ii])
+                for jj, score in enumerate(atten_scores_):
+                    I1.text(patch_coords_all[ii][jj], "{:.4f}".format(
+                        score), fill=(0, 255, 255), font=font)
+
+                img_byte_arr = io.BytesIO()
+                image_shown_all[ii].save(img_byte_arr, format='JPEG')
+                image_urls_all[str(ii)] = "data:image/jpeg;base64, " + \
+                    base64.b64encode(img_byte_arr.getvalue()).decode()
+        else:
+            return None, image_urls_all, results_dict, minWorH
+
+    embedding = embedding.reshape(1, -1)
+    embedding /= np.linalg.norm(embedding)
+    return embedding, image_urls_all, results_dict, minWorH
+
+
+
+def new_web_annotation2(cluster_label, min_dist, x, y, w, h, annoid_str):
+    anno = {
+        "type": "Annotation",
+        "body": [{
+            "type": "TextualBody",
+            "value": "{}".format(min_dist),
+            "purpose": "tagging"
+        }],
+        "target": {
+            "source": "http://localhost:3000/",
+            "selector": {
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh=pixel:{x},{y},{w},{h}"
+            }
+        },
+        "@context": "http://www.w3.org/ns/anno.jsonld",
+        "id": annoid_str
+    }
+    return anno
+
+
+def main():
+
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        filenames = [line.strip() for line in fp.readlines()]
+    df = pd.DataFrame(filenames, columns=['orig_filename'])
+    df['svs_prefix'] = [os.path.splitext(os.path.basename(f))[0] for f in df['orig_filename'].values]
+    df['cancer_type'] = [f.split('/')[-2] for f in df['orig_filename'].values]
+    clinical = df
+    all_svs_prefixes = df['svs_prefix'].values
+    all_labels_dict = dict(zip(df['svs_prefix'], df['cancer_type'])) # svs_prefix: cancer_type
+
+    font2                   = cv2.FONT_HERSHEY_SIMPLEX
+    fontScale              = 5
+    fontColor              = (45, 255, 255)
+    thickness              = 5
+    lineType               = 5
+    font_path = os.path.join(cv2.__path__[0],'qt','fonts','DejaVuSans.ttf')
+    font1 = ImageFont.truetype(font_path, size=28)
+
+    topn = 5
+
+    assert len(project_names) == 1
+
+    # files = sorted(glob.glob('/mnt/hidare-efs/data_20240208/jiang_exp1/png/*.png'))
+    # files = sorted(glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/png/*.png'))
+    # # print('files', files)
+
+    # files = glob.glob('/data/Jiang_Lab/Data/Zisha_Zhong/HERE101/allpng_with_r2r4/png/*.png')
+    # files = glob.glob('/data/zhongz2/HERE101_20x/*.tif')
+    # files = glob.glob('/data/zhongz2/CPTAC/patches_256/CONCH/heatmap_files/*/patch1024/top0.png')
+    # files = glob.glob('/data/zhongz2/CPTAC/yottixel_bobs/patches/*/patch1024/top0.png')
+    files = glob.glob('/data/zhongz2/HERE101_20x_1024_v5/*.tif')
+    files = [f for f in files if '_r2.png' not in f and '_r4.png' not in f]
+
+    indices = np.arange(len(files))
+    index_splits = np.array_split(indices, indices_or_sections=idr_torch.world_size)
+    files = [files[i] for i in index_splits[idr_torch.rank]]
+
+    search_backbone = 'HERE_CONCH'
+    search_method = 'faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8'
+    search_project = project_names[0]
+
+    all_feats = []
+    for i, f in enumerate(files):
+
+        print('begin ', f)
+        # query_prefix = os.path.basename(f).replace('.png', '')
+        # query_prefix = os.path.splitext(os.path.basename(f))[0]
+        # query_prefix = f.split('/')[-3]
+
+
+        # save_dir = os.path.join(save_root, query_prefix)
+        # os.makedirs(save_dir, exist_ok=True)
+
+        # save_filename = os.path.join(save_dir, f'{query_prefix}.pkl')
+        # if os.path.exists(save_filename):
+        #     continue
+
+        params = {  
+                'k': 10,
+                'search_project': search_project,
+                'search_feature': 'before_attention',
+                'search_method': search_method,
+                'socketid': '',
+                'img_urls': [f],
+                'filenames': [f],
+                'resize': 0,
+                'search_backbone': search_backbone
+            }
+                
+        start = time.perf_counter()
+
+        query_embedding, images_shown_urls, results_dict, minWorH = \
+            get_query_embedding(params['img_urls'], resize=int(float(params['resize'])), search_backbone=params['search_backbone'])  # un-normalized
+        
+        query_embedding = query_embedding.reshape(1, -1)
+
+        coxph_html_dict = {}
+
+        query_embedding /= np.linalg.norm(query_embedding)  # l2norm normalized
+
+        all_feats.append(query_embedding)
+    
+    np.save("/data/zhongz2/temp_20241204_scalability/HERE101_feats.npy", all_feats)
+
+
+if __name__ == '__main__':
+    main()
+
+
+
+
+
+
+
+

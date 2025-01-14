@@ -12,11 +12,11 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-# colors = [
-#     '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
-#     '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
-#     '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
-#     ]
+MORANDI_colors = [
+    '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+    '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+    '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+    ]
 
 # def hex_to_rgb(value):
 #     """Convert a hex color to an RGB tuple."""
@@ -551,7 +551,7 @@ def plot_jinlin_evaluation_boxplots():
 
             plt.savefig(f'{save_root}/overall_histplot_group.png', bbox_inches='tight', transparent=True, format='png')
             plt.savefig(f'{save_root}/overall_histplot_group.svg', bbox_inches='tight', transparent=True, format='svg')
-            # df2.to_excel(f'{save_root}/overall_histplot_group.xlsx')
+            df4.to_excel(f'{save_root}/overall_histplot_group.xlsx')
             plt.close()
 
 
@@ -727,7 +727,8 @@ def main_20240708_encoder_comparision():
         # g.set(ylabel=None)
         # g.set(xlabel=None)
         # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-        g.set(ylabel=name1)
+        # g.set(ylabel=name1)
+        g.set(ylabel='mMV@5' if name == 'Acc' else "Average Precision")
         g.set(xlabel=None)
         g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
         g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -764,7 +765,7 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
         plt.close()
 
         plt.close()
@@ -796,7 +797,7 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
         plt.close()
 
         # from compute_flops.py
@@ -958,7 +959,7 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        # all_df2.to_csv(os.path.join(save_root, f'flops_{name1}.csv'))
+        all_df2.to_csv(os.path.join(save_root, f'ranking_vs_flops_{name1}.csv'))
         plt.close()
 
 
@@ -1395,7 +1396,8 @@ def plot_search_time_tcga_ncidata():
             # g.set(ylabel=None)
             # g.set(xlabel=None)
             # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-            g.set(ylabel=name1)
+            # g.set(ylabel=name1)
+            g.set(ylabel='Accuracy' if name =='Acc' else 'Average Precision')
             g.set(xlabel=None)
             g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
             g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -1561,8 +1563,8 @@ def plot_search_time_tcga_ncidata():
                     #     tick_label.set_color(palette[ci])
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}.png'), bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}.svg'), bbox_inches='tight', transparent=True, format='svg')
-                    df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}.csv'))
                     plt.close()
+                df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot.csv'))
 
                 # broken plots for storage comparison
                 for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
@@ -1616,8 +1618,8 @@ def plot_search_time_tcga_ncidata():
 
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-                    df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_{proj_name}_v2.csv'))
                     plt.close()
+                df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_v2.csv'))
 
                 for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
 
@@ -1639,8 +1641,8 @@ def plot_search_time_tcga_ncidata():
                     plt.title(proj_name, fontsize=font_size)
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}.png'), bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}.svg'), bbox_inches='tight', transparent=True, format='svg')
-                    df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}.csv'))
                     plt.close()
+                df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot.csv'))
 
                 # log-scale
                 for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
@@ -1664,8 +1666,8 @@ def plot_search_time_tcga_ncidata():
                     plt.title(proj_name, fontsize=font_size)
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-                    df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v2.csv'))
                     plt.close()
+                df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_v2.csv'))
 
                 # broken
                 for ppi, proj_name in enumerate(['TCGA', 'NCIData', 'Kather100K']):
@@ -1718,8 +1720,8 @@ def plot_search_time_tcga_ncidata():
                     fig.text(0.5, 0.9, proj_name, ha='center')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.png'), bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.svg'), bbox_inches='tight', transparent=True, format='svg')
-                    df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_{proj_name}_v3.csv'))
                     plt.close()
+                df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_v3.csv'))
 
 
 
@@ -1871,7 +1873,7 @@ def Fig3_4():
     }
 
     # df = df[df['label'].notna()].reset_index(drop=True)
-    hue_orders = {}
+    # hue_orders = {}
     for expname in ['overall']: #, 'R0_vs_R2R4']:
         if expname == 'overall':
             df1 = df[['WebPLIP','RetCCL', 'SISH', 'Yottixel', compared_method] + groups].rename(columns={'WebPLIP': 'PLIP','RetCCL':'RetCCL','SISH':'SISH','Yottixel':'Yottixel', compared_method: 'HERE'})
@@ -1881,9 +1883,45 @@ def Fig3_4():
             df2 = pd.melt(df1, value_vars=['R0','R2(R4)'], id_vars=groups, var_name='method', value_name='score')
         df2['court'] = [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))]
 
-        hue_orders[expname] = {}
+
+        hue_orders = []
+        new_ticks = []
+        df3_long = []
+        num_groups = {}
         for group in groups:
             df3 = df2.copy()
+            
+            if 'HERE' in df1.columns:
+                sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
+                hue_order = sorted_HERE.index.values
+            else:
+                hue_order = sorted(df3[group].value_counts().index.values)
+            hue_orders.extend(hue_order)
+            
+            df4 = (df3[group].value_counts()//5).loc[hue_order].reset_index()
+            num_groups[group] = len(df3[group].value_counts())
+
+            # boxplot-v2 (20240522) using twin axis 
+            mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
+            # df31 = df3.replace({group: mapper_dict})
+            new_ticks_ = []
+            for v in hue_order:
+                new_ticks_.append(mapper_dict[v])
+            new_ticks.extend(new_ticks_)
+
+            df3_long.append(df3[[group, 'method', 'score']].rename(columns={group:'group'}))
+        df3_long = pd.concat(df3_long, axis=0)
+        max_len_l = max([len(v) for v in df3_long['group'].values])
+        max_len_r = max([len(v) for v in new_ticks])
+        max_num_group = max(list(num_groups.values()))
+        # import pdb
+        # pdb.set_trace()
+
+        hue_orders = {}
+        for group in groups:
+
+            df3 = df2.copy()
+            
             # if group == 'pattern2':
             #     df3 = df2[df2['pattern2'].isin(['nest', 'glandular', 'sheets', 'spindle', 'papillary'])].reset_index(drop=True)
             
@@ -1908,9 +1946,9 @@ def Fig3_4():
                 hue_order = sorted_HERE.index.values
             else:
                 hue_order = sorted(df3[group].value_counts().index.values)
-            hue_orders[expname][group] = hue_order
-            if group == 'label' and expname != 'overall':
-                hue_order = hue_orders['overall'][group]
+            # hue_orders[expname][group] = hue_order
+            # if group == 'label' and expname != 'overall':
+            #     hue_order = hue_orders['overall'][group]
             if group == 'tissue site':
                 hue_order = sites
             print('hue_order', hue_order)
@@ -1928,7 +1966,7 @@ def Fig3_4():
                     # return '{:.1f}%\n(n={:.0f})'.format(x, total*x/100)
                     return '{:.0f}'.format(total*x/100)
 
-                if False:
+                if True:
                     font_size = 30
                     figure_height = 9
                     figure_width = 9
@@ -1985,6 +2023,7 @@ def Fig3_4():
                     # plt.title(group_names[group]) 
                     plt.savefig(f'{save_root}/pie_{group}_{expname}.png', bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(f'{save_root}/pie_{group}_{expname}.svg', bbox_inches='tight', transparent=True, format='svg')
+                    
                     plt.close()
 
                 # df4 = df4.reset_index()
@@ -1996,24 +2035,49 @@ def Fig3_4():
             if True:
                 mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
                 # df31 = df3.replace({group: mapper_dict})
+                hue_order = hue_order.tolist() if not isinstance(hue_order, list) else hue_order
                 new_ticks = []
                 for v in hue_order:
                     new_ticks.append(mapper_dict[v])
+                df33 = df3[[group, 'score', 'method']]
+                remain_count = max_num_group - len(df4)
+                new_cat = hue_order[-1]
+                new_tick = new_ticks[-1]
+                df333 = [df33]
+                for ii in range(remain_count):
+                    hue_order.append(f'{new_cat}_{ii}')
+                    temp= df33[df33[group]==new_cat].reset_index(drop=True)
+                    temp[group]=temp[group].map({new_cat:f'{new_cat}_{ii}'})
+                    df333.append(temp)
+                    new_ticks.append(new_tick)
+                df333 = pd.concat(df333, axis=0)
 
-                font_size = 18
+                font_size = 30
                 figure_height = 7
                 figure_width = 12
                 plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
                 plt.tick_params(pad = 10)
-                fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-                ax = plt.gca()
-                g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=palette, ax=ax, order=hue_order, legend=False)
+                # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                # ax = plt.gca()
+                g=sns.catplot(
+                    data=df333, x=group, y="score", hue="method", kind="box", palette=all_colors, 
+                    #ax=ax, 
+                    order=hue_order, legend=False,
+                    height=figure_height,
+                    aspect=(len(new_ticks)*(figure_height/3))/figure_height, 
+                    # dodge=True,  # Ensure consistent spacing for hue categories
+                    # width=0.8,  # Set a fixed width for the boxes
+                )
                 # if group=='structure':
                 #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
                 # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
                 # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
                 g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
-                g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+                xticklabels = []
+                for v in g.ax.get_xticklabels():
+                    xticklabels.append(v.get_text().rjust(max_len_l))
+                g.ax.set_xticklabels(xticklabels, rotation=90, ha="right", va='center', rotation_mode='anchor')
+
                 g.set(ylabel=None)
                 g.set(xlabel=None)
                 g.ax.set(ylim=[0.5, 5.5])  
@@ -2025,6 +2089,8 @@ def Fig3_4():
 
                 ax2 = g.ax.secondary_xaxis('top')
                 ax2.set_xticks(g.ax.get_xticks())
+                new_ticks = [v.ljust(max_len_r) for v in new_ticks]
+                print('new_ticks', new_ticks)
                 ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
                 ax2.tick_params(axis='x', length=0)
 
@@ -2046,8 +2112,11 @@ def Fig3_4():
                     for i in range(num_group):
                         for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
                             plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+
+                g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
                 plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.png', bbox_inches='tight', transparent=True, format='png')
                 plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.svg', bbox_inches='tight', transparent=True, format='svg')
+                df3.to_csv(f'{save_root}/boxplot_{group}_{expname}_v2.csv')
                 plt.close()
 
                 if group=='structure': # for the legend
@@ -2059,7 +2128,7 @@ def Fig3_4():
                     plt.tick_params(pad = 10)
                     fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
                     ax = plt.gca()
-                    g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=palette, ax=ax, order=hue_order)
+                    g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=all_colors, ax=ax, order=hue_order)
                     # if group=='structure':
                     #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
                     # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
@@ -2075,7 +2144,7 @@ def Fig3_4():
                     #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
                     #     order=hue_order)
                     g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-                        marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                        marker="$\circ$", s=2, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
                         order=hue_order)
                     g.set(ylabel='Expert score')
                     g.set(xlabel=group_names[group])
@@ -2088,8 +2157,11 @@ def Fig3_4():
                         for i in range(num_group):
                             for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
                                 plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+
+                    g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
                     plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.png', bbox_inches='tight', transparent=True, format='png')
                     plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.svg', bbox_inches='tight', transparent=True, format='svg')
+                    df3.to_csv(f'{save_root}/boxplot_{group}_{expname}_v2_legend.csv')
                     plt.close()
 
 
@@ -2098,7 +2170,191 @@ def Fig3_4():
 
 
 
+def Fig3_4_long():
 
+    # 20240831 update different colors for R0 vs R2|R4, HERE_CONCH
+    import os
+    import numpy as np
+    import pandas as pd
+    # from matplotlib import pyplot as plt
+    import seaborn as sns
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums, wilcoxon
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    import matplotlib.colors
+    import matplotlib.lines
+    from matplotlib.transforms import Bbox, TransformedBbox
+    from matplotlib.legend_handler import HandlerBase
+    from matplotlib.image import BboxImage
+    from matplotlib.patches import Circle
+    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                    AnnotationBbox)
+    from matplotlib.cbook import get_sample_data
+
+    def cohend(d1, d2) -> pd.Series:
+        # calculate the size of samples
+        n1, n2 = len(d1), len(d2)
+        # calculate the variance of the samples
+        s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+        # calculate the pooled standard deviation
+        s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+        # calculate the means of the samples
+        u1, u2 = np.mean(d1, axis=0), np.mean(d2, axis=0)
+        # return the effect size
+        return (u1 - u2) / s
+
+
+    # excel_filename = '/Users/zhongz2/down/HERE/Tables/refined.xlsx'
+    # df = pd.read_excel(excel_filename, index_col=0)
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0426.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0507.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0508.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0522.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0831.xlsx'
+    df = pd.read_excel(excel_filename)
+    # 20241215 Jinin evaluation 6 cases
+    df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES_20241215.xlsx', sheet_name='CombinedZZS')
+    df1 = df1.groupby('query').agg({'RetCCL': 'mean', 'Yottixel': 'mean', 'SISH': 'mean'})
+    # 20250115 Jinlin evaluation 101 cases for 3 methods
+    df11 = pd.read_excel('/Users/zhongz2/down/refined Ver20250111.xlsx', sheet_name='CombinedZZS')
+    for method in ['RetCCL', 'SISH', 'Yottixel']:
+        vals = []
+        for v in df11[method].values:
+            if isinstance(v, str):
+                m = np.array([float(vv) for vv in v.split(',')]).mean()
+            else:
+                m = v
+            vals.append(m)
+        print(vals)
+        df11[method] = vals
+    df1 = df11.set_index('query')
+    df2 = df1.merge(df, left_on='query', right_on='query', how='inner').reset_index()
+
+    df = df2
+
+
+    if 'AdaptiveHERE' not in df.columns:
+        # get Adaptive HERE score
+        df['AdaptiveHERE'] = df[['r0', 'r2', 'r4']].fillna(-1).max(axis=1)
+        df.to_excel(excel_filename)
+
+    df['r2_r4'] = df[['r2', 'r4']].fillna(-1).max(axis=1)
+
+    compared_method = 'AdapHERECONCH'
+    
+    sites = df['site'].value_counts().index.values
+    site_mappers = {kk:kk for kk in sites[:10]}
+    site_mappers.update({kk:'others' for ii,kk in enumerate(sites) if ii>=10})
+    df['tissue site'] = df['site'].values
+    df['tissue site'] = df['tissue site'].map(site_mappers)
+    sites = ['lung', 'liver', 'ovary', 'stomach', 'breast', 'lymph node', 'soft tissue', 'testis', 'kidney', 'colon', 'others']
+
+    save_root = '/Users/zhongz2/down/temp_20250113/Fig3_4_long'
+    if os.path.exists(save_root):
+        os.system('rm -rf "{}"'.format(save_root))
+    os.makedirs(save_root, exist_ok=True)
+
+    groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label', 'tissue site']
+    group_names = {
+        'structure': 'tissue structure',
+        'cell type': 'cell type',
+        'cell shape': 'cellular shape',
+        'cytoplasm': 'cytoplasm',
+        'label': 'tissue composition',
+        'tissue site': 'tissue site'
+    }
+
+    df1 = df[['WebPLIP','RetCCL', 'SISH', 'Yottixel', compared_method] + groups].rename(columns={'WebPLIP': 'PLIP','RetCCL':'RetCCL','SISH':'SISH','Yottixel':'Yottixel', compared_method: 'HERE'})
+    df2 = pd.melt(df1, value_vars=['PLIP','RetCCL', 'SISH', 'Yottixel','HERE'], id_vars=groups, var_name='method', value_name='score')    
+    
+    df2['court'] = [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))]
+
+    hue_orders = []
+    new_ticks = []
+
+    df3_long = []
+    for group in groups:
+        df3 = df2.copy()
+        
+        if 'HERE' in df1.columns:
+            sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
+            hue_order = sorted_HERE.index.values
+        else:
+            hue_order = sorted(df3[group].value_counts().index.values)
+        if group == 'tissue site':
+            hue_order = sites
+        hue_orders.extend(hue_order)
+        
+        df4 = (df3[group].value_counts()//5).loc[hue_order].reset_index()
+
+        # boxplot-v2 (20240522) using twin axis 
+        mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
+        # df31 = df3.replace({group: mapper_dict})
+        new_ticks_ = []
+        for v in hue_order:
+            new_ticks_.append(mapper_dict[v])
+        new_ticks.extend(new_ticks_)
+
+        df3_long.append(df3[[group, 'method', 'score']].rename(columns={group:'group'}))
+
+    df3_long = pd.concat(df3_long, axis=0)
+
+    font_size = 30
+    figure_height = 8
+    figure_width = 40
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 0)
+    # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+    # ax = plt.gca()
+    g=sns.catplot(
+        data=df3_long, x='group', y="score", hue="method", kind="box", palette=all_colors, order=hue_orders, legend=False, \
+        height=figure_height,  # Set the height of each facet
+        aspect=(len(new_ticks)*(figure_height/4))/figure_height # Set the aspect ratio (width/height))
+    )
+    # if group=='structure':
+    #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+    # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+    # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+    g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
+    g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+    g.set(ylabel=None)
+    g.set(xlabel=None)
+    g.ax.set(ylim=[0.5, 5.5])  
+    g.ax.set(yticks=[1, 2, 3, 4, 5])
+    plt.ylim([0.5, 5.5])
+    plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
+    # plt.yticks(np.arange(0.5, 5.5, 0.5))
+    sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
+
+    ax2 = g.ax.secondary_xaxis('top')
+    ax2.set_xticks(g.ax.get_xticks())
+    ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
+    ax2.tick_params(axis='x', length=0)
+
+    # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+    #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+    #     order=hue_order)
+    g.map_dataframe(sns.stripplot, x='group', y="score", hue="method", legend=False, dodge=True, 
+        marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+        order=hue_orders)
+    g.set(ylabel='Expert score')
+    # g.set(xlabel=group_names[group])
+    g.set(xlabel=None)
+    # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+    # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+    # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+    # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+    # connect line
+    # if False:
+    #     for i in range(num_group):
+    #         for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+    #             plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+    g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
+    plt.savefig(f'{save_root}/boxplot_long_v2.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_root}/boxplot_long_v2.svg', bbox_inches='tight', transparent=True, format='svg')
+    df3_long.to_csv(f'{save_root}/boxplot_long_v2.csv')
+    plt.close()
 
 
 
@@ -2744,7 +3000,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
         plt.close()
 
         plt.close()
@@ -2774,7 +3030,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
         plt.close()
 
         # 
@@ -2994,10 +3250,6 @@ def main_20241218_CPTAC_mutation_search_comparision():
         all_df1['score1'] = np.log(all_df1['score'] - 30)
         all_df1['score2'] = all_df1['score']
 
-
-
-
-
         plt.close()
         font_size = 30
         figure_width = 7
@@ -3009,7 +3261,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of mAP@5" if name == 'Percision' else "Sum of mMV@5")
+        g.set_ylabel("mAP@5" if name == 'Percision' else "mMV@5")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3024,7 +3276,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
         plt.close()
 
         plt.close()
@@ -3039,7 +3291,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of mAP@5" if name == 'Percision' else "Sum of mMV@5")
+        g.set_ylabel("mAP@5" if name == 'Percision' else "mMV@5")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3054,7 +3306,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
         plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        # all_df.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
         plt.close()
 
         # 
@@ -3190,7 +3442,7 @@ def compare_attention_with_noattention():
     method_pallette_dict = {m:p for m,p in zip(selected_methods_all, palette_all[:len(selected_methods_all)])}
     palette = [method_pallette_dict[m] for m in selected_methods]
     palette = ['red', 'blue']
-    palette = {kk: vv for kk,vv in zip(hue_order, sorted(list(set(all_colors.values()))[::-1])[:len(hue_order)])}
+    palette = {kk: vv for kk,vv in zip(hue_order, MORANDI_colors[:len(hue_order)])}
     # import pdb
     # pdb.set_trace()
     print('palettepalette', palette)
@@ -3238,6 +3490,7 @@ def compare_attention_with_noattention():
     plt.savefig(f'{save_root}/with_attention_or_not.png', bbox_inches='tight', transparent=True, format='png')
     plt.savefig(f'{save_root}/with_attention_or_not.svg', bbox_inches='tight', transparent=True, format='svg')
     plt.savefig(f'{save_root}/with_attention_or_not.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    df.to_csv(f'{save_root}/with_attention_or_not.csv')
     plt.close('all') 
     
 
@@ -3338,7 +3591,7 @@ def plot_gene_mutation_and_regression_plots():
     plt.savefig(os.path.join(save_root, 'mutation.png'), bbox_inches='tight', transparent=True, format='png')
     plt.savefig(os.path.join(save_root, 'mutation.svg'), bbox_inches='tight', transparent=True, format='svg')
     plt.savefig(os.path.join(save_root, 'mutation.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-    df2.to_csv(os.path.join(save_root, 'mutation.csv'))
+    df1.to_csv(os.path.join(save_root, 'mutation.csv'))
     plt.close()
 
 
@@ -3425,8 +3678,186 @@ def plot_segmentation():
     im1 = im.copy()
     for x, y in coords1:
         cv2.rectangle(im1, (x, y), (x+patch_size2[0], y+patch_size2[1]), (0, 255, 0), 2)
-    cv2.imwrite(f'/data/zhongz2/{svs_prefix}_patching.jpg', im1)
     
+    save_root = '/data/zhongz2/'
+    os.makedirs(save_root, existed_ok=True)
+    cv2.imwrite(f'{save_root}/{svs_prefix}_patching.jpg', im1)
+    
+
+
+def plot_scalability():
+
+    import sys,os,shutil,json,glob,pickle
+    import numpy as np
+    import pandas as pd
+    from matplotlib import pyplot as plt
+    import pandas as pd
+    import numpy as np
+    import pickle
+    import os
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums
+    import matplotlib.pyplot as plt
+    import seaborn as sns
+    root = '/Volumes/data-1/temp_20241204_scalability/'
+    save_root = '/Users/zhongz2/down/temp_20250113/scability'
+    os.makedirs(save_root, exist_ok=True)
+
+    if False:
+        results_dirs = {
+            'Yottixel': '/Volumes/data-1/PSC_Yottixel/FEATURES/DATABASE/BOBS/NCI/HERE101_1024_v5_debug',
+            'SISH': '/Volumes/data-1/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/KenData/20x/search_results_1024_v5_debug/',
+            'RetCCL': '/Volumes/data-1/PSC_Yottixel/FEATURES/DATABASE/MOSAIC/NCI/HERE101/RetCCL_feats_yottixel_mosaic_v3_1024_v5_cosine_debug/',
+        }
+
+        nums = {
+            'HERE': 122104273
+        }
+        pixel_counts = {
+            'HERE': 8002225635328,  # 122104273 * 256 * 256
+        }
+
+
+        # Yottixel
+        with open(os.path.join(results_dirs['Yottixel'], 'all_feats.pkl'), 'rb') as fp:
+            data = pickle.load(fp)
+        nums['Yottixel'] = len(data['all_coords'])
+        pixel_counts['Yottixel'] = nums['Yottixel'] * 1000 * 1000
+
+
+        # SISH
+        with open(os.path.join(results_dirs['SISH'], 'database_meta.pkl'), 'rb') as fp:
+            data = pickle.load(fp)
+        nums['SISH'] = sum([len(v) for k, v in data.items()])
+        pixel_counts['SISH'] = nums['SISH'] * 1024 * 1024
+
+        # RetCCL
+        with open(os.path.join(results_dirs['RetCCL'], 'all_feats.pkl'), 'rb') as fp:
+            data = pickle.load(fp)
+        nums['RetCCL'] = len(data['all_coords'])
+        pixel_counts['RetCCL'] = nums['RetCCL'] * 1024 * 1024
+
+    if True:
+        # indexed pixels
+        nums = {'HERE': 122104273, 'Yottixel': 413634, 'SISH': 649848, 'RetCCL': 414944, 'PLIP': 2337}
+        pixel_counts = {'HERE': 8002225635328,
+        'Yottixel': 413634000000,
+        'SISH': 681415016448,
+        'RetCCL': 435100319744,
+        'PLIP': 2337*256*256}
+
+        font_size = 30
+        figure_height = 8
+        figure_width = 10
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        ax = plt.gca()
+
+        keys = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+        values = [pixel_counts[k]/1e12 for k in keys]
+        df = pd.DataFrame({'method': keys, 'pixels':values})
+        # g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
+        g=sns.barplot(df, x="method", y="pixels", hue="method", palette=all_colors, legend=False)
+        # g.set_yscale("log")
+        g.tick_params(pad=10)
+        g.set_xlabel("")
+        # g.set_ylabel("Overall performance")
+        g.set_ylabel("Number of indexed pixels ($\\times 10^{12}$)")
+        # g.set_ylim([0, 1])
+        # g.legend.set_title("")
+        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+        # g.legend.remove()
+        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+        # print(name1, g.get_yticklabels())
+        # g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.set_xticklabels(g.get_xticklabels(), rotation=45, ha="right", va='center', rotation_mode='anchor')
+        # for ci, tick_label in enumerate(g.get_xticklabels()):
+        #     tick_label.set_color(palette[ci])
+        # plt.tight_layout()
+
+        # plt.bar(keys, values)
+        # plt.xlabel('Methods')
+        # plt.ylabel("Number of pixels ($\\times 10^{12}$)")
+        plt.title('Comparison on search space')
+
+        plt.savefig(f'{save_root}/number_of_pixels_comparison.png', bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(f'{save_root}/number_of_pixels_comparison.svg', bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(f'{save_root}/number_of_pixels_comparison.pdf', bbox_inches='tight', transparent=True, format='pdf')
+        df.to_csv(f'{save_root}/number_of_pixels_comparison.csv')
+        plt.close('all')
+
+
+    with open(os.path.join(root, 'index_time.pkl'), 'rb') as fp:
+        index_time = pickle.load(fp)
+    with open(os.path.join(root, 'index_size.pkl'), 'rb') as fp:
+        index_size = pickle.load(fp)
+
+    key = 'HNSW+IVFPQ(32,128)'
+
+    method = 'HERE_CONCH'
+    num_patches = ['1e5', '1e6', '1e7', '1e8', 'TCGA_NCI_CPTAC']
+
+    num_patches2 = []
+    for v in num_patches:
+        if v=='TCGA_NCI_CPTAC':
+            v = '3.2E8'
+        num_patches2.append(v.replace('e', 'E')) 
+
+    # index time
+    font_size = 24
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+
+    # plt.bar(num_patches2, index_time['all_search_times'][key])
+    dff = pd.DataFrame(index_time['all_search_times'][key]).T
+    dff.columns = num_patches2
+
+# colors = [
+#     '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
+#     '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
+#     '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
+#     ]
+
+    # Calculate the mean and standard deviation of each column
+    means = dff.mean()
+    stds = dff.std()
+    # Plot the mean values
+    plt.bar(means.index, means, yerr=stds, capsize=5, color=MORANDI_colors[0])
+
+    plt.xlabel('Number of patches')
+    plt.ylabel('Retrieval time (s)'.format(key))
+    
+    plt.savefig(f'{save_root}/index_time.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_root}/index_time.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_root}/index_time.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    dff.to_csv(f'{save_root}/index_time.csv')
+    plt.close('all')
+
+
+    # index size
+    font_size = 24
+    figure_height = 7
+    figure_width = 7
+    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+    plt.tick_params(pad = 10)
+    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+
+    plt.bar(num_patches2, index_size['all_sizes'][key], color=MORANDI_colors[0])
+    dff = pd.DataFrame(index_size['all_sizes'][key]).T
+    dff.columns = num_patches2
+    plt.xlabel('Number of patches')
+    plt.ylabel('Index size (GB)'.format(key))
+
+    plt.savefig(f'{save_root}/index_size.png', bbox_inches='tight', transparent=True, format='png')
+    plt.savefig(f'{save_root}/index_size.svg', bbox_inches='tight', transparent=True, format='svg')
+    plt.savefig(f'{save_root}/index_size.pdf', bbox_inches='tight', transparent=True, format='pdf')
+    dff.to_csv(f'{save_root}/index_size.csv')
+    plt.close('all')
+
 
 
 if __name__ == '__main__':
@@ -3436,9 +3867,13 @@ if __name__ == '__main__':
     # main_20241218_CPTAC_mutation_search_comparision()
     # plot_gene_mutation_and_regression_plots()
     # plot_search_time_tcga_ncidata()
+
     Fig3_4()
+    Fig3_4_long()
 
     # plot_jinlin_evaluation_boxplots()
+
+    # plot_scalability()
 
 
 
