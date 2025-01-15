@@ -314,7 +314,7 @@ def plot_jinlin_evaluation_boxplots():
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
 
-    if True: # box plot
+    if False: # box plot
         df2 = df[[compared_method, 'WebPLIP', 'RetCCL', 'Yottixel', 'SISH']].rename(columns={compared_method: 'HERE', 'WebPLIP': 'PLIP'})
         df3 = pd.melt(df2, value_vars=['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE'], var_name='method', value_name='score')
         df3['court'] = [i for i in range(len(df2))]*5
@@ -378,6 +378,8 @@ def plot_jinlin_evaluation_boxplots():
         df3 = pd.melt(df2, value_vars=['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE'], var_name='method', value_name='score')
         df3['court'] = [i for i in range(len(df2))]*5
 
+        order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+
         if True: 
             pvalues = {}
             for method in ['RetCCL', 'Yottixel', 'SISH', 'PLIP']:
@@ -394,7 +396,7 @@ def plot_jinlin_evaluation_boxplots():
 
             num_group = 1
             palette = [(0, 0, 0), (0, 0, 0)]
-            g=sns.boxplot(data=df3, x="method", y="score", showfliers=False, palette=all_colors, ax=ax, linewidth=2) 
+            g=sns.boxplot(data=df3, x="method", y="score", order=order, showfliers=False, palette=all_colors, ax=ax, linewidth=2) 
 
             g.set(ylabel=None)
             g.set(xlabel=None)
@@ -413,10 +415,10 @@ def plot_jinlin_evaluation_boxplots():
             # sns.despine(top=False, right=False, bottom=False, left=False, ax=g)
             sns.despine(top=True, right=True, bottom=False, left=False, ax=g)
             # g=sns.stripplot(data=df3, x="method", y="score", legend=False, marker="$\circ$", ec="face", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-            g=sns.stripplot(data=df3, x="method", y="score", legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+            g=sns.stripplot(data=df3, x="method", y="score", order=order, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
             g.set(ylabel='Expert score')
             g.set(xlabel=None)
-            g.set_xticklabels(['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE'], rotation=90, ha="right", va='center', rotation_mode='anchor')
+            g.set_xticklabels(order, rotation=25, ha="right")#, va='center', rotation_mode='anchor')
 
             # pairs = [(), (), (), ()]
             # # Annotate the plot
@@ -425,7 +427,7 @@ def plot_jinlin_evaluation_boxplots():
             # annotator.apply_and_annotate()
 
             # Annotate p-value
-            for ii, method in enumerate(['RetCCL', 'Yottixel', 'SISH', 'PLIP']):
+            for ii, method in enumerate(order[:-1]):
                 x1, x2 = ii, 4  # x-coordinates of the groups
                 y, h, col = df3['score'].max() + 0.1, 0.05, 'k'  # y-coordinate, height, color
                 # y += (ii+1)*h  # (4 - ii) * h + 0.5
@@ -434,7 +436,7 @@ def plot_jinlin_evaluation_boxplots():
                 # y += (ii+1)*0.1
                 ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.5, c=col, clip_on=False)
                 # ax.text((x1 + x2) * .5, y + h, "p = {:.3e}".format(pvalues[method]), ha='center', va='bottom', color=col)
-                ax.text((x1 + x2) * .5, y + h, "{:.3e}".format(pvalues[method]), ha='center', va='bottom', color=col, fontsize=28, clip_on=False)
+                ax.text((x1 + x2) * .5, y + h, "{:.3E}".format(pvalues[method]), ha='center', va='bottom', color=col, fontsize=28, clip_on=False)
 
             # plt.tight_layout()
 
@@ -453,7 +455,7 @@ def plot_jinlin_evaluation_boxplots():
 
 
         # HERE histogram
-        if True:
+        if False:
             for method_name in ['PLIP', 'HERE']:
                 font_size = 30
                 figure_height = 7
@@ -478,7 +480,7 @@ def plot_jinlin_evaluation_boxplots():
                 df2.to_excel(f'{save_root}/overall_histplot_{method_name}.xlsx')
                 plt.close()
         # HERE histogram
-        if True:
+        if False:
             font_size = 30
             figure_height = 7
             figure_width = 7
@@ -505,7 +507,7 @@ def plot_jinlin_evaluation_boxplots():
             plt.close()
 
         # HERE histogram (group plot)
-        if True:
+        if False:
             font_size = 30
             figure_height = 7
             figure_width = 7
@@ -1735,6 +1737,7 @@ def Fig3_4():
     import pandas as pd
     # from matplotlib import pyplot as plt
     import seaborn as sns
+    sns.axes_style()
     from statsmodels.stats.multitest import multipletests
     from scipy.stats import ranksums, wilcoxon
     import matplotlib.pyplot as plt
@@ -1871,9 +1874,14 @@ def Fig3_4():
         'label': 'tissue composition',
         'tissue site': 'tissue site'
     }
-
+    # groups = ['cell type']
+    # group_names = {
+    #     'cell type': 'cell type',
+    # }
     # df = df[df['label'].notna()].reset_index(drop=True)
     # hue_orders = {}
+    order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+
     for expname in ['overall']: #, 'R0_vs_R2R4']:
         if expname == 'overall':
             df1 = df[['WebPLIP','RetCCL', 'SISH', 'Yottixel', compared_method] + groups].rename(columns={'WebPLIP': 'PLIP','RetCCL':'RetCCL','SISH':'SISH','Yottixel':'Yottixel', compared_method: 'HERE'})
@@ -1902,7 +1910,7 @@ def Fig3_4():
             num_groups[group] = len(df3[group].value_counts())
 
             # boxplot-v2 (20240522) using twin axis 
-            mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
+            mapper_dict = {row[group]: '{}'.format(row['count']) for _, row in df4.iterrows()}
             # df31 = df3.replace({group: mapper_dict})
             new_ticks_ = []
             for v in hue_order:
@@ -2033,7 +2041,7 @@ def Fig3_4():
 
             # boxplot-v2 (20240522) using twin axis 
             if True:
-                mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
+                mapper_dict = {row[group]: '{}'.format(row['count']) for _, row in df4.iterrows()}
                 # df31 = df3.replace({group: mapper_dict})
                 hue_order = hue_order.tolist() if not isinstance(hue_order, list) else hue_order
                 new_ticks = []
@@ -2052,121 +2060,131 @@ def Fig3_4():
                     new_ticks.append(new_tick)
                 df333 = pd.concat(df333, axis=0)
 
-                font_size = 30
-                figure_height = 7
-                figure_width = 12
-                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-                plt.tick_params(pad = 10)
-                # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-                # ax = plt.gca()
-                g=sns.catplot(
-                    data=df333, x=group, y="score", hue="method", kind="box", palette=all_colors, 
-                    #ax=ax, 
-                    order=hue_order, legend=False,
-                    height=figure_height,
-                    aspect=(len(new_ticks)*(figure_height/3))/figure_height, 
-                    # dodge=True,  # Ensure consistent spacing for hue categories
-                    # width=0.8,  # Set a fixed width for the boxes
-                )
-                # if group=='structure':
-                #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
-                # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
-                # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
-                g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
-                xticklabels = []
-                for v in g.ax.get_xticklabels():
-                    xticklabels.append(v.get_text().rjust(max_len_l))
-                g.ax.set_xticklabels(xticklabels, rotation=90, ha="right", va='center', rotation_mode='anchor')
+                for do_legend in [0, 1]:
 
-                g.set(ylabel=None)
-                g.set(xlabel=None)
-                g.ax.set(ylim=[0.5, 5.5])  
-                g.ax.set(yticks=[1, 2, 3, 4, 5])
-                plt.ylim([0.5, 5.5])
-                plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
-                # plt.yticks(np.arange(0.5, 5.5, 0.5))
-                sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
+                    postfix = '_v2'
+                    if do_legend==1:
+                        postfix='_v2_legend'
 
-                ax2 = g.ax.secondary_xaxis('top')
-                ax2.set_xticks(g.ax.get_xticks())
-                new_ticks = [v.ljust(max_len_r) for v in new_ticks]
-                print('new_ticks', new_ticks)
-                ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
-                ax2.tick_params(axis='x', length=0)
+                    for style1 in ['style2']:
+                        font_size = 30
+                        figure_height = 7
+                        figure_width = 12
+                        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                        plt.rcParams['axes.edgecolor'] = 'black'
+                        plt.tick_params(pad = 10)
+                        # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                        # ax = plt.gca()
+                        g=sns.catplot(
+                            data=df333, x=group, y="score", hue="method", kind="box", palette=all_colors, 
+                            #ax=ax, 
+                            hue_order=order,
+                            order=hue_order, legend=do_legend==1,
+                            height=figure_height,
+                            aspect=(len(new_ticks)*(figure_height/3))/figure_height, 
+                            # dodge=True,  # Ensure consistent spacing for hue categories
+                            # width=0.8,  # Set a fixed width for the boxes
+                        )
 
-                # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-                #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-                #     order=hue_order)
-                g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-                    marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-                    order=hue_order)
-                g.set(ylabel='Expert score')
-                # g.set(xlabel=group_names[group])
-                g.set(xlabel=None)
-                # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
-                # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
-                # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
-                # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
-                # connect line
-                if False:
-                    for i in range(num_group):
-                        for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
-                            plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+                        x0y0s,x1y1s = [],[]
+                        for p in g.ax.patches:
+                            box = p.get_extents().get_points() # [x0,y0],[x1,y1]
+                            x0,y0 = box[0]
+                            x1,y1 = box[1]
+                            x0, y0 = g.ax.transData.inverted().transform((x0, y0))
+                            x1, y1 = g.ax.transData.inverted().transform((x1, y1))
+                            x0y0s.append([x0,y0])
+                            x1y1s.append([x1,y1])
+                        x0y0s = np.array(x0y0s)
+                        x1y1s = np.array(x1y1s)
+                        sort_inds = np.argsort(x0y0s[:,0])
+                        x0y0s = x0y0s[sort_inds]
+                        sort_inds = np.argsort(x1y1s[:,0])
+                        x1y1s = x1y1s[sort_inds]
 
-                g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
-                plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.png', bbox_inches='tight', transparent=True, format='png')
-                plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2.svg', bbox_inches='tight', transparent=True, format='svg')
-                df3.to_csv(f'{save_root}/boxplot_{group}_{expname}_v2.csv')
-                plt.close()
+                        # if group=='structure':
+                        #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+                        # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+                        # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+                        xticklabels = []
+                        for v in g.ax.get_xticklabels():
+                            xticklabels.append(v.get_text().rjust(max_len_l))
+                        if style1=='style1':
+                            g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
+                            g.ax.set_xticklabels(xticklabels, rotation=90, ha="right", va='center', rotation_mode='anchor')
+                        else:        
+                            g.ax.set_yticklabels(g.ax.get_yticklabels())#, rotation=90, ha="right", va="center")                
+                            # g.ax.set_xticklabels(xticklabels, rotation=45, ha="right", va='center', rotation_mode='anchor')                            g.ax.set_xticklabels(xticklabels, rotation=45, ha="right", va='center', rotation_mode='anchor')
+                            g.ax.set_xticklabels(xticklabels, rotation=15, ha="right")#, va='center', rotation_mode='anchor')
 
-                if group=='structure': # for the legend
-                    font_size = 18
-                    figure_height = 7
-                    figure_width = 7
-                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-                    print(plt.rcParams)
-                    plt.tick_params(pad = 10)
-                    fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-                    ax = plt.gca()
-                    g=sns.catplot(data=df3, x=group, y="score", hue="method", kind="box", palette=all_colors, ax=ax, order=hue_order)
-                    # if group=='structure':
-                    #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
-                    # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
-                    # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
-                    g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-                    g.set(ylabel=None)
-                    g.set(xlabel=None)
-                    plt.ylim([0.5, 5.5])  
-                    plt.yticks(ticks=[1, 2, 3, 4, 5], labels=[1,2,3,4,5])
-                    # plt.yticks(np.arange(0.5, 5.5, 0.5))
-                    sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
-                    # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-                    #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-                    #     order=hue_order)
-                    g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-                        marker="$\circ$", s=2, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-                        order=hue_order)
-                    g.set(ylabel='Expert score')
-                    g.set(xlabel=group_names[group])
-                    # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
-                    # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
-                    # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
-                    # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
-                    # connect line
-                    if False:
-                        for i in range(num_group):
-                            for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
-                                plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+                        g.set(ylabel=None)
+                        g.set(xlabel=None)
+                        g.ax.set(ylim=[0.5, 5.5])  
+                        g.ax.set(yticks=[1, 2, 3, 4, 5])
+                        plt.ylim([0.5, 5.5])
+                        plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
+                        # plt.yticks(np.arange(0.5, 5.5, 0.5))
+                        # sns.despine(top=True, right=True, bottom=False, left=False, ax=g.ax)
 
-                    g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
-                    plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.png', bbox_inches='tight', transparent=True, format='png')
-                    plt.savefig(f'{save_root}/boxplot_{group}_{expname}_v2_legend.svg', bbox_inches='tight', transparent=True, format='svg')
-                    df3.to_csv(f'{save_root}/boxplot_{group}_{expname}_v2_legend.csv')
-                    plt.close()
+                        # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                        #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                        #     order=hue_order)
+                        g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                            marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                            hue_order=order,
+                            order=hue_order)
+                        g.set(ylabel='Expert score')
+                        # g.set(xlabel=group_names[group])
+                        g.set(xlabel=None)
+                        # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+                        # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+                        # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+                        # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+                        # connect line
+                        if False:
+                            for i in range(num_group):
+                                for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+                                    plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
 
+                        ax2 = g.ax.secondary_xaxis('top')
+                        ax2.set_xticks(g.ax.get_xticks())
+                        new_ticks = [v.ljust(max_len_r) for v in new_ticks]
+                        # print('new_ticks', new_ticks)
+                        # import pdb
+                        # pdb.set_trace()
+                        if style1=='style1':
+                            ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
+                        else:
+                            ax2.set_xticklabels(new_ticks)#,rotation=90, ha="left", va='center', rotation_mode='anchor')
+                        ax2.tick_params(axis='x', length=0)
+                        ax2.spines['top'].set_visible(False)
 
+                        if num_groups[group] != max_num_group:
+                            sns.despine(top=True, right=True, bottom=True, left=False, ax=g.ax)
+                            # g.ax.spines['top'].set_visible(False)
+                            xmin,xmax=g.ax.get_xlim()
+                            ymin,ymax=g.ax.get_ylim()
+                            margin=np.abs(xmin-x0y0s[0,0])
+                            xx=margin+x1y1s[num_groups[group]*5-1,0]
+                            # g.ax.axvline(x=xx,color='black',linewidth=1)
+                            # g.ax.vlines(x=xx,ymin=ymin, ymax=ymax,color='black',linewidth=1, linestyle='solid')
+                            # g.ax.axhline(y=ymax, xmin=xmin, xmax=margin+x1y1s[num_groups[group]*5-1,0],color='blue',linewidth=1)
+                            # g.ax.hlines(y=ymax, xmin=xmin, xmax=xx,color='black',linewidth=1.5, linestyle='solid')
+                            g.ax.hlines(y=ymin, xmin=xmin, xmax=xx,color='black',linewidth=1.5, linestyle='solid')
 
+                            g.ax.set_xlim([xmin,xmax])
+                            g.ax.set_ylim([ymin,ymax])
+                        else:
+                            sns.despine(top=True, right=True, bottom=False, left=False, ax=g.ax)
 
+                        g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
+                        plt.savefig(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.png', bbox_inches='tight', transparent=True, format='png')
+                        plt.savefig(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.svg', bbox_inches='tight', transparent=True, format='svg')
+                        df3.to_csv(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.csv')
+                        plt.close()
+
+                    if do_legend==0 and group!='structure': # for the legend
+                        break
 
 
 
@@ -2274,6 +2292,7 @@ def Fig3_4_long():
     new_ticks = []
 
     df3_long = []
+    num_groups = []
     for group in groups:
         df3 = df2.copy()
         
@@ -2289,7 +2308,7 @@ def Fig3_4_long():
         df4 = (df3[group].value_counts()//5).loc[hue_order].reset_index()
 
         # boxplot-v2 (20240522) using twin axis 
-        mapper_dict = {row[group]: '(n={})'.format(row['count']) for _, row in df4.iterrows()}
+        mapper_dict = {row[group]: '{}'.format(row['count']) for _, row in df4.iterrows()}
         # df31 = df3.replace({group: mapper_dict})
         new_ticks_ = []
         for v in hue_order:
@@ -2300,62 +2319,67 @@ def Fig3_4_long():
 
     df3_long = pd.concat(df3_long, axis=0)
 
-    font_size = 30
-    figure_height = 8
-    figure_width = 40
-    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-    plt.tick_params(pad = 0)
-    # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-    # ax = plt.gca()
-    g=sns.catplot(
-        data=df3_long, x='group', y="score", hue="method", kind="box", palette=all_colors, order=hue_orders, legend=False, \
-        height=figure_height,  # Set the height of each facet
-        aspect=(len(new_ticks)*(figure_height/4))/figure_height # Set the aspect ratio (width/height))
-    )
-    # if group=='structure':
-    #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
-    # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
-    # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
-    g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
-    g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-    g.set(ylabel=None)
-    g.set(xlabel=None)
-    g.ax.set(ylim=[0.5, 5.5])  
-    g.ax.set(yticks=[1, 2, 3, 4, 5])
-    plt.ylim([0.5, 5.5])
-    plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
-    # plt.yticks(np.arange(0.5, 5.5, 0.5))
-    sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
 
-    ax2 = g.ax.secondary_xaxis('top')
-    ax2.set_xticks(g.ax.get_xticks())
-    ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
-    ax2.tick_params(axis='x', length=0)
+    for do_legend in [0, 1]:
+        postfix = '_v2'
+        if do_legend==1:
+            postfix='_v2_legend'
+                
+        font_size = 30
+        figure_height = 8
+        figure_width = 40
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 0)
+        # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+        # ax = plt.gca()
+        g=sns.catplot(
+            data=df3_long, x='group', y="score", hue="method", kind="box", palette=all_colors, order=hue_orders, legend=do_legend==1, \
+            height=figure_height,  # Set the height of each facet
+            aspect=(len(new_ticks)*(figure_height/4))/figure_height # Set the aspect ratio (width/height))
+        )
+        # if group=='structure':
+        #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+        # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+        # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+        g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
+        g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+        g.set(ylabel=None)
+        g.set(xlabel=None)
+        g.ax.set(ylim=[0.5, 5.5])  
+        g.ax.set(yticks=[1, 2, 3, 4, 5])
+        plt.ylim([0.5, 5.5])
+        plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
+        # plt.yticks(np.arange(0.5, 5.5, 0.5))
+        sns.despine(top=False, right=False, bottom=False, left=False, ax=g.ax)
 
-    # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
-    #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-    #     order=hue_order)
-    g.map_dataframe(sns.stripplot, x='group', y="score", hue="method", legend=False, dodge=True, 
-        marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
-        order=hue_orders)
-    g.set(ylabel='Expert score')
-    # g.set(xlabel=group_names[group])
-    g.set(xlabel=None)
-    # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
-    # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
-    # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
-    # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
-    # connect line
-    # if False:
-    #     for i in range(num_group):
-    #         for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
-    #             plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
-    g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
-    plt.savefig(f'{save_root}/boxplot_long_v2.png', bbox_inches='tight', transparent=True, format='png')
-    plt.savefig(f'{save_root}/boxplot_long_v2.svg', bbox_inches='tight', transparent=True, format='svg')
-    df3_long.to_csv(f'{save_root}/boxplot_long_v2.csv')
-    plt.close()
+        ax2 = g.ax.secondary_xaxis('top')
+        ax2.set_xticks(g.ax.get_xticks())
+        ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
+        # ax2.tick_params(axis='x', length=0)
 
+        # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+        #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+        #     order=hue_order)
+        g.map_dataframe(sns.stripplot, x='group', y="score", hue="method", legend=False, dodge=True, 
+            marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+            order=hue_orders)
+        g.set(ylabel='Expert score')
+        # g.set(xlabel=group_names[group])
+        g.set(xlabel=None)
+        # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+        # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+        # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+        # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+        # connect line
+        # if False:
+        #     for i in range(num_group):
+        #         for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+        #             plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+        g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
+        plt.savefig(f'{save_root}/boxplot_long_{postfix}.png', bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(f'{save_root}/boxplot_long_{postfix}.svg', bbox_inches='tight', transparent=True, format='svg')
+        df3_long.to_csv(f'{save_root}/boxplot_long_{postfix}.csv')
+        plt.close()
 
 
 
@@ -2939,7 +2963,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         g.set(ylabel=None)
         g.set(xlabel=None)
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-        g.set(ylabel=name1)
+        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         g.set(xlabel=None)
         
         plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
@@ -2985,7 +3009,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of {}".format(name1))
+        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3015,7 +3039,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of {}".format(name1))
+        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3065,7 +3089,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
-            g.set_axis_labels("", name1)
+            g.set_axis_labels("", 'Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -3214,7 +3238,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         g.set(ylabel=None)
         g.set(xlabel=None)
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-        g.set(ylabel=name1)
+        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         g.set(xlabel=None)
         
         plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
@@ -3261,7 +3285,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("mAP@5" if name == 'Percision' else "mMV@5")
+        g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3291,7 +3315,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("mAP@5" if name == 'Percision' else "mMV@5")
+        g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -3342,7 +3366,7 @@ def main_20241218_CPTAC_mutation_search_comparision():
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
-            g.set_axis_labels("", "mMV@5" if 'mAP' not in name1 else 'mAP@5')
+            g.set_axis_labels("", 'Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -3470,7 +3494,9 @@ def compare_attention_with_noattention():
         ax, "lower right",
         title=None
     )
-    g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+    # g.set_xticklabels(g.get_xticklabels(), rotation=15, ha="right", va='center', rotation_mode='anchor')
+    g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
+
     # g.set(ylabel=None)
     # g.set(xlabel=None)
     # plt.ylim([0.5, 5.5])  
@@ -3635,7 +3661,7 @@ Further, an additional morphological closing operation was adopted to fill out t
 TCGA-06-0124-01Z-00-DX2.b3bd2a52-1a9a-409e-8908-6a2f30878080
 """
 
-def plot_segmentation():
+def plot_segmentation_patching():
 
     import sys,os,glob,shutil,json,pickle,h5py
     import numpy as np
@@ -3643,12 +3669,15 @@ def plot_segmentation():
     from PIL import Image
     import openslide
     from utils import _assertLevelDownsamples
+    import openslide
+    import pyvips
 
     svs_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/svs'
     masks_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/preset_tcga_256_orignalcode/masks'
     patches_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/preset_tcga_256_orignalcode/patches'
     
     svs_prefix = 'TCGA-06-0124-01Z-00-DX2.b3bd2a52-1a9a-409e-8908-6a2f30878080'
+    svs_prefix = 'TCGA-05-4244-01Z-00-DX1.d4ff32cd-38cf-40ea-8213-45c2b100ac01'
     
     slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
 
@@ -3659,7 +3688,7 @@ def plot_segmentation():
     patch_size = file['coords'].attrs['patch_size']
     patch_level = file['coords'].attrs['patch_level']
 
-    vis_level = slide.get_best_level_for_downsample(64)
+    vis_level = 0 # slide.get_best_level_for_downsample(64)
 
     level_downsamples = _assertLevelDownsamples(slide)
     downsample_patch = level_downsamples[patch_level]
@@ -3680,10 +3709,24 @@ def plot_segmentation():
         cv2.rectangle(im1, (x, y), (x+patch_size2[0], y+patch_size2[1]), (0, 255, 0), 2)
     
     save_root = '/data/zhongz2/'
-    os.makedirs(save_root, existed_ok=True)
-    cv2.imwrite(f'{save_root}/{svs_prefix}_patching.jpg', im1)
+    os.makedirs(save_root, exist_ok=True)
+    cv2.imwrite(f'{save_root}/{svs_prefix}_patching.png', im1)
     
-
+    slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
+    im = np.array(slide.read_region((0,0),0,slide.level_dimensions[0]).convert('RGB'))
+    for x, y in all_coords:
+        cv2.rectangle(im, (x, y), (x+patch_size, y+patch_size), (0, 255, 0), 32)
+    # img.save(save_filename)
+    # cv2.imwrite(f'{save_root}/{svs_prefix}_patching.png', im)
+    img=Image.fromarray(im)
+    print(type(img), img.size)
+    # img.save(save_filename)
+    img_vips = pyvips.Image.new_from_array(img)
+    # img_vips.dzsave(save_filename, tile_size=1024)
+    save_filename = f'{save_root}/{svs_prefix}_patching.tif'
+    img_vips.tiffsave(save_filename, compression="none",
+        tile=True, tile_width=256, tile_height=256,
+        pyramid=True,  bigtiff=True)
 
 def plot_scalability():
 
@@ -3771,7 +3814,7 @@ def plot_scalability():
         # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
         # print(name1, g.get_yticklabels())
         # g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=45, ha="right", va='center', rotation_mode='anchor')
+        g.set_xticklabels(g.get_xticklabels(), rotation=15, ha="right")#, va='center', rotation_mode='anchor')
         # for ci, tick_label in enumerate(g.get_xticklabels()):
         #     tick_label.set_color(palette[ci])
         # plt.tight_layout()
@@ -3869,12 +3912,13 @@ if __name__ == '__main__':
     # plot_search_time_tcga_ncidata()
 
     Fig3_4()
-    Fig3_4_long()
+    # Fig3_4_long()
 
-    # plot_jinlin_evaluation_boxplots()
+    plot_jinlin_evaluation_boxplots()
 
-    # plot_scalability()
+    plot_scalability()
 
+    # plot_segmentation_patching()
 
 
 
