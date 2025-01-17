@@ -19,8 +19,7 @@ cd /data/zhongz2/temp29/debug
 
 
 
-# srun python search_HERE_CONCH_CPTAC_v2_debug.py
-python search_HERE_CONCH_CPTAC_v2_debug.py
+srun python search_HERE_CONCH_CPTAC_v3_debug.py
 
 
 
@@ -28,17 +27,13 @@ python search_HERE_CONCH_CPTAC_v2_debug.py
 exit;
 
 sbatch --job-name CPTAC \
---nodes=32 --ntasks-per-node=1 \
---cpus-per-task=4 --partition=multinode \
---mem=32gb --time=108:00:00 \
-search_HERE_CONCH_CPTAC_v2_debug.sh
-
-sbatch --job-name CPTAC \
---nodes=1 --ntasks-per-node=1 \
+--nodes=16 --ntasks-per-node=1 \
 --gres=gpu:v100x:1 \
 --cpus-per-task=4 --partition=gpu \
 --mem=32gb --time=108:00:00 \
-search_HERE_CONCH_CPTAC_v2_debug.sh
+search_HERE_CONCH_CPTAC_v3_debug.sh
+
+
 
 
 

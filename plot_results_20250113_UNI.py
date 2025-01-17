@@ -1168,7 +1168,7 @@ def plot_search_time_tcga_ncidata():
     sns.despine(top=False, right=False)
 
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
-    save_root = '/Users/zhongz2/down/temp_20250113/hashing_comparison2'
+    save_root = '/Users/zhongz2/down/temp_20250117/hashing_comparison2'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1409,7 +1409,55 @@ def plot_search_time_tcga_ncidata():
             plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
             datadata1.to_csv(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}.csv'))
             plt.close()
-            
+
+            # boxplot with strip dots
+            for dolegend in ['auto', False]:
+                plt.close('all')
+                font_size = 30
+                figure_height = 7
+                figure_width = 7
+                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                plt.tick_params(pad = 10)
+                fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                ax = plt.gca()
+                g=sns.boxplot(data=datadata1, x="method",  palette=palette, y=name, hue="method", legend=False, ax=ax)  #showfliers=False, 
+
+                if dolegend=='auto':
+                    # plt.legend(title="(n=43)", loc="upper left", bbox_to_anchor=(1, 1))  # Adjust legend position
+
+                    ax2 = g.secondary_yaxis('right')
+                    ax2.set_yticks(g.get_yticks())
+                    ax2.set_yticklabels(['' for _ in g.get_yticklabels()], rotation=90, ha="left", va='center', rotation_mode='anchor')
+                    ax2.tick_params(axis='y', length=0)
+                    ax2.set_ylabel('(n = 43)')
+
+                # if dolegend=='auto':
+                #     sns.move_legend(
+                #         ax, "outside right",
+                #         title=None
+                #     )
+                # g.set(ylabel=None)
+                # g.set(xlabel=None)
+                # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+                # g.set(ylabel=name1)
+                g.set(ylabel=None)#='Accuracy' if name =='Acc' else 'Average Precision')
+                g.set(xlabel=None)
+                g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+                g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+
+                g=sns.stripplot(data=datadata1, x="method", y=name, jitter=True, color='black', alpha=0.4, ax=ax)
+                g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+                g.set(xlabel=None)
+                # g.map_dataframe(sns.stripplot, x="method", y=name, legend=False, dodge=True, 
+                #     marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+
+                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.png'), bbox_inches='tight', transparent=True, format='png')
+                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.svg'), bbox_inches='tight', transparent=True, format='svg')
+                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+                datadata1.to_csv(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.csv'))
+                plt.close()
+
+
             font_size = 30
             figure_height = 7
             figure_width = 7
@@ -2841,10 +2889,13 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
     from matplotlib.patches import Circle
     # sns.set_theme(style="whitegrid")
 
+    topn = 5
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
+    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn{topn}'
     save_root = '/Users/zhongz2/down/temp_20250113/CPTAC_cancer_search'
+    save_root = f'/Users/zhongz2/down/temp_20250117/CPTAC_cancer_search_topn{topn}'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -3118,13 +3169,14 @@ def main_20241218_CPTAC_mutation_search_comparision():
     from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
 
 
-    # sns.set_theme(style="whitegrid")
-
+    # sns.set_theme(style="whitegrid")    
+    topn = 5
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches'
-    save_root = '/Users/zhongz2/down/temp_20250113/CPTAC_mutation_search'
+    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn{topn}'
+    save_root = f'/Users/zhongz2/down/temp_20250117/CPTAC_mutation_search_topn{topn}'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -3904,19 +3956,19 @@ def plot_scalability():
 
 
 if __name__ == '__main__':
-    # main_20240708_encoder_comparision()
+    main_20240708_encoder_comparision()
     # compare_attention_with_noattention()
     # main_20241218_CPTAC_cancer_type_search_comparision()
     # main_20241218_CPTAC_mutation_search_comparision()
     # plot_gene_mutation_and_regression_plots()
     # plot_search_time_tcga_ncidata()
 
-    Fig3_4()
+    # Fig3_4()
     # Fig3_4_long()
 
-    plot_jinlin_evaluation_boxplots()
+    # plot_jinlin_evaluation_boxplots()
 
-    plot_scalability()
+    # plot_scalability()
 
     # plot_segmentation_patching()
 

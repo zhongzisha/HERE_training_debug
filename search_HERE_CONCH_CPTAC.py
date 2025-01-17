@@ -1499,7 +1499,7 @@ def get_all_results_CPTAC_mutation_search():
 
 
 
-def cal_mAP_mMV(results, labels_dict, save_filename=None):
+def cal_mAP_mMV(results, labels_dict, save_filename=None, topn=5):
 
     from collections import defaultdict, Counter
     import time
@@ -1512,7 +1512,7 @@ def cal_mAP_mMV(results, labels_dict, save_filename=None):
 
     metric_dict = {k: {'Acc': 0, 'Percision': 0, 'total_patch': 0}
                    for k in total_slide.keys()}
-    topk_MV = 5
+    topk_MV = topn
     ret_dict = defaultdict(list)
     t_start = time.time()
     for evlb in total_slide.keys():
@@ -1579,7 +1579,7 @@ def cal_mAP_mMV(results, labels_dict, save_filename=None):
     return df
 
 
-def get_all_data_mAP_mMV():
+def get_all_data_mAP_mMV(): # CPTAC cancer type search
 
 
     import sys,os,glob,shutil,pickle
@@ -1590,29 +1590,36 @@ def get_all_data_mAP_mMV():
     from matplotlib import pyplot as plt
     from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
 
-    if False: # use Yottixel selected patch as query patch
+
+    postfix = ''  # 
+    postfix = '_intersection' # using the common svs_prefixes yottixel/check_CPTAC_intersection.py
+    # topn = 1
+    # topn = 3
+    topn = 5
+
+    if True: # use Yottixel selected patch as query patch
         results_dirs = {
-            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut',
-            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut',
-            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut',
-            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut',
-            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/Yottixel_results'
+            'Yottixel': f'/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut{postfix}',
+            'RetCCL': f'/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut{postfix}',
+            'SISH_patch': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut{postfix}',
+            'SISH_slide': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut{postfix}',
+            'HERE_CONCH': f'/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug{postfix}/Yottixel_results_gpu'
         }
         # check results
-        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_cancer/YottixelPatches{postfix}_topn{topn}'
         os.makedirs(check_save_root, exist_ok=True)
     else:
         results_dirs = {
-            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut',
-            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut',
-            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut',
-            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut',
-            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/HERE_CONCH_results',
+            'Yottixel': f'/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut{postfix}',
+            'RetCCL': f'/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut{postfix}',
+            'SISH_patch': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut{postfix}',
+            'SISH_slide': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut{postfix}',
+            'HERE_CONCH': f'/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug{postfix}/HERE_CONCH_results',
             # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
             # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
         }
         # check results
-        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_cancer/HERE_CONCH_Patches'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_cancer/HERE_CONCH_Patches{postfix}_topn{topn}'
         os.makedirs(check_save_root, exist_ok=True)
 
     with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
@@ -1689,7 +1696,7 @@ def get_all_data_mAP_mMV():
                 results.append((row1['minDist'], labels_dict[all_labels_dict[row1['svs_prefix']]], row1['svs_prefix']))
             items[query_prefix] = {'results': results, 'label_query': query_label}
         
-        cal_mAP_mMV(items, labels_dict, save_filename=os.path.join(check_save_root, f'mAP_mMV_{method}.csv'))
+        cal_mAP_mMV(items, labels_dict, save_filename=os.path.join(check_save_root, f'mAP_mMV_{method}.csv'), topn=topn)
 
         y_true, y_pred = df['labelStr'].values, df['predStr'].values
         labels = sorted(df['labelStr'].unique().tolist())
@@ -1958,6 +1965,9 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
 
     postfix = ''  # 
     postfix = '_intersection' # using the common svs_prefixes yottixel/check_CPTAC_intersection.py
+    topn = 5
+    topn = 1
+    topn = 5
 
     if True: # use Yottixel selected patch as query patch
         results_dirs = {
@@ -1968,7 +1978,7 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
             'HERE_CONCH': f'/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug{postfix}/Yottixel_results_gpu'
         }
         # check results
-        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/YottixelPatches{postfix}'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/YottixelPatches{postfix}_topn{topn}'
         os.makedirs(check_save_root, exist_ok=True)
     else:
         results_dirs = {
@@ -1981,7 +1991,7 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
             # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
         }
         # check results
-        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/HERE_CONCH_Patches{postfix}'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/HERE_CONCH_Patches{postfix}_topn{topn}'
         os.makedirs(check_save_root, exist_ok=True)
 
     for method, result_dir in results_dirs.items():
@@ -2129,7 +2139,7 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
             dff = dff.merge(df, left_on='svs_prefix', right_on='svs_prefix')
             dff.to_csv(os.path.join(save_dir, f'{gene_name}_{method}_results.csv'))
 
-            cal_mAP_mMV(items, labels_dict, save_filename=os.path.join(save_dir, f'mAP_mMV_{method}.csv'))
+            cal_mAP_mMV(items, labels_dict, save_filename=os.path.join(save_dir, f'mAP_mMV_{method}.csv'), topn=topn)
 
             y_true, y_pred = dff[gene_name+"_label"].values.astype(int), dff[gene_name+"_top1_pred"].values.astype(int)
             labels = list(ALL_CLASSIFICATION_DICT[gene_name].values())
@@ -2172,9 +2182,9 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
 
     import seaborn as sns
     # plot the heatmap
-    for name in ['HERE_CONCH_', 'Yottixel']:
+    for name in ['Yottixel']: #['HERE_CONCH_', 'Yottixel']:
 
-        csv_filename = '{}/../{}Patches/score_macro avg.csv'.format(check_save_root, name)
+        csv_filename = '{}/../{}Patches_intersection_topn{}/score_macro avg.csv'.format(check_save_root, name, topn)
         if not os.path.exists(csv_filename):
             continue
         df = pd.read_csv(csv_filename, index_col=0)
@@ -2196,8 +2206,8 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
         plt.close('all')
 
     # combine the mAP and mMV for all genes and save it to the same file
-    for name in ['HERE_CONCH_', 'Yottixel']:
-        save_path = '{}/../{}Patches/'.format(check_save_root, name)
+    for name in ['Yottixel']:#['HERE_CONCH_', 'Yottixel']:
+        save_path = '{}/../{}Patches_intersection_topn{}/'.format(check_save_root, name, topn)
         for method in ['Yottixel', 'RetCCL', 'SISH_slide', 'SISH_patch', 'HERE_CONCH']:
 
             alldf = []
