@@ -1956,29 +1956,32 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
     from matplotlib import pyplot as plt
     from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, ALL_CLASSIFICATION_DICT
 
+    postfix = ''  # 
+    postfix = '_intersection' # using the common svs_prefixes yottixel/check_CPTAC_intersection.py
+
     if True: # use Yottixel selected patch as query patch
         results_dirs = {
-            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut',
-            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut',
-            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut',
-            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut',
-            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/Yottixel_results'
+            'Yottixel': f'/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/Yottixel_results/Yottixel_mut{postfix}',
+            'RetCCL': f'/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/Yottixel_results/RetCCL_mut{postfix}',
+            'SISH_patch': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_patch_mut{postfix}',
+            'SISH_slide': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/Yottixel_results/SISH_slide_mut{postfix}',
+            'HERE_CONCH': f'/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug{postfix}/Yottixel_results'
         }
         # check results
-        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_mutation/YottixelPatches'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/YottixelPatches{postfix}'
         os.makedirs(check_save_root, exist_ok=True)
     else:
         results_dirs = {
-            'Yottixel': '/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut',
-            'RetCCL': '/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut',
-            'SISH_patch': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut',
-            'SISH_slide': '/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut',
-            'HERE_CONCH': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug/HERE_CONCH_results',
+            'Yottixel': f'/data/zhongz2/CPTAC/yottixel_bobs/CPTAC/HERE_CONCH_results/Yottixel_mut{postfix}',
+            'RetCCL': f'/data/zhongz2/PSC/FEATURES/DATABASE/NCI/CPTAC/HERE_CONCH_results/RetCCL_mut{postfix}',
+            'SISH_patch': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_patch_mut{postfix}',
+            'SISH_slide': f'/data/zhongz2/PSC_SISH/FEATURES/DATABASE/MOSAICS/NCI/CPTAC/20x/HERE_CONCH_results/SISH_slide_mut{postfix}',
+            'HERE_CONCH': f'/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_mut_debug{postfix}/HERE_CONCH_results',
             # 'HERE_CONCH_top256': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/patch256',
             # 'HERE_CONCH_bot1024': '/data/zhongz2/CPTAC/search_from_CPTAC/HERE_CONCH/faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8/bottom1024'
         }
         # check results
-        check_save_root = '/data/zhongz2/CPTAC/check_CPTAC_search_mutation/HERE_CONCH_Patches'
+        check_save_root = f'/data/zhongz2/CPTAC/check_CPTAC_search_mutation/HERE_CONCH_Patches{postfix}'
         os.makedirs(check_save_root, exist_ok=True)
 
     with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
