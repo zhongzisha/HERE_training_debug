@@ -309,7 +309,7 @@ def plot_jinlin_evaluation_boxplots():
         COLOR_PALETTES[k] = newv
 
 
-    save_root = '/Users/zhongz2/down/temp_20250113/jinlin_evaluation'
+    save_root = '/Users/zhongz2/down/temp_20250117/jinlin_evaluation'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -586,12 +586,14 @@ def main_20240708_encoder_comparision():
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     save_root = '/Users/zhongz2/down/temp_20241218/encoder_comparison'
-    save_root = '/Users/zhongz2/down/temp_20250113/encoder_comparison'
+    save_root = '/Users/zhongz2/down/temp_20250117/encoder_comparison'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
     dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
     dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['bcss_512_0.8', 'NuCLS', 'PanNuke', 'kather100k']
+    dataset_names1 = ['BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
 
     all_dfs = {}
     for di, dataset_name in enumerate(dataset_names): #, 'NuCLS', 'kather100k']:
@@ -664,6 +666,8 @@ def main_20240708_encoder_comparision():
 
     dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k'] 
     dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['bcss_512_0.8', 'NuCLS', 'PanNuke', 'kather100k'] 
+    dataset_names1 = ['BCSS',  'NuCLS', 'PanNuke', 'Kather100K']
     xticklabels = {
         'BCSS': ['Tumor', 'Stroma', 'Lymphocyte', 'Necrosis', 'Fat', 'Plasma', 'Other infil', 'Vessel'],
         'NuCLS': ['Lymphocyte', 'Macrophage', 'Stroma', 'Plasma', 'Tumor'],
@@ -683,9 +687,6 @@ def main_20240708_encoder_comparision():
     for name in ['Percision', 'Acc']: 
 
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
-
-
-
         all_df = None
         for dataset_name in dataset_names:
             df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
@@ -730,7 +731,7 @@ def main_20240708_encoder_comparision():
         # g.set(xlabel=None)
         # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
         # g.set(ylabel=name1)
-        g.set(ylabel='mMV@5' if name == 'Acc' else "Average Precision")
+        g.set(ylabel='Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
         g.set(xlabel=None)
         g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
         g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
@@ -741,66 +742,68 @@ def main_20240708_encoder_comparision():
         datadata1.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
         plt.close()
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        # g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
-        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of average precision")
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        # for ci, tick_label in enumerate(g.get_xticklabels()):
-        #     tick_label.set_color(palette[ci])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
-        plt.close()
+        if False:
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            # g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=palette, legend=False)
+            g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set_ylabel('Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            # for ci, tick_label in enumerate(g.get_xticklabels()):
+            #     tick_label.set_color(palette[ci])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+            plt.close()
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        # g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=palette, legend=False)
-        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        g.set_ylim([30, 38])
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of average precision")
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        for ci, tick_label in enumerate(g.get_xticklabels()):
-            print(ci, tick_label)
-            # tick_label.set_color(palette[ci])
-            tick_label.set_color(all_colors[tick_label.get_text()])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
-        plt.close()
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            # g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=palette, legend=False)
+            g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            # g.set_ylim([30, 38])
+            g.set_ylim([15, 20])
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set_ylabel('Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            for ci, tick_label in enumerate(g.get_xticklabels()):
+                print(ci, tick_label)
+                # tick_label.set_color(palette[ci])
+                tick_label.set_color(all_colors[tick_label.get_text()])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
+            plt.close()
 
         # from compute_flops.py
         total_params_and_flops = {'PLIP': (151277313, 4413615360), 'CONCH': (395232769, 17738386944), 'ProvGigaPath': (1134953984, 228217640448), 'UNI': (303350784, 61603111936), 'Yottixel': (7978856, 2865546752), 'SISH': (7978856, 2865546752), 'MobileNetV3': (5483032, 225436416), 'HIPT': (21665664, 4607954304), 'CLIP': (151277313, 4413615360), 'RetCCL': (23508032, 4109464576)}
@@ -867,6 +870,7 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'flops_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         all_df2.to_csv(os.path.join(save_root, f'flops_{name1}.csv'))
         plt.close()
 
@@ -886,7 +890,8 @@ def main_20240708_encoder_comparision():
         g.set_ylabel("Overall scores")
         g.set_xlabel(r"Total FLOPs")
         g.ticklabel_format(style='sci', axis='x')
-        g.set_ylim([30, 38])
+        # g.set_ylim([30, 38])
+        g.set_ylim([15, 20])
         # g.set_yticklabels([30, 31, 32, 33, 34, 35, 36, 37, 38])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -930,8 +935,31 @@ def main_20240708_encoder_comparision():
         # 'CLIP',
         # 'RetCCL']
 
+        # UNI	37.17489849
+        # ProvGigaPath	37.09885172
+        # CONCH	35.82475628
+        # PLIP	35.52147874
+        # Yottixel	35.33588824
+        # SISH	32.98901163
+        # MobileNetV3	32.40335112
+        # HIPT	32.24158473
+        # CLIP	31.47365478
+        # RetCCL	31.40132146
+        # all_df2['y'] = [35.521479+1.2, 37.098852, 35.521479+0.6, 35.521479, 35.521479-0.6, 32.989012, 32.989012-0.6, 32.989012-1.2, 32.989012-1.8, 32.989012-2.4]
+        
+        # UNI	18.97677166
+        # ProvGigaPath	18.96241341
+        # CONCH	18.45292947
+        # PLIP	18.13056616
+        # Yottixel	17.56864238
+        # RetCCL	16.74457692
+        # SISH	16.71358908
+        # MobileNetV3	16.38733908
+        # HIPT	16.26037564
+        # CLIP	16.01003912
+        all_df2['y'] = [18.13056616+1.2, 18.96241341, 18.13056616+0.4, 18.13056616, 18.13056616-0.6, 16.74457692, 16.74457692-0.4, 16.74457692-0.8, 16.74457692-1.2, 16.74457692-1.6]
+
         all_df2['x'] = [2.5*17738386944, 0.55*228217640448, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944]
-        all_df2['y'] = [35.521479+1.2, 37.098852, 35.521479+0.6, 35.521479, 35.521479-0.6, 32.989012, 32.989012-0.6, 32.989012-1.2, 32.989012-1.8, 32.989012-2.4]
         for row_ind, row in all_df2.iterrows():
             # offsetbox = TextArea(row['method'], textprops={'fontsize': 14})
             # ab = AnnotationBbox(offsetbox, (row['FLOPs'], row['score']),
@@ -961,9 +989,9 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         all_df2.to_csv(os.path.join(save_root, f'ranking_vs_flops_{name1}.csv'))
         plt.close()
-
 
         # 
         hue_order = all_df['method'].values
@@ -1001,13 +1029,14 @@ def main_20240708_encoder_comparision():
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
-            g.set_axis_labels("", name1 if 'mAP' not in name1 else 'Average precision')
+            g.set_axis_labels("", 'Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
             plt.title(dataset_names1[di], fontsize=font_size)
             plt.savefig(os.path.join(save_root, '{}_{}_result1.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, '{}_{}_result1.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, '{}_{}_result1.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
             df2.to_csv(os.path.join(save_root, '{}_{}_result1.csv'.format(dataset_names[di], name1)))
             plt.close()
 
@@ -1018,7 +1047,7 @@ def main_20240708_encoder_comparision():
     palette1 = [
         '#008080', '#029370', 'purple', 'mediumpurple', 'blue', 'royalblue', 'gray', 'lightgray',
     ]
-    for name in ['Percision']:
+    for name in ['Percision', 'Acc']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         all_df = None
         for dataset_name in dataset_names:
@@ -1052,7 +1081,7 @@ def main_20240708_encoder_comparision():
         g.tick_params(pad=10)
         g.set_xlabel("")
         # g.set_ylabel("Overall performance")
-        g.set_ylabel("Sum of average precision")
+        g.set_ylabel('Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
         # g.set_ylim([0, 1])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -1066,6 +1095,7 @@ def main_20240708_encoder_comparision():
         # plt.tight_layout()
         plt.savefig(os.path.join(save_root, f'HERE_ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
         plt.savefig(os.path.join(save_root, f'HERE_ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+        plt.savefig(os.path.join(save_root, f'HERE_ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         all_df.to_csv(os.path.join(save_root, f'HERE_ranking_{name1}.csv'))
         plt.close()
 
@@ -1104,9 +1134,11 @@ def main_20240708_encoder_comparision():
             # plt.tight_layout()
             plt.savefig(os.path.join(save_root, f'HERE_flops_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, f'HERE_flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'HERE_flops_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
             all_df2.to_csv(os.path.join(save_root, f'HERE_flops_{name1}.csv'))
             plt.close()
 
+        
         # 
         hue_order = all_df['method'].values
         ylims = {
@@ -1138,13 +1170,14 @@ def main_20240708_encoder_comparision():
             g.ax.yaxis.tick_right()
             g.ax.set_ylim(ylims[dataset_names1[di]])
             g.ax.yaxis.set_label_position("right")
-            g.set_axis_labels("", name1 if 'mAP' not in name1 else 'Average precision')
+            g.set_axis_labels("", 'Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
             print(name1, g.ax.get_yticklabels())
             g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="center", va="top", rotation_mode='anchor')
             g.ax.set_xticklabels([xticklabels[dataset_names1[di]][iii] for iii in range(len(g.ax.get_xticklabels()))], rotation=90, ha="right", va='center', rotation_mode='anchor')
             plt.title(dataset_names1[di], fontsize=font_size)
             plt.savefig(os.path.join(save_root, 'HERE_{}_{}_result1.png'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='png')
             plt.savefig(os.path.join(save_root, 'HERE_{}_{}_result1.svg'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, 'HERE_{}_{}_result1.pdf'.format(dataset_names[di], name1)), bbox_inches='tight', transparent=True, format='pdf')
             df2.to_csv(os.path.join(save_root, 'HERE_{}_{}_result1.csv'.format(dataset_names[di], name1)))
             plt.close()
 
@@ -1176,9 +1209,8 @@ def plot_search_time_tcga_ncidata():
     dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
     dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
 
-    # dataset_names = ['bcss_512_0.8']
-    # dataset_names = ['bcss_512_0.5', 'NuCLS', 'PanNuke', 'kather100k']
-    # dataset_names1 = ['BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
+    dataset_names = ['bcss_512_0.8', 'NuCLS', 'PanNuke', 'kather100k']
+    dataset_names1 = ['BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
     
     ITQ_Dims = [32, 64, 128]
     Ms = [8, 16, 32]
@@ -1284,6 +1316,8 @@ def plot_search_time_tcga_ncidata():
     np.random.shuffle(color_keys)
 
     dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
+    dataset_names = ['bcss_512_0.8', 'NuCLS', 'PanNuke', 'kather100k']
+
     mapper_dict = {
         'IndexFlatIP': 'Original',
         'IndexBinaryFlat_ITQ32_LSH': 'ITQ+LSH(32)',
@@ -1429,7 +1463,7 @@ def plot_search_time_tcga_ncidata():
                     ax2.set_yticks(g.get_yticks())
                     ax2.set_yticklabels(['' for _ in g.get_yticklabels()], rotation=90, ha="left", va='center', rotation_mode='anchor')
                     ax2.tick_params(axis='y', length=0)
-                    ax2.set_ylabel('(n = 43)')
+                    ax2.set_ylabel('(n = {})'.format(len(datadata1['label'].unique())))
 
                 # if dolegend=='auto':
                 #     sns.move_legend(
@@ -1907,7 +1941,7 @@ def Fig3_4():
         COLOR_PALETTES[k] = newv
 
 
-    save_root = '/Users/zhongz2/down/temp_20250113/Fig3_4'
+    save_root = '/Users/zhongz2/down/temp_20250117/Fig3_4'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -2316,7 +2350,7 @@ def Fig3_4_long():
     df['tissue site'] = df['tissue site'].map(site_mappers)
     sites = ['lung', 'liver', 'ovary', 'stomach', 'breast', 'lymph node', 'soft tissue', 'testis', 'kidney', 'colon', 'others']
 
-    save_root = '/Users/zhongz2/down/temp_20250113/Fig3_4_long'
+    save_root = '/Users/zhongz2/down/temp_20250117/Fig3_4_long'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -2894,7 +2928,7 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
     root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn{topn}'
-    save_root = '/Users/zhongz2/down/temp_20250113/CPTAC_cancer_search'
+    save_root = '/Users/zhongz2/down/temp_20250117/CPTAC_cancer_search'
     save_root = f'/Users/zhongz2/down/temp_20250117/CPTAC_cancer_search_topn{topn}'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
@@ -3013,6 +3047,8 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         g=sns.boxplot(data=datadata, x="method",  palette=all_colors, y=name, showfliers=False, legend=False, ax=ax) 
         g.set(ylabel=None)
         g.set(xlabel=None)
+        g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
+
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
         g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
         g.set(xlabel=None)
@@ -3022,7 +3058,6 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         datadata.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
         plt.close()
-
 
         all_df = None
         for dataset_name in dataset_names:
@@ -3049,64 +3084,65 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         all_df1['score1'] = np.log(all_df1['score'] - 30)
         all_df1['score2'] = all_df1['score']
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        # for ci, tick_label in enumerate(g.get_xticklabels()):
-        #     tick_label.set_color(palette[ci])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
-        plt.close()
+        if False:
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            # for ci, tick_label in enumerate(g.get_xticklabels()):
+            #     tick_label.set_color(palette[ci])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+            plt.close()
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        # g.set_ylim([30, 38])
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        for ci, tick_label in enumerate(g.get_xticklabels()):
-            tick_label.set_color(all_colors[tick_label.get_text()])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
-        plt.close()
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            # g.set_ylim([30, 38])
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            for ci, tick_label in enumerate(g.get_xticklabels()):
+                tick_label.set_color(all_colors[tick_label.get_text()])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
+            plt.close()
 
         # 
         hue_order = all_df['method'].values
@@ -3287,6 +3323,8 @@ def main_20241218_CPTAC_mutation_search_comparision():
         fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
         ax = plt.gca()
         g=sns.boxplot(data=datadata, x="method",  palette=all_colors, y=name, showfliers=False, legend=False, ax=ax) 
+        g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
+
         g.set(ylabel=None)
         g.set(xlabel=None)
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
@@ -3326,64 +3364,65 @@ def main_20241218_CPTAC_mutation_search_comparision():
         all_df1['score1'] = np.log(all_df1['score'] - 30)
         all_df1['score2'] = all_df1['score']
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        # for ci, tick_label in enumerate(g.get_xticklabels()):
-        #     tick_label.set_color(palette[ci])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
-        plt.close()
+        if False:
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            g=sns.barplot(all_df1, x="method", y="score", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            # for ci, tick_label in enumerate(g.get_xticklabels()):
+            #     tick_label.set_color(palette[ci])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}.csv'))
+            plt.close()
 
-        plt.close()
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-        g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
-        # g.set_yscale("log")
-        # g.set_ylim([30, 38])
-        g.tick_params(pad=10)
-        g.set_xlabel("")
-        # g.set_ylabel("Overall performance")
-        g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
-        # g.set_ylim([0, 1])
-        # g.legend.set_title("")
-        # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
-        # g.legend.remove()
-        # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
-        print(name1, g.get_yticklabels())
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-        for ci, tick_label in enumerate(g.get_xticklabels()):
-            tick_label.set_color(all_colors[tick_label.get_text()])
-        # plt.tight_layout()
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
-        plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
-        plt.close()
+            plt.close()
+            font_size = 30
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            # plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+            g=sns.barplot(all_df1, x="method", y="score2", hue="method", palette=all_colors, legend=False)
+            # g.set_yscale("log")
+            # g.set_ylim([30, 38])
+            g.tick_params(pad=10)
+            g.set_xlabel("")
+            # g.set_ylabel("Overall performance")
+            g.set_ylabel('Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+            # g.set_ylim([0, 1])
+            # g.legend.set_title("")
+            # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
+            # g.legend.remove()
+            # g.set_xticklabels(g.get_xticklabels(), fontsize=9)
+            print(name1, g.get_yticklabels())
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+            for ci, tick_label in enumerate(g.get_xticklabels()):
+                tick_label.set_color(all_colors[tick_label.get_text()])
+            # plt.tight_layout()
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'ranking_{name1}_v2.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            all_df1.to_csv(os.path.join(save_root, f'ranking_{name1}_v2.csv'))
+            plt.close()
 
         # 
         hue_order = all_df['method'].values
@@ -3444,7 +3483,7 @@ def compare_attention_with_noattention():
     from scipy.stats import ranksums
     import matplotlib.pyplot as plt
     import seaborn as sns
-    save_root = '/Users/zhongz2/down/temp_20250113/attention_or_not_comparision'
+    save_root = '/Users/zhongz2/down/temp_20250117/attention_or_not_comparision'
     os.makedirs(save_root, exist_ok=True)
 
 
@@ -3607,7 +3646,7 @@ def plot_gene_mutation_and_regression_plots():
         return (u1 - u2) / s
 
 
-    save_root = '/Users/zhongz2/down/temp_20250113/gene_mutation_TCGA_and_CPTAC'
+    save_root = '/Users/zhongz2/down/temp_20250117/gene_mutation_TCGA_and_CPTAC'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -3615,7 +3654,8 @@ def plot_gene_mutation_and_regression_plots():
     root = '/Volumes/data-1/CPTAC/'
 
     TCGA_test_df = pd.read_csv(f'{root}/predictions_v2_TCGA_filterTrue_2/test/CONCH_prediction_scores.csv')
-    CPTAC_df = pd.read_csv(f'{root}/predictions_v2_filterTrue_2/CONCH_prediction_scores.csv')
+    # CPTAC_df = pd.read_csv(f'{root}/predictions_v2_filterTrue_2/CONCH_prediction_scores.csv')
+    CPTAC_df = pd.read_csv(f'{root}/predictions_v3_filterTrue_2/CONCH_prediction_scores.csv') # intersection
 
     TCGA_test_df = TCGA_test_df.iloc[-1, 2:].reset_index()
     TCGA_test_df.columns = ['var', 'score']
@@ -3631,8 +3671,19 @@ def plot_gene_mutation_and_regression_plots():
     df2 = df[df['var'].isin(gene_reg_vars)].reset_index(drop=True)
     df1['var'] = [v.replace('_cls', '').replace('_sum','') for v in df1['var'].values]
     df2['var'] = [v.replace('_cls', '').replace('_sum','') for v in df2['var'].values]
-    df2['group'] = 'Gene set regression'
+    df2['group'] = 'Hallmark gene set regression (n=50)'
     df1 = df1[df1['var']!='GATA3'].reset_index(drop=True)
+
+    print('\ngene mutation prediction:')
+    for v in df1['dataset'].unique():
+        values = df1[df1['dataset']==v]['score'].values
+        U, pvalue = wilcoxon(values, 0.5*np.ones_like(values), alternative='two-sided')
+        print(v, pvalue)
+    print('\ngene set regression prediction:')
+    for v in df2['dataset'].unique():
+        values = df2[df2['dataset']==v]['score'].values
+        U, pvalue = wilcoxon(values, np.zeros_like(values), alternative='two-sided')
+        print(v, pvalue)
 
     palette = sns.color_palette('colorblind')
     palette = [
@@ -3640,7 +3691,7 @@ def plot_gene_mutation_and_regression_plots():
         '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
         '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
     ]
-    palette = sorted(list(set(all_colors.values()))[::-1])
+    # palette = sorted(list(set(all_colors.values()))[::-1])
 
 
     # gene mutation barplots
@@ -3795,7 +3846,7 @@ def plot_scalability():
     import matplotlib.pyplot as plt
     import seaborn as sns
     root = '/Volumes/data-1/temp_20241204_scalability/'
-    save_root = '/Users/zhongz2/down/temp_20250113/scability'
+    save_root = '/Users/zhongz2/down/temp_20250117/scability'
     os.makedirs(save_root, exist_ok=True)
 
     if False:
@@ -3956,11 +4007,11 @@ def plot_scalability():
 
 
 if __name__ == '__main__':
-    main_20240708_encoder_comparision()
+    # main_20240708_encoder_comparision()
     # compare_attention_with_noattention()
     # main_20241218_CPTAC_cancer_type_search_comparision()
     # main_20241218_CPTAC_mutation_search_comparision()
-    # plot_gene_mutation_and_regression_plots()
+    plot_gene_mutation_and_regression_plots()
     # plot_search_time_tcga_ncidata()
 
     # Fig3_4()

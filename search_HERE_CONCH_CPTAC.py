@@ -1820,8 +1820,9 @@ def get_all_results_CPTAC_mutation_search_v2():
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
-                print(svs_prefix, found)
-                barcodes.append('')
+                found1 = [v for v in found if v not in ['604', '1488']]
+                print(svs_prefix, found, found1)
+                barcodes.append(found1[0])
 
         df['barcode'] = barcodes
         df = df[df['barcode']!=''].reset_index(drop=True)
@@ -1843,8 +1844,9 @@ def get_all_results_CPTAC_mutation_search_v2():
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
-                print(svs_prefix, found)
-                barcodes.append('')
+                found1 = [v for v in found if v not in ['604', '1488']]
+                print(svs_prefix, found, found1)
+                barcodes.append(found1[0])
         df1['barcode'] = barcodes
         df1 = df1[df1['barcode']!=''].reset_index()
         for col in mut_cols:
@@ -2049,6 +2051,9 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
+                # found1 = [v for v in found if v not in ['604', '1488']]
+                # print(svs_prefix, found, found1)
+                # barcodes.append(found1[0])
                 print(svs_prefix, found)
                 barcodes.append('FAKE_CASE')
 
@@ -2072,8 +2077,11 @@ def get_all_results_CPTAC_mutation_search_v2_fakecase():
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
-                print(svs_prefix, found)
-                barcodes.append('FAKE_CASE')
+                found1 = [v for v in found if v not in ['604', '1488']]
+                print(svs_prefix, found, found1)
+                barcodes.append(found1[0])
+                # print(svs_prefix, found)
+                # barcodes.append('FAKE_CASE')
         df1['barcode'] = barcodes
         df1 = df1[df1['barcode']!=''].reset_index()
         for col in mut_cols:

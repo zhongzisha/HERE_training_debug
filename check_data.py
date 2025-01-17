@@ -72,14 +72,14 @@ def CPTAC():
     import numpy as np
     from common import CLASSIFICATION_DICT, ALL_CLASSIFICATION_DICT, REGRESSION_LIST
 
-    clinical2 = pd.read_csv('/Users/zhongz2/down/clinical.project-cptac-2.2024-12-20/clinical.tsv', sep='\t')
-    clinical3 = pd.read_csv('/Users/zhongz2/down/clinical.project-cptac-3.2024-12-20/clinical.tsv', sep='\t')
+    clinical2 = pd.read_csv('/Volumes/data-1/CPTAC/clinical.project-cptac-2.2025-01-17/clinical.tsv', sep='\t')
+    clinical3 = pd.read_csv('/Volumes/data-1/CPTAC/clinical.project-cptac-3.2025-01-17/clinical.tsv', sep='\t')
     clinical = pd.concat([clinical2, clinical3], axis=0)
     clinical = clinical.groupby('case_submitter_id').first().reset_index()
 
-    df1 = pd.read_csv('splits/PanCancer_CONCH_labels.csv')
-    df2 = pd.read_csv('splits/PanCancer_CONCH_predictions.csv', index_col=0)
-    df3 = pd.read_csv('splits/TP53_HERE_CONCH_results.csv', index_col=0)
+    df1 = pd.read_csv('/Volumes/data-1/CPTAC/predictions_v3_filterTrue_2/per-cancer/PanCancer_CONCH_labels.csv')
+    df2 = pd.read_csv('/Volumes/data-1/CPTAC/predictions_v3_filterTrue_2/per-cancer/PanCancer_CONCH_predictions.csv', index_col=0)
+    df3 = pd.read_csv('/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn5/TP53/TP53_HERE_CONCH_results.csv', index_col=0)
 
     df1['svs_prefix'] = df2['svs_prefix']
     df1.drop(columns=['barcode'], inplace=True)
@@ -103,7 +103,8 @@ def CPTAC():
     df2['cancer_type'] = [f.split('/')[-2] for f in df2['image_filename'].values]
 
     # df = df.merge(df2, left_on='svs_prefix', right_on='svs_prefix', how='inner').reset_index(drop=True)
-    df = df2.merge(df, left_on='svs_prefix', right_on='svs_prefix', how='left').reset_index(drop=True)
+    # df = df2.merge(df, left_on='svs_prefix', right_on='svs_prefix', how='left').reset_index(drop=True)
+    df = df.merge(df2, left_on='svs_prefix', right_on='svs_prefix', how='left').reset_index(drop=True)
 
     cols1 = [col for col in df.columns if '_cls' in col]
     cols2 = [col for col in df.columns if 'HALLMARK_' in col]

@@ -765,13 +765,27 @@ def check_results_forCPTAC(model_name='UNI', do_filter=False):
 
     save_root = '/data/zhongz2/CPTAC/predictions'
     save_root = '/data/zhongz2/CPTAC/predictions_v2_filter{}_2'.format(do_filter)
+    save_root = '/data/zhongz2/CPTAC/predictions_v3_filter{}_2'.format(do_filter) # intersection
     os.makedirs('{}/per-cancer'.format(save_root), exist_ok=True)
 
     results_dir = f'/data/zhongz2/CPTAC/patches_256/{model_name}/pred_files'
     all_files = glob.glob(os.path.join(results_dir, '*.pt'))
+
+    common_svs_prefixes = [os.path.splitext(os.path.basename(f))[0] for f in glob.glob('/data/zhongz2/CPTAC_256/patches_intersection/*.h5')]
+
+    # count = 0
+    # for f in all_files:
+    #     svs_prefix = os.path.splitext(os.path.basename(f))[0]
+    #     if svs_prefix in common_svs_prefixes:
+    #         count+=1
+    # print(count)
+    # return
+
     results = {}
     for f in all_files:
         svs_prefix = os.path.splitext(os.path.basename(f))[0]
+        if svs_prefix not in common_svs_prefixes:
+            continue
         results_dict = torch.load(f)
         result = {}
         for k, v in CLASSIFICATION_DICT.items():
@@ -819,8 +833,11 @@ def check_results_forCPTAC(model_name='UNI', do_filter=False):
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
-                print(svs_prefix, found)
+                # found1 = [v for v in found if v not in ['604', '1488']]
+                # print(svs_prefix, found, found1)
+                # barcodes.append(found1[0])
                 barcodes.append('')
+
         result_df2['barcode'] = barcodes
 
         result_df2 = result_df2[result_df2['barcode'].isin(all_labels.index)].reset_index(drop=True)
