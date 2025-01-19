@@ -638,7 +638,7 @@ def main_20240708_encoder_comparision():
             df2 = pd.concat(dfs).reset_index()
             df3 = df2.copy()
             df3['dataset_name'] = dataset_names1[di]
-            all_dfs[dataset_name] = df2 
+            all_dfs[dataset_name] = df3 
 
 
             if len(data) != len(methods):
@@ -682,6 +682,7 @@ def main_20240708_encoder_comparision():
     ]
 
     datadata = pd.concat([v for k,v in all_dfs.items()],axis=0).reset_index(drop=True)
+    datadata.to_csv(os.path.join(save_root, 'all.csv'))
 
     #get the ranking
     for name in ['Percision', 'Acc']: 
@@ -741,6 +742,55 @@ def main_20240708_encoder_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         datadata1.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
         plt.close()
+
+
+        # boxplot with strip dots
+        for dolegend in ['auto', False]:
+            plt.close('all')
+            font_size = 30
+            figure_height = 7
+            figure_width = 7
+            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+            plt.tick_params(pad = 10)
+            fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+            ax = plt.gca()
+            g=sns.boxplot(data=datadata1, x="method",  palette=all_colors, y=name, hue="method", legend=False, ax=ax)  #showfliers=False, 
+
+            if dolegend=='auto':
+                # plt.legend(title="(n=43)", loc="upper left", bbox_to_anchor=(1, 1))  # Adjust legend position
+
+                ax2 = g.secondary_yaxis('right')
+                ax2.set_yticks(g.get_yticks())
+                ax2.set_yticklabels(['' for _ in g.get_yticklabels()], rotation=90, ha="left", va='center', rotation_mode='anchor')
+                ax2.tick_params(axis='y', length=0)
+                ax2.set_ylabel('(n = {})'.format(len(datadata1['label'].unique())))
+
+            # if dolegend=='auto':
+            #     sns.move_legend(
+            #         ax, "outside right",
+            #         title=None
+            #     )
+            # g.set(ylabel=None)
+            # g.set(xlabel=None)
+            # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+            # g.set(ylabel=name1)
+            g.set(ylabel=None)#='Accuracy' if name =='Acc' else 'Average Precision')
+            g.set(xlabel=None)
+            g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
+            g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
+
+            g=sns.stripplot(data=datadata1, x="method", y=name, jitter=True, color='black', alpha=0.4, ax=ax)
+            g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
+            g.set(xlabel=None)
+            # g.map_dataframe(sns.stripplot, x="method", y=name, legend=False, dodge=True, 
+            #     marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+
+            plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}_strip_legend{dolegend}.png'), bbox_inches='tight', transparent=True, format='png')
+            plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}_strip_legend{dolegend}.svg'), bbox_inches='tight', transparent=True, format='svg')
+            plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}_strip_legend{dolegend}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+            datadata1.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}_strip_legend{dolegend}.csv'))
+            plt.close()
+
 
         if False:
             plt.close()
@@ -1352,6 +1402,7 @@ def plot_search_time_tcga_ncidata():
             for kk,vv in all_dfs.items():
                 datadata.append(vv[fe_method])
             datadata = pd.concat(datadata, axis=0).reset_index(drop=True)
+            datadata.to_csv(os.path.join(save_root, 'all_{}.csv'.format(name1)))
 
             #get the ranking 
             all_df = None
@@ -4006,13 +4057,164 @@ def plot_scalability():
 
 
 
+def get_original_data_storage(): # do this on biowulf
+
+    # get all file storage sizes
+    import sys,os,glob,shutil
+    import numpy as np
+    import pandas as pd
+    import openslide
+    from PIL import Image
+    Image.MAX_IMAGE_PIXELS = None
+    from natsort import natsorted
+    import pickle
+    import h5py
+
+    save_filename = '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/original_data_storage_20250119.xlsx'
+    if os.path.exists(save_filename):
+        shutil.rmtree(save_filename, ignore_errors=True)
+
+    data_dir = '/data/Jiang_Lab/Data/COMPASS_NGS_Cases_20240814/'
+    postfix = '.ndpi'
+    files = natsorted(glob.glob(os.path.join(data_dir, '*.ndpi')))
+    with open('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/all_scales_20241219_newKenData.pkl', 'rb') as fp:
+        keys = list(pickle.load(fp).keys())
+    svs_dir = '/data/zhongz2/KenData_20240814_256/svs'
+    patches_dir = '/data/zhongz2/KenData_20240814_256/patches'
+    # KenData
+    KenData_keys = [k.replace('KenData_20240814_', '') for k in keys if 'KenData_20240814_' in k]
+    items = []
+    svs_prefixes = set()
+    for ind, filename in enumerate(files):
+        prefix = os.path.basename(filename).replace(postfix, '')
+        prefix = prefix.replace(' ', '_')
+        prefix = prefix.replace(',', '_')
+        prefix = prefix.replace('&', '_')
+        prefix = prefix.replace('+', '_')
+        if prefix in KenData_keys and prefix not in svs_prefixes:
+            filename2 = os.path.join(svs_dir, prefix+'.svs')
+            with h5py.File(os.path.join(patches_dir, prefix+'.h5')) as file:
+                num_patches = len(file['coords'][:])
+            items.append([prefix, filename, os.path.getsize(os.path.realpath(filename)), filename2, os.path.getsize(os.path.realpath(filename2)), num_patches])
+            svs_prefixes.add(prefix)
+            print(prefix)
+    df = pd.DataFrame(items, columns=['svs_prefix', 'orig_filepath', 'orig_filesize_inbytes', '20x_filepath', '20x_filesize_inbytes', 'num_patches'])
+    df.to_excel(save_filename.replace('.xlsx', '_NCI.xlsx'))
+    # TCGA
+    items = []
+    svs_prefixes = set()
+    svs_dir = '/data/zhongz2/TCGA-COMBINED_256/svs'
+    patches_dir = '/data/zhongz2/TCGA-COMBINED_256/patches'
+    TCGAData_keys = [k.replace('TCGA-COMBINED_', '') for k in keys if 'TCGA-COMBINED_' in k]
+    with open('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/gdc_manifest.2024-06-24.txt', 'r') as fp:
+        lines = [line.split('\t') for line in fp.readlines()[1:]]
+    for line in lines:
+        filename, size = line[1], line[3]
+        prefix = filename.replace('.svs', '')
+        if prefix in TCGAData_keys and prefix not in svs_prefixes:     
+            with h5py.File(os.path.join(patches_dir, prefix+'.h5')) as file:
+                num_patches = len(file['coords'][:])   
+            filename2 = os.path.join(svs_dir, prefix+'.svs')
+            items.append([prefix, filename, float(size), filename2, os.path.getsize(os.path.realpath(filename2)), num_patches])
+            svs_prefixes.add(prefix)
+    df = pd.DataFrame(items, columns=['svs_prefix', 'orig_filepath', 'orig_filesize_inbytes', '20x_filepath', '20x_filesize_inbytes', 'num_patches'])
+    df.to_excel(save_filename.replace('.xlsx', '_TCGA.xlsx'))
+    # ST
+    invalid_prefixes = [
+        '10x_Parent_Visium_Human_Glioblastoma_1.2.0',
+        '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0'
+    ]
+    items = []
+    svs_prefixes = set()
+    svs_dir = '/data/zhongz2/ST_256/svs'
+    patches_dir = '/data/zhongz2/ST_256/patches'
+    ST_keys = [k[3:] for k in keys if 'ST_' == k[:3]]
+    df = pd.read_excel('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/ST_list.xlsx', index_col=0)
+    df1 = pd.read_excel('/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240208_hidare/ST_list_cancer.xlsx', index_col=0)
+    truepaths = []
+    for ind, row in df.iterrows():
+        prefix = row['slide_id']
+        filename = row['TruePath'].split(' ')[0]
+        if 'He_2020' in filename and 'Beibei' in filename:
+            filename = filename.replace('/data/Jiang_Lab/datashare/Beibei/ST/Gudrun/He_2020_Breast.Cancer',
+            '/data/Jiang_Lab/Data/Zisha_Zhong/He_2020_Breast.Cancer')
+        truepaths.append(filename)
+        if prefix in ST_keys and prefix not in svs_prefixes and prefix not in invalid_prefixes:    
+            with h5py.File(os.path.join(patches_dir, prefix+'.h5')) as file:
+                num_patches = len(file['coords'][:])   
+            filename2 = os.path.join(svs_dir, prefix+'.svs')
+            items.append([prefix, filename, os.path.getsize(os.path.realpath(filename)), filename2, os.path.getsize(os.path.realpath(filename2)), num_patches])
+            svs_prefixes.add(prefix)
+    df['TruePath'] = truepaths
+    df = pd.DataFrame(items, columns=['svs_prefix', 'orig_filepath', 'orig_filesize_inbytes', '20x_filepath', '20x_filesize_inbytes', 'num_patches'])
+    df.to_excel(save_filename.replace('.xlsx', '_ST.xlsx'))
+
+    # CPTAC
+    with open('/data/zhongz2/CPTAC/allsvs/allsvs.txt', 'r') as fp:
+        lines = [line.strip().split('/')[-2:] for line in fp.readlines()]
+    filenames = {line[1].replace('.svs', ''): '/data/zhongz2/CPTAC/allsvs/{}/{}'.format(line[0], line[1]) for line in lines}
+    items = []
+    svs_prefixes = set()
+    svs_dir = '/data/zhongz2/CPTAC_256/svs'
+    patches_dir = '/data/zhongz2/CPTAC_256/patches'
+    original_svs_dir = '/data/zhongz2/CPTAC/allsvs'
+    CPTAC_keys = [k[6:] for k in keys if 'CPTAC_' == k[:6]]
+    for f in glob.glob(os.path.join(patches_dir, '*.h5')):
+        prefix = os.path.splitext(os.path.basename(f))[0]
+        if prefix in CPTAC_keys:
+            with h5py.File(os.path.join(patches_dir, prefix+'.h5')) as file:
+                num_patches = len(file['coords'][:])   
+            filename = filenames[prefix]
+            filename2 = os.path.join(svs_dir, prefix+'.svs')
+            items.append([prefix, filename, os.path.getsize(os.path.realpath(filename)), filename2, os.path.getsize(os.path.realpath(filename2)), num_patches])
+            print(prefix)
+    df = pd.DataFrame(items, columns=['svs_prefix', 'orig_filepath', 'orig_filesize_inbytes', '20x_filepath', '20x_filesize_inbytes', 'num_patches'])
+    df.to_excel(save_filename.replace('.xlsx', '_CPTAC.xlsx'))
+
+    # combine
+    import time
+    if os.path.exists(save_filename):
+        shutil.rmtree(save_filename, ignore_errors=True)
+        time.sleep(1)
+
+    writer = pd.ExcelWriter(save_filename)
+    items = []
+    total_storage = 0
+    total_WSIs = 0
+    total_patches = 0
+    total_index_size = 0
+    faiss_bin_filenames = {
+        'CPTAC': '/data/zhongz2/CPTAC/assets/faiss_bins/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_CPTAC_HERE_CONCH.bin',
+        'NCI': '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_relatedV6/faiss_bins/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_KenData_20240814_HERE_CONCH.bin',
+        'TCGA': '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_relatedV6/faiss_bins/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_TCGA-COMBINED_HERE_CONCH.bin',
+        'ST': '/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/faiss_relatedV6/faiss_bins/all_data_feat_before_attention_feat_faiss_IndexHNSWFlat_m32_IVFPQ_nlist128_m8_ST_HERE_CONCH.bin'
+    }
+    for name in ['NCI', 'TCGA', 'ST', 'CPTAC']:
+        name1 = name.replace('NCI', 'NCI Lab of Pathology')
+        df = pd.read_excel(save_filename.replace('.xlsx', '_{}.xlsx'.format(name)), index_col=0)
+        size = df['orig_filesize_inbytes'].sum()/1024/1024/1024/1024
+        num_WSIs = len(df)
+        num_patches = df['num_patches'].sum()
+        index_size = os.path.getsize(faiss_bin_filenames[name])/1024/1024/1024 # GB
+        items.append((name1, num_WSIs, num_patches, size, index_size))
+        df.to_excel(writer, sheet_name=name1, index=False)
+        total_storage += size
+        total_WSIs += num_WSIs
+        total_patches += num_patches
+        total_index_size += index_size
+    items.append(('total', total_WSIs, total_patches,total_storage, total_index_size))
+    df = pd.DataFrame(items, columns=['cohort',  'Num_WSIs', 'Num_Patches','Storage (TB)', 'Index Size (GB)'])
+    df.to_excel(writer, sheet_name='ALL', index=False)
+    writer.close()
+
+
 if __name__ == '__main__':
     # main_20240708_encoder_comparision()
     # compare_attention_with_noattention()
     # main_20241218_CPTAC_cancer_type_search_comparision()
     # main_20241218_CPTAC_mutation_search_comparision()
-    plot_gene_mutation_and_regression_plots()
-    # plot_search_time_tcga_ncidata()
+    # plot_gene_mutation_and_regression_plots()
+    plot_search_time_tcga_ncidata()
 
     # Fig3_4()
     # Fig3_4_long()
