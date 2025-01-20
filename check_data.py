@@ -134,9 +134,11 @@ def CPTAC():
             elif svs_prefix in found: # multi match, has one exact match
                 barcodes.append(svs_prefix)
             else: 
-                found1 = [v for v in found if v not in ['604', '1488']]
-                print(svs_prefix, found, found1)
-                barcodes.append(found1[0])
+                # found1 = [v for v in found if v not in ['604', '1488']]
+                # print(svs_prefix, found, found1)
+                # barcodes.append(found1[0])
+                print(svs_prefix, found)
+                barcodes.append('FAKE_CASE')
         df1['barcode'] = barcodes
         clinical.loc['FAKE_CASE'] = [pd.NA for _ in range(len(clinical.columns))]
         df2 = df1.merge(clinical, left_on='barcode', right_on='case_submitter_id', how='left').reset_index(drop=True)
@@ -144,6 +146,12 @@ def CPTAC():
         df2['image_filename'] = [f.replace('/data/zhongz2/CPTAC/allsvs/', '') for f in df2['image_filename'].values]
 
         df2.to_excel('splits/CPTAC_all.xlsx')
+
+
+    CPTAC_type_search_df = pd.read_csv('/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn5/result_df_HERE_CONCH.csv', low_memory=False)
+    CPTAC_mutation_search_df = pd.read_csv('/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn5/labels_HERE_CONCH.csv', low_memory=False)
+    CPTAC_pred_gt_df = pd.read_csv('/Volumes/data-1/CPTAC/predictions_v3_filterTrue_2/per-cancer/PanCancer_CONCH_labels.csv', low_memory=False)
+    CPTAC_pred_pred_df = pd.read_csv('/Volumes/data-1/CPTAC/predictions_v3_filterTrue_2/per-cancer/PanCancer_CONCH_predictions.csv', low_memory=False)
 
     df = df.rename(columns=mapper_column_names)
     df = df[['ID','cancer_type', 'slide_id', 'image_filename']+gene_mut_cols+gene_exp_cols]
