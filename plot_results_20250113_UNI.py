@@ -1396,6 +1396,8 @@ def plot_search_time_tcga_ncidata():
     for name in ['Percision', 'Acc']:
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         hue_orders = {}
+        writer = pd.ExcelWriter(os.path.join(save_root, f'Fig2-{name1}.xlsx'))
+
         for fe_method in fe_methods:
             
             datadata = []
@@ -1858,7 +1860,7 @@ def plot_search_time_tcga_ncidata():
                     plt.close()
                 df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_v3.csv'))
 
-
+        writer.close()
 
 
 
@@ -3063,8 +3065,23 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
         'NuCLS': ['Lymphocyte', 'Macrophage', 'Stroma', 'Plasma', 'Tumor'],
         'PanNuke': ['Neoplastic', 'Inflammatory', 'Connective', 'Dead', 'Epithelial'],
         'Kather100K': ['Adipose', 'Background', 'Debris', 'Lymphocytes', 'Mucus', 'Muscle', 'Mucosa', 'Stroma', 'Adeno epithelium'],
-        'CPTAC': ['AML','BRCA','CCRCC','CM','COAD','GBM','HNSCC','LSCC','LUAD','OV','PDA','SAR','UCEC']
+        # 'CPTAC': ['AML','BRCA','CCRCC','CM','COAD','GBM','HNSCC','LSCC','LUAD','OV','PDA','SAR','UCEC']
+        'CPTAC': ['Leukemia','Breast','Clear Renal','Melanoma','Colon','Glioblastoma','Head Neck','Lung Squamous','Lung Adeno','Ovary','Pancreatic','Sarcoma','Endometrial']
     }
+    """
+    acute myeloid leukemia (AML), 
+    breast invasive carcinoma (BRCA), 
+    clear cell renal cell carcinoma (CCRCC), 
+    cutaneous melanoma (CM), colon adenocarcinoma (COAD), 
+    glioblastoma multiforme (GBM), 
+    head and neck squamous cell carcinoma (HNSCC), 
+    lung squamous cell carcinoma (LSCC), 
+    lung adenocarcinoma (LUAD), 
+    ovarian serous cystadenocarcinoma (OV), 
+    pancreatic ductal adenocarcinoma (PDA), 
+    sarcoma (SAR), and 
+    uterine corpus endometrial carcinoma (UCEC). 
+    """
     palette = sns.color_palette('colorblind')
     palette = [
         '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
@@ -3073,6 +3090,8 @@ def main_20241218_CPTAC_cancer_type_search_comparision():
     ]
 
     datadata = pd.concat([v for k,v in all_dfs.items()],axis=0)
+    datadata.to_csv(os.path.join(save_root, f'ranking_meanstd_all.csv'))
+
     #get the ranking
     for name in ['Percision', 'Acc']:
 
@@ -3717,24 +3736,27 @@ def plot_gene_mutation_and_regression_plots():
 
     df = pd.concat([TCGA_test_df, CPTAC_df])
     gene_cls_vars = [v for v in df['var'].unique() if '_cls' in v]
-    gene_reg_vars = [v for v in df['var'].unique() if '_sum' in v]
+    gene_reg_vars = ['Cytotoxic_T_Lymphocyte', 'TIDE_CAF', 'TIDE_Dys', 'TIDE_M2', 'TIDE_MDSC'] + \
+        [v for v in df['var'].unique() if '_sum' in v]
     df1 = df[df['var'].isin(gene_cls_vars)].reset_index(drop=True)
     df2 = df[df['var'].isin(gene_reg_vars)].reset_index(drop=True)
     df1['var'] = [v.replace('_cls', '').replace('_sum','') for v in df1['var'].values]
     df2['var'] = [v.replace('_cls', '').replace('_sum','') for v in df2['var'].values]
-    df2['group'] = 'Hallmark gene set regression (n=50)'
+    df2['group'] = 'Gene set regression (n=55)'
     df1 = df1[df1['var']!='GATA3'].reset_index(drop=True)
 
-    print('\ngene mutation prediction:')
+    fp = open(os.path.join(save_root, 'pvalues.txt'), 'w')
+    print('\ngene mutation prediction:', file=fp)
     for v in df1['dataset'].unique():
         values = df1[df1['dataset']==v]['score'].values
         U, pvalue = wilcoxon(values, 0.5*np.ones_like(values), alternative='two-sided')
-        print(v, pvalue)
-    print('\ngene set regression prediction:')
+        print(v, pvalue, file=fp)
+    print('\ngene set regression prediction:', file=fp)
     for v in df2['dataset'].unique():
         values = df2[df2['dataset']==v]['score'].values
         U, pvalue = wilcoxon(values, np.zeros_like(values), alternative='two-sided')
-        print(v, pvalue)
+        print(v, pvalue, file=fp)
+    fp.close()
 
     palette = sns.color_palette('colorblind')
     palette = [
@@ -3742,7 +3764,7 @@ def plot_gene_mutation_and_regression_plots():
         '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
         '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690'
     ]
-    # palette = sorted(list(set(all_colors.values()))[::-1])
+    palette = sorted(list(set(all_colors.values()))[::-1])
 
 
     # gene mutation barplots
