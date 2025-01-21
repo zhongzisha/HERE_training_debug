@@ -179,8 +179,8 @@ all_colors = {
     'HIPT': '#9AA655',  #'#9AA690'
 }
 SAVE_ROOT='/Users/zhongz2/down/temp_20250117'
-for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
-    shutil.rmtree(f, ignore_errors=True)
+# for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
+#     shutil.rmtree(f, ignore_errors=True)
 
 
 # 20250113
@@ -666,33 +666,6 @@ def main_20240708_encoder_comparision():
             datadata1.append(datadata[datadata['method']==m])
         datadata1 = pd.concat(datadata1,axis=0).reset_index(drop=True)
 
-        # boxplot
-        plt.close('all')
-        font_size = 30
-        figure_height = 7
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-        plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
-        ax = plt.gca()
-        # g=sns.boxplot(data=datadata1, x="method",  palette=palette, y=name, showfliers=False, legend=False, ax=ax) 
-        g=sns.boxplot(data=datadata1, x="method",  palette=all_colors, y=name, showfliers=False, legend=False, ax=ax) 
-        # g.set(ylabel=None)
-        # g.set(xlabel=None)
-        # g=sns.stripplot(data=datadata1, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
-        # g.set(ylabel=name1)
-        g.set(ylabel='Mean Majority Voting Accuracy' if name=='Acc' else "Average precision")
-        g.set(xlabel=None)
-        g.set_yticklabels(g.get_yticklabels(), rotation=90, ha="right", va="center")
-        g.set_xticklabels(g.get_xticklabels(), rotation=90, ha="right", va='center', rotation_mode='anchor')
-
-        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.png'), bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
-        plt.savefig(os.path.join(save_root, f'ranking_meanstd_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
-        datadata1.to_csv(os.path.join(save_root, f'ranking_meanstd_{name1}.csv'))
-        plt.close()
-
-
         # boxplot with strip dots
         for dolegend in ['auto', False]:
             plt.close('all')
@@ -731,6 +704,9 @@ def main_20240708_encoder_comparision():
             g=sns.stripplot(data=datadata1, x="method", y=name, jitter=True, color='black', alpha=0.4, ax=ax)
             g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
             g.set(xlabel=None)
+            g.set(ylim=[-0.05, 1.05])  
+            g.set(yticks=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yticklabels=['0', '0.2', '0.4', '0.6', '0.8', '1.0'])
+            plt.ylim([-0.05, 1.05])
             # g.map_dataframe(sns.stripplot, x="method", y=name, legend=False, dodge=True, 
             #     marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
 
@@ -1319,6 +1295,9 @@ def plot_search_time_tcga_ncidata():
             datadata11 = datadata11.rename(columns={'Percision':'Precision', 'Acc':'Majority Vote Accuracy'})
             datadata11.to_excel(writer, sheet_name='Fig 2b,2c search performance')
 
+            for method1 in ['Original', 'HNSW+IVFPQ(32,128)']: 
+                print(datadata11.loc[datadata11['method']==method1, ['Majority Vote Accuracy','Precision']].median())
+
             # boxplot with strip dots
             for dolegend in ['auto', False]:
                 plt.close('all')
@@ -1357,6 +1336,9 @@ def plot_search_time_tcga_ncidata():
                 g=sns.stripplot(data=datadata1, x="method", y=name, jitter=True, color='black', alpha=0.4, ax=ax)
                 g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
                 g.set(xlabel=None)
+                g.set(ylim=[-0.05, 1.05])  
+                g.set(yticks=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yticklabels=['0', '0.2', '0.4', '0.6', '0.8', '1.0'])
+                plt.ylim([-0.05, 1.05])
                 # g.map_dataframe(sns.stripplot, x="method", y=name, legend=False, dodge=True, 
                 #     marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
 
@@ -2634,6 +2616,9 @@ def main_20241218_CPTAC_comparision():
         g=sns.boxplot(data=datadata, x="method",  palette=all_colors, y=name, showfliers=False, legend=False, ax=ax) 
         g.set(ylabel=None)
         g.set(xlabel=None)
+        g.set(ylim=[-0.05, 1.05])  
+        g.set(yticks=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yticklabels=['0', '0.2', '0.4', '0.6', '0.8', '1.0'])
+        plt.ylim([-0.05, 1.05])
         g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
 
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
@@ -4244,9 +4229,9 @@ def plot_training_curves_TCGA(results_dir):
 if __name__ == '__main__':
     # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    main_20241218_CPTAC_comparision()       # Fig5.xlsx
     # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
-    # plot_search_time_tcga_ncidata()         # Fig2.xlsx
+    plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
     # Fig3_4()                                
