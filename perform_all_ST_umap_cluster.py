@@ -17,6 +17,7 @@ import dash_deck
 from dash import html
 import pydeck
 
+import pickle
 from matplotlib import pyplot as plt
 
 
@@ -28,8 +29,8 @@ df = df.sort_values('slide_id').reset_index(drop=True)
 patches_dir = f'{root}/patches'
 prefixes = [os.path.basename(f).replace('.h5', '') for f in glob.glob(os.path.join(patches_dir, '*.h5'))]
 invalid_slide_ids = [
-    # '10x_Parent_Visium_Human_Glioblastoma_1.2.0',
-    # '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0'
+    '10x_Parent_Visium_Human_Glioblastoma_1.2.0',
+    '10x_Targeted_Visium_Human_BreastCancer_Immunology_1.2.0'
 ]
 prefixes = [v for v in prefixes if v not in invalid_slide_ids]
 df = df[df['slide_id'].isin(prefixes)].reset_index(drop=True)
@@ -41,8 +42,8 @@ for backbone in ['CONCH']:
 
     save_filename = f'ST_{backbone}_umap3d.csv'
     
-    if os.path.exists(save_filename):
-        continue
+    # if os.path.exists(save_filename):
+    #     continue
 
     feats_dir = f'{root}/feats/{backbone}/pt_files'
 
@@ -152,6 +153,16 @@ for backbone in ['CONCH']:
     alldata_df['slide_name'] = alldata_df['slide_id'].map(slide_ids)
     alldata_df.to_csv(save_filename, index=None)
 
+
+    data1 = np.concatenate([Y0[:, None], all_coords, feats_embedding], axis=1)
+    alldata_df = pd.DataFrame(data1, columns=['slide_id', 'patch_x', 'patch_y', 'umap3d_x', 'umap3d_y', 'umap3d_z'])
+    alldata_df['r'] = alldata_df['slide_id'].map({i: v for i, v in enumerate(colors[:, 0])})
+    alldata_df['g'] = alldata_df['slide_id'].map({i: v for i, v in enumerate(colors[:, 1])})
+    alldata_df['b'] = alldata_df['slide_id'].map({i: v for i, v in enumerate(colors[:, 2])})
+    alldata_df = alldata_df.astype({'slide_id':'int32','patch_x':'int32','patch_y':'int32'})
+    slide_names = alldata_df['slide_id'].map(slide_ids)
+    alldata_df.insert(1, 'slide_name', slide_names)
+    alldata_df.to_excel(save_filename.replace('.csv', '.xlsx'), index=None)
 
 # for backbone in "PLIP" "ProvGigaPath" "CONCH"; do python test_dash.py ${backbone}; done
 

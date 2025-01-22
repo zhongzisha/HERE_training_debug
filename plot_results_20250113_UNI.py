@@ -4203,13 +4203,14 @@ def plot_training_curves_TCGA(results_dir):
             #     plt.savefig(savefilename111.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
             #     plt.close()
 
-    if 'noattention' in results_dir: 
-        writer = pd.ExcelWriter(os.path.join(save_root, 'Extended Data Fig 2(c,d,e,f).xlsx'))
-    else:
-        writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Extended Data Fig 2(c,d,e,f).xlsx'))
     for subset, subset_name in label_names.items():
         if subset not in ['train', 'test']:
             continue
+
+        if 'noattention' in results_dir: 
+            writer = pd.ExcelWriter(os.path.join(save_root, f'Extended Data Fig 2(c,d,e,f)-{subset}.xlsx'))
+        else:
+            writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Extended Data Fig 2(c,d,e,f)-{subset}.xlsx'))
         with open('{}/{}_all_results.pkl'.format(save_root, subset), 'rb') as fp:
             data = pickle.load(fp)
         # data['cls'][task_name][method, split, epoch]
@@ -4224,14 +4225,14 @@ def plot_training_curves_TCGA(results_dir):
                 df.columns = [v.replace('_cls','').replace('_sum','') for v in df.columns]
                 df.insert(0, 'epoch', np.arange(100))
                 df.to_excel(writer, sheet_name='{}(split={})'.format(backbone, split), index=False)
-    writer.close()
+        writer.close()
 
 if __name__ == '__main__':
     # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
     # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
-    plot_search_time_tcga_ncidata()         # Fig2.xlsx
+    # plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
     # Fig3_4()                                
@@ -4244,8 +4245,8 @@ if __name__ == '__main__':
 
     # results_dir = 'results_20241128_e100_noattention'
     # plot_training_curves_TCGA(results_dir)
-    # results_dir = 'results_20240724_e100'
-    # plot_training_curves_TCGA(results_dir)    # Extended Data Fig 2(c,d,e,f).xlsx
+    results_dir = 'results_20240724_e100'
+    plot_training_curves_TCGA(results_dir)    # Extended Data Fig 2(c,d,e,f).xlsx
 
     pass
 
