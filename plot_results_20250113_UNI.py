@@ -2126,7 +2126,7 @@ def test_wave_broken_axis():
 
 
 
-def plot_violin():
+def plot_violin_Fig6a(): # run on biowulf
 
 
     import pandas as pd
@@ -2168,177 +2168,6 @@ def plot_violin():
     gene_data_filename = f'{root}/gene_data/{svs_prefix}_gene_data.pkl'
     cluster_data_filename = f'{root}/analysis/one_patient_top_128/meanstd_none_kmeans_euclidean_8_1_clustering/{svs_prefix}/{svs_prefix}_cluster_data.pkl'
     vst_filename = f'{root}/vst_dir/{svs_prefix}.tsv'
-
-    # gene_data_filename = 'gene_data.pkl'
-    # cluster_data_filename = 'cluster_data.pkl'
-    # vst_filename = 'vst.tsv'
-
-    save_filename = 'violin.png'
-    with open(gene_data_filename, 'rb') as fp:
-        gene_data_dict = pickle.load(fp)
-    with open(cluster_data_filename, 'rb') as fp:
-        cluster_data = pickle.load(fp)
-    barcode_col_name = gene_data_dict['barcode_col_name']
-    Y_col_name = gene_data_dict['Y_col_name']
-    X_col_name = gene_data_dict['X_col_name']
-    mpp = gene_data_dict['mpp']
-    coord_df = gene_data_dict['coord_df']
-    counts_df = gene_data_dict['counts_df']
-
-    vst = pd.read_csv(vst_filename, sep='\t', index_col=0)
-    vst = vst.subtract(vst.mean(axis=1), axis=0)
-
-    barcodes = coord_df[barcode_col_name].values.tolist()
-    stY = coord_df[Y_col_name].values.tolist()
-    stX = coord_df[X_col_name].values.tolist()
-
-    st_patch_size = int(
-        pow(2, np.ceil(np.log(64 / mpp) / np.log(2))))
-    st_all_coords = np.array([stX, stY]).T
-    st_all_coords[:, 0] -= st_patch_size // 2
-    st_all_coords[:, 1] -= st_patch_size // 2
-    st_all_coords = st_all_coords.astype(np.int32)
-
-    vst = vst.T
-    vst.index.name = 'barcode'
-    valid_barcodes = set(vst.index.values.tolist())
-    # print(len(valid_barcodes))
-
-    # cluster_data_dict['coords_in_original']
-    cluster_coords = cluster_data['coords_in_original']
-    # cluster_data_dict['cluster_labels']
-    cluster_labels = cluster_data['cluster_labels']
-    # cluster_coords = cluster_data_dict['coords_in_original']
-    # cluster_labels = cluster_data_dict['cluster_labels']
-
-    cluster_barcodes = []
-    innnvalid = 0
-    iinds = []
-    for iiii, (x, y) in enumerate(cluster_coords):
-        ind = np.where((st_all_coords[:, 0] == x) & (
-            st_all_coords[:, 1] == y))[0]
-        if len(ind) > 0:
-            barcoode = barcodes[ind[0]]
-            if barcoode in valid_barcodes:
-                cluster_barcodes.append(barcoode)
-                iinds.append(iiii)
-        else:
-            innnvalid += 1
-    cluster_labels = cluster_labels[iinds]
-    cluster_coords = cluster_coords[iinds]
-    vst1 = vst.loc[cluster_barcodes]
-    counts_df1 = counts_df.T
-    coord_df1 = coord_df.set_index(barcode_col_name)
-    coord_df1.index.name = 'barcode'
-    coord_df1 = coord_df1.loc[cluster_barcodes]
-    stY = coord_df1[Y_col_name].values.tolist()
-    stX = coord_df1[X_col_name].values.tolist()
-    final_df = coord_df1.copy()
-
-
-    cluster_label = 2
-    selected_gene_names = ['C1R', 'C1S', 'SERPING1']
-    gene_names = vst1.columns.values
-    cluster_labels_unique = np.unique(cluster_labels)
-    if cluster_label in cluster_labels_unique:
-        ind1 = np.where(cluster_labels == cluster_label)[0]
-        ind0 = np.where(cluster_labels != cluster_label)[0]
-        vst11 = vst1.iloc[ind1][selected_gene_names] # num_spots x num_genes
-        vst10 = vst1.iloc[ind0][selected_gene_names]
-
-        res = ranksums(vst11, vst10)
-        cohens = cohend(vst11, vst10).values.tolist()
-        zscores = res.statistic
-        pvalues = res.pvalue
-
-        reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(
-            pvalues, method='fdr_bh')
-
-        vst2 = vst1[selected_gene_names]
-        values = vst2.T.values.flatten()
-        cc = [f'Cluster {c}' if c==cluster_label else 'Others' for c in cluster_labels] 
-        gene_col = []
-        cluster_col = []
-        for gene_name in selected_gene_names:
-            gene_col.extend([gene_name for _ in range(len(vst2))])
-            cluster_col.extend(cc)
-        df = pd.DataFrame({'gene_value': values, 'gene_col': gene_col, 'cluster_col': cluster_col})
-        
-
-        font_size = 30
-        figure_width = 7
-        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica'})
-        # plt.tick_params(pad = 10)
-        fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
-
-        g = sns.violinplot(data=df, x="gene_col", y="gene_value", hue="cluster_col")
-        g.tick_params(pad = 10)
-        g.set_xlabel(None)
-        g.set_ylabel(None)
-
-        plt.savefig(save_filename, bbox_inches='tight', transparent=True)
-        plt.savefig(save_filename.replace('.png', '.svg'), bbox_inches='tight', transparent=True)
-        plt.close()
-
-    final_df['cluster_label'] = cluster_labels
-    final_df1 = pd.concat([final_df, vst2], axis=1)
-    final_df1.to_excel('final_data.xlsx')
-
-
-
-
-
-
-
-
-
-def plot_violin_server(): #helix down
-
-
-    import pandas as pd
-    import numpy as np
-    import pickle
-    import os
-    from statsmodels.stats.multitest import multipletests
-    from scipy.stats import ranksums
-    import matplotlib.pyplot as plt
-    import seaborn as sns
-
-
-    def cohend(d1, d2) -> pd.Series:
-        # calculate the size of samples
-        n1, n2 = len(d1), len(d2)
-        # calculate the variance of the samples
-        s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
-        # calculate the pooled standard deviation
-        s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
-        # calculate the means of the samples
-        u1, u2 = np.mean(d1, axis=0), np.mean(d2, axis=0)
-        # return the effect size
-        return (u1 - u2) / s
-
-    def set_box_color(bp, color):
-        plt.setp(bp['boxes'], color=color)
-        plt.setp(bp['whiskers'], color=color)
-        plt.setp(bp['caps'], color=color)
-        plt.setp(bp['medians'], color=color)
-
-    def set_box_color_ax(ax, bp, color):
-        ax.setp(bp['boxes'], color=color)
-        ax.setp(bp['whiskers'], color=color)
-        ax.setp(bp['caps'], color=color)
-        ax.setp(bp['medians'], color=color)
-
-    root = '/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/analysis/ST/CONCH/feat_before_attention_feat/'
-    root = '/mnt/hidare-efs/data/HERE_assets/assets/ST_kmeans_clustering'
-    svs_prefix = '10x_CytAssist_11mm_FFPE_Human_Lung_Cancer_2.0.1'
-    gene_data_filename = f'{root}/gene_data/{svs_prefix}_gene_data.pkl'
-    cluster_data_filename = f'{root}/analysis/one_patient_top_128/meanstd_none_kmeans_euclidean_8_1_clustering/{svs_prefix}/{svs_prefix}_cluster_data.pkl'
-    vst_filename = f'{root}/vst_dir/{svs_prefix}.tsv'
-
-    # gene_data_filename = 'gene_data.pkl'
-    # cluster_data_filename = 'cluster_data.pkl'
-    # vst_filename = 'vst.tsv'
 
     save_filename = 'violin.png'
     with open(gene_data_filename, 'rb') as fp:
@@ -4112,7 +3941,7 @@ def plot_training_curves_TCGA(results_dir):
                 with open(savefilename.replace('.png', '_data.pkl'), 'wb') as fp:
                     pickle.dump(all_mean_results, fp)
                 sortresults={}
-                xxx = []
+                xxx = {}
                 for prefix, all_mean_results_ in all_mean_results.items():
                     x = np.array(all_mean_results_).sum(axis=0).flatten()
                     best_epoch = np.argsort(x)[-1]
@@ -4125,7 +3954,13 @@ def plot_training_curves_TCGA(results_dir):
                     label = shorten_prefix2(prefix)
                     # plt.plot(x, 'o-', label=label, color=COMMON_COLORS[label])
                     plt.plot(x, 'o-', label=label, color=all_colors[label])
-                    xxx.append((label, x.tolist()))
+                    xxx[label]= x.tolist()
+
+                # import pdb
+                # pdb.set_trace()
+                xxx = pd.DataFrame(xxx)
+                xxx.insert(0, 'epoch', np.arange(100))
+                xxx.to_excel(savefilename.replace('.png', '.xlsx'), index=False)
 
                 plt.xlabel('Epochs')
                 plt.ylabel('Overall scores')
@@ -4208,7 +4043,7 @@ def plot_training_curves_TCGA(results_dir):
             continue
 
         if 'noattention' in results_dir: 
-            writer = pd.ExcelWriter(os.path.join(save_root, f'Extended Data Fig 2(c,d,e,f)-{subset}.xlsx'))
+            writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Extended Data Fig 2(c,d,e,f)-{subset}-noattention.xlsx'))
         else:
             writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Extended Data Fig 2(c,d,e,f)-{subset}.xlsx'))
         with open('{}/{}_all_results.pkl'.format(save_root, subset), 'rb') as fp:
@@ -4241,10 +4076,11 @@ if __name__ == '__main__':
 
     ## run the following on Biowulf
     # plot_segmentation_patching()
-    # get_original_data_storage
+    # get_original_data_storage()
+    # plot_violin_Fig6a(): # run on biowulf  # Fig 6a
 
-    # results_dir = 'results_20241128_e100_noattention'
-    # plot_training_curves_TCGA(results_dir)
+    results_dir = 'results_20241128_e100_noattention'
+    plot_training_curves_TCGA(results_dir)
     results_dir = 'results_20240724_e100'
     plot_training_curves_TCGA(results_dir)    # Extended Data Fig 2(c,d,e,f).xlsx
 
