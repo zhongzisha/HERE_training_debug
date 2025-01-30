@@ -4062,6 +4062,40 @@ def plot_training_curves_TCGA(results_dir):
                 df.to_excel(writer, sheet_name='{}(split={})'.format(backbone, split), index=False)
         writer.close()
 
+
+
+def plot_colorbar_for_heatmap():
+    import numpy as np
+    import matplotlib.pyplot as plt 
+
+    # Generate random data for the heatmap
+    data = np.random.rand(10, 10)  # 10x10 matrix with random values
+    data[0,0] = 0
+    data[9,9] = 1.0
+
+    # Create the figure and axis
+    fig, ax = plt.subplots()
+
+    # Display the heatmap with "jet" colormap
+    heatmap = ax.imshow(data, cmap='jet', aspect='auto')
+
+    # Add a colorbar
+    cbar = plt.colorbar(heatmap)
+
+    # Set colorbar tick positions and labels
+    cbar.set_ticks([0, 0.2, 0.4, 0.6, 0.8, 1.0])  # Min and max values of the data
+    cbar.set_ticklabels([0, 0.2, 0.4, 0.6, 0.8, 1.0])  # Custom labels
+
+    # Show the heatmap
+    # plt.show()
+
+
+    savefilename = 'colorbar_jet_heatmap.png'
+    plt.savefig(savefilename, bbox_inches='tight', transparent=True)
+    plt.savefig(savefilename.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
+    plt.close('all')
+
+
 if __name__ == '__main__':
     # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx

@@ -43,7 +43,7 @@ def TCGA_data():
     df = df[cols]
 
     cols1 = [col for col in df.columns if '_cls' in col]
-    cols2 = [col for col in df.columns if 'HALLMARK' in col]
+    cols2 = [col for col in df.columns if 'HALLMARK' in col]+ ['Cytotoxic_T_Lymphocyte', 'TIDE_CAF', 'TIDE_Dys', 'TIDE_M2', 'TIDE_MDSC']
 
     df = df[['case_id', 'cancer_type', 'slide_id', 'DX_filename']+cols1+cols2]
 
@@ -51,7 +51,7 @@ def TCGA_data():
     for col in cols1:
         mapper_column_names[col] = col.replace('_cls', '')
     for col in cols2:
-        mapper_column_names[col] = col.replace('_sum', '')
+        mapper_column_names[col] = col.replace('_sum', '').replace('TIDE_', '')
 
     df = df.rename(columns=mapper_column_names)
 
@@ -107,7 +107,7 @@ def CPTAC():
     df = df.merge(df2, left_on='svs_prefix', right_on='svs_prefix', how='left').reset_index(drop=True)
 
     cols1 = [col for col in df.columns if '_cls' in col]
-    cols2 = [col for col in df.columns if 'HALLMARK_' in col]
+    cols2 = [col for col in df.columns if 'HALLMARK_' in col] + ['Cytotoxic_T_Lymphocyte', 'CAF', 'Dys', 'M2', 'MDSC']
 
     mapper_column_names = {'barcode': 'ID', 'svs_prefix': 'slide_id'}
     gene_mut_cols = []
@@ -155,28 +155,65 @@ def CPTAC():
 
     df = df.rename(columns=mapper_column_names)
     df = df[['ID','cancer_type', 'slide_id', 'image_filename']+gene_mut_cols+gene_exp_cols]
+    df0 = df.copy()
+    for version in ['v0', 'v1']:
+        df1 = df0[df0['ID']!='FAKE_CASE']
+        df2 = df0[df0['ID']=='FAKE_CASE']
 
-    df1 = df[df['ID']!='FAKE_CASE']
-    df2 = df[df['ID']=='FAKE_CASE']
+        if version == 'v0':
+            df1 = df1.groupby('ID').first()
+            image_filenames = []
+            for ID in df1.index.values:
+                image_filenames.append(','.join(df0[df0['ID']==ID]['image_filename'].values.tolist()))
+            df1['image_filename'] = image_filenames
+        df1.drop(columns=['slide_id'], inplace=True)
+        df1 = df1.reset_index()
+        df2 = df2.drop(columns=['slide_id'])
 
-    df1 = df1.groupby('ID').first()
+        df = pd.concat([df1, df2], axis=0).reset_index(drop=True)
 
-    image_filenames = []
-    for ID in df1.index.values:
-        image_filenames.append(','.join(df[df['ID']==ID]['image_filename'].values.tolist()))
-    df1['image_filename'] = image_filenames
-    df1.drop(columns=['slide_id'], inplace=True)
-    df1 = df1.reset_index()
-    df2 = df2.drop(columns=['slide_id'])
+        for col in gene_mut_cols:
+            df.loc[df['ID']=='FAKE_CASE', col] = pd.NA
+        df.loc[df['ID']=='FAKE_CASE', 'ID'] = pd.NA
 
-    df = pd.concat([df1, df2], axis=0).reset_index(drop=True)
+        df['image_filename'] = [f.replace('/data/zhongz2/CPTAC/allsvs/', '') for f in df['image_filename'].values]
 
-    for col in gene_mut_cols:
-        df.loc[df['ID']=='FAKE_CASE', col] = pd.NA
-    df.loc[df['ID']=='FAKE_CASE', 'ID'] = pd.NA
-
-    df['image_filename'] = [f.replace('/data/zhongz2/CPTAC/allsvs/', '') for f in df['image_filename'].values]
-
-    df.to_excel('HERE_CPTAC.xlsx', index=None)
+        df.to_excel(f'HERE_CPTAC_{version}.xlsx', index=None)
 
 # patches: 323027031
+
+def check_mutation_count():
+
+
+    import sys,os,shutil,glob
+    import pandas as pd
+    import numpy as np
+    from common import CLASSIFICATION_DICT, ALL_CLASSIFICATION_DICT, REGRESSION_LIST
+
+    data = {}
+    keys = [k.replace('_cls','') for k in list(CLASSIFICATION_DICT.keys())]
+    for name in ['TCGA', 'CPTAC']:
+        print(name)
+        counts = []
+        if name == 'TCGA':
+            df = pd.read_excel(f'HERE_{name}.xlsx')
+        else:
+            df = pd.read_excel(f'HERE_{name}_v1.xlsx')
+        for k in keys:
+            try:
+                counts.append(len(df[df[k]==1]))
+            except:
+                counts.append(0)
+        counts.append(sum(counts))
+        counts.append(len(df[df[REGRESSION_LIST[0].replace('_sum', '')].notna()]))
+        counts.append(len(df))
+        data[name] = counts
+    df = pd.DataFrame(data).T
+    df.columns = keys+['mutation_total', 'expression_total', 'total_images']
+    writer = pd.ExcelWriter('gene_mutation_expression_statistics.xlsx')
+    df.to_excel(writer, sheet_name='version0')
+    df.T.to_excel(writer, sheet_name='version1')
+    writer.close()
+
+
+
