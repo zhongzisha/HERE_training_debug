@@ -10,7 +10,7 @@ source /data/zhongz2/venv_py38_hf2/bin/activate
 
 cd /data/zhongz2/temp29/debug
 
-srun python extract_heatmap_TCGA.py ${1}
+srun python extract_heatmap_TCGA_v1.py ${1}
 
 exit;
 
@@ -18,19 +18,13 @@ sbatch --job-name TCGA \
 --nodes=128 --ntasks-per-node=1 \
 --cpus-per-task=1 --partition=multinode \
 --mem=100gb --time=108:00:00 \
-extract_heatmap_TCGA.sh TCGA_trainval3
+extract_heatmap_TCGA_v1.sh TCGA_trainval3
 
 sbatch --job-name TCGA \
 --nodes=64 --ntasks-per-node=1 \
 --cpus-per-task=1 --partition=multinode \
 --mem=100gb --time=108:00:00 \
-extract_heatmap_TCGA.sh TCGA_test3
-
-sbatch --job-name TCGA \
---nodes=128 --ntasks-per-node=1 \
---cpus-per-task=1 --partition=multinode \
---mem=100gb --time=108:00:00 \
-extract_heatmap_TCGA.sh TCGA_trainval3
+extract_heatmap_TCGA_v1.sh TCGA_test3
 
 
 
