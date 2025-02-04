@@ -162,13 +162,13 @@ all_colors = {
     'HERE': '#686789', 'Original': '#686789', 'CONCH':'#686789', 
     'PLIP': '#7D7465', 
     # 'PLIP': '#E5E2B9', 
-    'Yottixel': '#BEB1A8', 
+    'Yottixel': '#BEB1A8', 'KimiaNet': '#BEB1A8', 
     # 'SISH': '#A79AEE', # '#A79A89', 
     'UNI': '#8A95A9', 
     # 'CLIP': '#ECCED0', 
     'MobileNetV3': '#B7AF70', 'mobilenetv3': '#B7AF70', #'#B77F70', 
     # 'ProvGigaPath': '#E8D3C0', 
-    'SISH': '#7B8B81', #'#7A8A71', 
+    'SISH': '#7B8B81', 'DenseNet': '#7B8B81', #'#7A8A71',  #'#7A8A71', 
     # 'UNI': '#789798', 
     'RetCCL': '#B57C82', 
     'CLIP': '#9F885E', # '#9FABB9', 
@@ -178,7 +178,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250117'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250204'
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
 
@@ -554,6 +554,8 @@ def main_20240708_encoder_comparision():
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
         methods = ['YottixelKimiaNet', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HiDARE_ProvGigaPath', 'CONCH', 'HiDARE_CONCH', 'UNI', 'HiDARE_UNI']
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
+        methods = ['YottixelKimiaNet', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HiDARE_ProvGigaPath', 'CONCH', 'HiDARE_CONCH', 'UNI', 'HiDARE_UNI']
+        label_names = ['KimiaNet', 'RetCCL', 'DenseNet', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
         if True:
             data = []
             dfs = []
@@ -656,6 +658,7 @@ def main_20240708_encoder_comparision():
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
+        selected_methods = ['RetCCL', 'HIPT', 'DenseNet', 'CLIP', 'KimiaNet', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
         all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
         all_df1 = all_df.copy()
         all_df1['score1'] = np.log(all_df1['score'] - 30)
@@ -718,6 +721,9 @@ def main_20240708_encoder_comparision():
 
         # from compute_flops.py
         total_params_and_flops = {'PLIP': (151277313, 4413615360), 'CONCH': (395232769, 17738386944), 'ProvGigaPath': (1134953984, 228217640448), 'UNI': (303350784, 61603111936), 'Yottixel': (7978856, 2865546752), 'SISH': (7978856, 2865546752), 'MobileNetV3': (5483032, 225436416), 'HIPT': (21665664, 4607954304), 'CLIP': (151277313, 4413615360), 'RetCCL': (23508032, 4109464576)}
+        # Yottixel --> KimiaNet; SISH --> DenseNet
+        total_params_and_flops = {'PLIP': (151277313, 4413615360), 'CONCH': (395232769, 17738386944), 'ProvGigaPath': (1134953984, 228217640448), 'UNI': (303350784, 61603111936), 'KimiaNet': (7978856, 2865546752), 'DenseNet': (7978856, 2865546752), 'MobileNetV3': (5483032, 225436416), 'HIPT': (21665664, 4607954304), 'CLIP': (151277313, 4413615360), 'RetCCL': (23508032, 4109464576)}
+
         all_df2 = pd.DataFrame(total_params_and_flops).T
         all_df2.columns = ['NumParams', 'FLOPs']
         all_df2 = all_df2.loc[all_df['method'].values]
@@ -1116,6 +1122,9 @@ def plot_search_time_tcga_ncidata():
         
         methods = ['YottixelKimiaNet','SISH', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP']
         label_names = ['Yottixel', 'SISH', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP']
+        
+        methods = ['YottixelKimiaNet','SISH', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP']
+        label_names = ['KimiaNet', 'DenseNet', 'RetCCL', 'DenseNet121', 'HIPT', 'CLIP', 'PLIP', 'HiDARE_PLIP']
         
         fe_methods = ['HiDARE_mobilenetv3', 'HiDARE_CLIP', 'HiDARE_PLIP', 'HiDARE_CONCH', 'HiDARE_ProvGigaPath']
         fe_label_names = ['HERE_MobileNetV3', 'HERE_CLIP', 'HERE_PLIP', 'HERE_CONCH', 'HERE_Prov']
@@ -4098,20 +4107,20 @@ def plot_colorbar_for_heatmap():
 
 
 if __name__ == '__main__':
-    # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
-    # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
-    # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
-    # plot_search_time_tcga_ncidata()         # Fig2.xlsx
+    main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
+    compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
+    main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
+    plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
-    # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
-    # Fig3_4()                                
+    plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
+    Fig3_4()                                
 
-    # plot_scalability()                      # Extended Data Fig 3.xlsx
+    plot_scalability()                      # Extended Data Fig 3.xlsx
 
     ## run the following on Biowulf
-    # plot_segmentation_patching()
-    # get_original_data_storage()
+    # plot_segmentation_patching()         # Extended Data Fig 2b
+    # get_original_data_storage()           # Fig 1.xlsx
     # plot_violin_Fig6a(): # run on biowulf  # Fig 6a
 
     results_dir = 'results_20241128_e100_noattention'
@@ -4125,6 +4134,24 @@ if __name__ == '__main__':
 
 
 
+"""
+/data/Jiang_Lab/Data/Zisha_Zhong/temp_20240801   1.9T
+
+/data/zhongz2/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn5  9.2M
+
+/data/zhongz2/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn5  412M
+
+/data/zhongz2/CPTAC/predictions_v2_TCGA_filterTrue_2  327M
+
+/data/zhongz2/CPTAC/predictions_v3_filterTrue_2  38M
+
+/data/zhongz2/temp_20241204_scalability/    110G
+
+# check /data/Jiang_Lab/Data/Zisha_Zhong/results 164G
+/data/zhongz2/temp29/debug/results_20241128_e100_noattention 
+/data/zhongz2/temp29/debug/results_20240724_e100
+
+"""
 
 
 
