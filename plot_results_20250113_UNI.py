@@ -178,7 +178,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250204'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250206'
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
 
@@ -640,15 +640,21 @@ def main_20240708_encoder_comparision():
 
         name1 = 'mMV@5' if name == 'Acc' else 'mAP@5'
         all_df = None
+        all_df_median = None
         for dataset_name in dataset_names:
             df = pd.read_csv(f'{save_root}/{dataset_name}_{name1}.csv', index_col=0)
-            
+            dff = df.copy()
             df = df.sum(axis=1)
             if all_df is None:
                 all_df = df.copy()
             else:
                 all_df += df
+            if all_df_median is None:
+                all_df_median = dff.copy()
+            else:
+                all_df_median = pd.concat([all_df_median, dff], axis=1)
         all_df=pd.DataFrame(all_df, columns=['score'])
+        all_df = pd.DataFrame(all_df_median.median(axis=1), columns=['score'])
         all_df = all_df.sort_values('score', ascending=False)
         all_df.to_csv(f'{save_root}/ranking_{name1}.csv')
 
@@ -731,6 +737,8 @@ def main_20240708_encoder_comparision():
         all_df2 = all_df2[all_df2.index.isin(selected_methods)].reset_index()
         all_df2 = all_df.merge(all_df2, left_on='method', right_on='method')
 
+        # all_df2['score'] = all_df2['score'] / len(datadata1['label'].unique())
+
         morandi_colors = [
             '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
             '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', 
@@ -790,8 +798,6 @@ def main_20240708_encoder_comparision():
         all_df2.to_excel(writer, sheet_name='Ext Fig 1c FLOPs')
         plt.close()
 
-
-        
         plt.close()
         font_size = 30
         figure_width = 7
@@ -807,7 +813,8 @@ def main_20240708_encoder_comparision():
         g.set_xlabel(r"Total FLOPs")
         g.ticklabel_format(style='sci', axis='x')
         # g.set_ylim([30, 38])
-        g.set_ylim([15, 20])
+        # g.set_ylim([15, 20])
+        g.set_ylim([0.7, 1.0])
         # g.set_yticklabels([30, 31, 32, 33, 34, 35, 36, 37, 38])
         # g.legend.set_title("")
         # g.ax.set_xticklabels(g.ax.get_xticklabels(), rotation=10, ha="right")
@@ -874,8 +881,25 @@ def main_20240708_encoder_comparision():
         # HIPT	16.26037564
         # CLIP	16.01003912
         all_df2['y'] = [18.13056616+1.2, 18.96241341, 18.13056616+0.4, 18.13056616, 18.13056616-0.6, 16.74457692, 16.74457692-0.4, 16.74457692-0.8, 16.74457692-1.2, 16.74457692-1.6]
-
         all_df2['x'] = [2.5*17738386944, 0.55*228217640448, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944]
+
+
+        # for median scores
+        # UNI	0.965098
+        # ProvGigaPath	0.947465
+        # CONCH	0.951773
+        # PLIP	0.948800
+        # Yottixel	0.907067
+        # RetCCL	0.748995
+        # SISH	0.851233
+        # MobileNetV3	0.851467
+        # HIPT	0.836171
+        # CLIP	0.843533
+        # 
+        xx=0.95177305-0.005 # from CONCH
+        xxx=0.851233 # from DenseNet/SISH
+        all_df2['y'] = [xx+0.025, xx, xx-0.02    , 0.94746454, 0.90706667, xxx+0.025, xxx, xxx-0.025, xxx-0.05 , 0.74899496]
+        all_df2['x'] = [5*17738386944, 2.5*17738386944, 2.5*17738386944, 0.6*228217640448,2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944, 2.5*17738386944]
         all_df2['TCGA(test)'] = pd.NA
         
         for row_ind, row in all_df2.iterrows():
