@@ -178,7 +178,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250206'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250207'
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
 
@@ -321,6 +321,7 @@ def plot_jinlin_evaluation_boxplots():
 
 
     save_root = f'{SAVE_ROOT}/jinlin_evaluation'
+    save_root = f'{SAVE_ROOT}/Fig4 evaluation results'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -529,7 +530,7 @@ def main_20240708_encoder_comparision():
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     save_root = '/Users/zhongz2/down/temp_20241218/encoder_comparison'
-    save_root = f'{SAVE_ROOT}/encoder_comparison'
+    save_root = f'{SAVE_ROOT}/Extended Data Fig 1 encoder_comparison'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -809,7 +810,7 @@ def main_20240708_encoder_comparision():
         # g=sns.scatterplot(all_df2, x="FLOPs", y="score", hue="method", palette=[palette[0] for _ in range(len(all_df2))], legend=False)
         g=sns.scatterplot(all_df2, x="FLOPs", y="score", hue="method", palette=['#91A0A5' for _ in range(len(all_df2))], legend=False)
         g.tick_params(pad=10)
-        g.set_ylabel("Overall scores")
+        g.set_ylabel("Median scores")
         g.set_xlabel(r"Total FLOPs")
         g.ticklabel_format(style='sci', axis='x')
         # g.set_ylim([30, 38])
@@ -937,7 +938,8 @@ def main_20240708_encoder_comparision():
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.svg'), bbox_inches='tight', transparent=True, format='svg')
         plt.savefig(os.path.join(save_root, f'ranking_vs_flops_{name1}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
         all_df2.to_csv(os.path.join(save_root, f'ranking_vs_flops_{name1}.csv'))
-        all_df2.to_excel(os.path.join(SAVE_ROOT, f'Extended Data Fig 2e.xlsx'))
+        if name=='Percision':
+            all_df2.to_excel(os.path.join(SAVE_ROOT, f'Extended Data Fig 2e.xlsx'))
         plt.close()
 
         # 
@@ -1102,6 +1104,7 @@ def plot_search_time_tcga_ncidata():
 
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801/'
     save_root = f'{SAVE_ROOT}/hashing_comparison2'
+    save_root = f'{SAVE_ROOT}/Fig2 hashing_comparison'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -1212,7 +1215,8 @@ def plot_search_time_tcga_ncidata():
                 df1.columns = label_names
                 df2 = df1.T
                 df2.columns = species
-                df2.to_csv(f'{save_root}/{dataset_name}_{fe_method}_{name1}_binary_comparision.csv')
+                fe_method11=fe_method.replace('HiDARE', 'HERE')
+                df2.to_csv(f'{save_root}/{dataset_name}_{fe_method11}_{name1}_binary_comparision.csv')
 
 
     color_keys = list(mcolors.CSS4_COLORS.keys())
@@ -1263,7 +1267,8 @@ def plot_search_time_tcga_ncidata():
             #get the ranking 
             all_df = None
             for dataset_name in dataset_names:
-                df = pd.read_csv(f'{save_root}/{dataset_name}_{fe_method}_{name1}_binary_comparision.csv', index_col=0)
+                fe_method11=fe_method.replace('HiDARE', 'HERE')
+                df = pd.read_csv(f'{save_root}/{dataset_name}_{fe_method11}_{name1}_binary_comparision.csv', index_col=0)
                 # if dataset_name == 'NuCLS':
                 #     df = df.drop(['AMBIGUOUS', 'other_nucleus'], axis=1)
                 # df1 = pd.DataFrame(np.argsort(df.values, axis=0),columns=df.columns, index=df.index)
@@ -1375,9 +1380,11 @@ def plot_search_time_tcga_ncidata():
                 # g.map_dataframe(sns.stripplot, x="method", y=name, legend=False, dodge=True, 
                 #     marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
 
-                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.png'), bbox_inches='tight', transparent=True, format='png')
-                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.svg'), bbox_inches='tight', transparent=True, format='svg')
-                plt.savefig(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
+
+                fe_method11=fe_method.replace('HiDARE', 'HERE')
+                plt.savefig(os.path.join(save_root, f'{fe_method11}_ranking_meanstd_{name1}_strip_legend{dolegend}.png'), bbox_inches='tight', transparent=True, format='png')
+                plt.savefig(os.path.join(save_root, f'{fe_method11}_ranking_meanstd_{name1}_strip_legend{dolegend}.svg'), bbox_inches='tight', transparent=True, format='svg')
+                plt.savefig(os.path.join(save_root, f'{fe_method11}_ranking_meanstd_{name1}_strip_legend{dolegend}.pdf'), bbox_inches='tight', transparent=True, format='pdf')
                 # datadata1.to_csv(os.path.join(save_root, f'{fe_method}_ranking_meanstd_{name1}_strip_legend{dolegend}.csv'))
                 plt.close()
 
@@ -1515,8 +1522,10 @@ def plot_search_time_tcga_ncidata():
                     # plt.xlabel('Search time (s)')
                     fig.text(0.5, -0.0005, 'Search time (s)', ha='center')
                     fig.text(0.5, 0.9, proj_name, ha='center')
-                    plt.savefig(os.path.join(save_root, f'{fe_method}_search_time_comparison_subplot_{proj_name}_v3.png'), bbox_inches='tight', transparent=True, format='png')
-                    plt.savefig(os.path.join(save_root, f'{fe_method}_search_time_comparison_subplot_{proj_name}_v3.svg'), bbox_inches='tight', transparent=True, format='svg')
+
+                    fe_method11=fe_method.replace('HiDARE', 'HERE')
+                    plt.savefig(os.path.join(save_root, f'{fe_method11}_search_time_comparison_subplot_{proj_name}_v3.png'), bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(os.path.join(save_root, f'{fe_method11}_search_time_comparison_subplot_{proj_name}_v3.svg'), bbox_inches='tight', transparent=True, format='svg')
                     plt.close()
                 # df3.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_search_time_comparison_subplot_v3.csv'))
                 df3.to_excel(writer, sheet_name='Fig 2d, search time (s)')
@@ -1571,8 +1580,9 @@ def plot_search_time_tcga_ncidata():
                     fig.text(0.5, -0.0005, 'Storage size (Gb)', ha='center')
                     fig.text(0.5, 0.9, proj_name, ha='center')
 
-                    plt.savefig(os.path.join(save_root, f'{fe_method}_storage_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
-                    plt.savefig(os.path.join(save_root, f'{fe_method}_storage_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
+                    fe_method11=fe_method.replace('HiDARE', 'HERE')
+                    plt.savefig(os.path.join(save_root, f'{fe_method11}_storage_comparison_subplot_{proj_name}_v2.png'), bbox_inches='tight', transparent=True, format='png')
+                    plt.savefig(os.path.join(save_root, f'{fe_method11}_storage_comparison_subplot_{proj_name}_v2.svg'), bbox_inches='tight', transparent=True, format='svg')
                     plt.close()
                 # df1.to_csv(os.path.join(save_root, f'{name1}_{fe_method}_storage_comparison_subplot_v2.csv'))
                 df1.to_excel(writer, sheet_name='Fig 2e, storage size (Gb)')
@@ -1713,6 +1723,7 @@ def Fig3_4():
 
 
     save_root = f'{SAVE_ROOT}/Fig3_4'
+    save_root = f'{SAVE_ROOT}/Fig3_4 HERE101'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -2334,6 +2345,7 @@ def main_20241218_CPTAC_comparision():
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
     root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn{topn}'
     save_root = f'{SAVE_ROOT}/CPTAC_topn{topn}'
+    save_root = f'{SAVE_ROOT}/Fig5_CPTAC_results'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -2790,7 +2802,7 @@ def compare_attention_with_noattention():
     from scipy.stats import ranksums
     import matplotlib.pyplot as plt
     import seaborn as sns
-    save_root = f'{SAVE_ROOT}/attention_or_not_comparision'
+    save_root = f'{SAVE_ROOT}/Extended Data Fig 2f attention_or_not_comparision'
     os.makedirs(save_root, exist_ok=True)
 
 
@@ -2853,12 +2865,12 @@ def compare_attention_with_noattention():
 
     selected_methods = ['PLIP', 'ProvGigaPath', 'UNI', 'CONCH']
     df1 = pd.melt(df1, value_vars=['PLIP', 'ProvGigaPath', 'UNI', 'CONCH'], var_name='method', value_name='score')
-    df1['hue'] = 'With attention'
+    df1['hue'] = 'Attention'
     df2 = pd.melt(df2, value_vars=['PLIP', 'ProvGigaPath', 'UNI', 'CONCH'], var_name='method', value_name='score')
-    df2['hue'] = 'No attention'
+    df2['hue'] = 'Mean'
     df = pd.concat([df1, df2], axis=0).reset_index(drop=True)
 
-    hue_order = ['No attention', 'With attention']
+    hue_order = ['Mean', 'Attention']
     palette_all = ['#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', '#ECCED0', '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#99857E', '#88878D', '#91A0A5', '#9AA690']
     selected_methods_all = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
     method_pallette_dict = {m:p for m,p in zip(selected_methods_all, palette_all[:len(selected_methods_all)])}
@@ -2957,6 +2969,7 @@ def plot_gene_mutation_and_regression_plots():
 
 
     save_root = f'{SAVE_ROOT}/gene_mutation_TCGA_and_CPTAC'
+    save_root = f'{SAVE_ROOT}/Extended Data Fig 2(g,h) gene_mutation_TCGA_and_CPTAC'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -3170,6 +3183,7 @@ def plot_scalability():
     import seaborn as sns
     root = '/Volumes/data-1/temp_20241204_scalability/'
     save_root = f'{SAVE_ROOT}/scability'
+    save_root = f'{SAVE_ROOT}/Extended Data Fig 3 scability analysis'
     os.makedirs(save_root, exist_ok=True)
 
     writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Extended Data Fig 3.xlsx'))
@@ -3779,7 +3793,7 @@ def check_best_split_v2():
                 all_results1.sum(axis=0)[:, best_epoch]))  # the sum values for 5 splits in the best epoch
 
 
-def plot_training_curves_TCGA(results_dir):
+def plot_training_curves_TCGA(results_dir, save_prefix):
     import sys, os, glob, shutil
     import pandas as pd
     import numpy as np
@@ -3825,7 +3839,7 @@ def plot_training_curves_TCGA(results_dir):
     # results_dir = 'results_20241128_e100_noattention'
     # results_dir = 'results_20240724_e100'
     root = '/Volumes/data-1/temp29/debug'
-    save_root = f'{SAVE_ROOT}/train_figures_{results_dir}' # Add UNI 
+    save_root = f'{SAVE_ROOT}/{save_prefix}' # Add UNI 
     if os.path.isdir(save_root):
         shutil.rmtree(save_root, ignore_errors=True)
     os.makedirs(save_root, exist_ok=True)
@@ -4132,25 +4146,25 @@ def plot_colorbar_for_heatmap():
 
 if __name__ == '__main__':
     main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
-    compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    main_20241218_CPTAC_comparision()       # Fig5.xlsx
-    plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
-    plot_search_time_tcga_ncidata()         # Fig2.xlsx
+    # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
+    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
+    # plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
-    plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
-    Fig3_4()                                
+    # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
+    # Fig3_4()                                
 
-    plot_scalability()                      # Extended Data Fig 3.xlsx
+    # plot_scalability()                      # Extended Data Fig 3.xlsx
 
-    ## run the following on Biowulf
-    # plot_segmentation_patching()         # Extended Data Fig 2b
-    # get_original_data_storage()           # Fig 1.xlsx
-    # plot_violin_Fig6a(): # run on biowulf  # Fig 6a
+    # ## run the following on Biowulf
+    # # plot_segmentation_patching()         # Extended Data Fig 2b
+    # # get_original_data_storage()           # Fig 1.xlsx
+    # # plot_violin_Fig6a(): # run on biowulf  # Fig 6a
 
-    results_dir = 'results_20241128_e100_noattention'
-    plot_training_curves_TCGA(results_dir)
-    results_dir = 'results_20240724_e100'
-    plot_training_curves_TCGA(results_dir)    # Extended Data Fig 2(c,d,e,f).xlsx
+    # results_dir = 'results_20241128_e100_noattention'
+    # plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Mean)')
+    # results_dir = 'results_20240724_e100'
+    # plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Attention)')    # Extended Data Fig 2(c,d,e,f).xlsx
 
     pass
 
