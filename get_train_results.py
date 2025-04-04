@@ -753,6 +753,37 @@ def main(results_dir):
                 plt.close()
 
 
+
+def plot_loss_curves():
+
+    import sys, os, glob, shutil
+    import pandas as pd
+    import numpy as np
+    import pdb
+    import pickle
+    import matplotlib.pyplot as plt
+    import matplotlib.colors as mcolors
+    from matplotlib.backends.backend_pdf import PdfPages
+    from common import PAN_CANCER_SITES, CLASSIFICATION_DICT, REGRESSION_LIST
+
+    root = '/data/zhongz2/temp29/debug/results_20240724_e100/ngpus2_accum4_backboneCONCH_dropout0.25/split_3'
+    save_dir = '/data/zhongz2/HERE_loss_figures'
+    os.makedirs(save_dir, exist_ok=True)
+
+    losses = {}
+    for subset in ['train', 'test']:
+        df = pd.read_csv(f'{root}/{subset}_e99_log.csv', index_col=0, low_memory=False)
+        cls_cols = [k for k,v in CLASSIFICATION_DICT.items() if k in df]
+        reg_cols = [k for k in REGRESSION_LIST if k in df]
+        df1 = df[cls_cols+reg_cols]
+        losses[subset] = df1
+
+    fig, ax = plt.subplots()
+    for subset in ['train', 'test']:
+        plt.plot(losses[subset].sum(axis=1).values)
+    plt.savefig(f'{save_dir}/losses.png')
+    plt.close('all')
+
 if __name__ == '__main__':
     results_dir = 'results_20241128_e100_noattention'
     main(results_dir)
