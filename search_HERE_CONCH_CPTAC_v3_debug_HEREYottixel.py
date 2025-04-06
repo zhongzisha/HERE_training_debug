@@ -49,6 +49,8 @@ DATA_DIR = f'/data/zhongz2/CPTAC'
 
 project_names = ['CPTAC']
 project_start_ids = {'CPTAC': 0}
+project_names = ['CPTAC_HEREYottixel']
+project_start_ids = {'CPTAC_HEREYottixel': 0}
 backbones = ['HERE_CONCH'] # choices: 'HERE_CONCH', 'HERE_PLIP', 'HERE_ProvGigaPath', 'HERE_UNI'
 DEVICE = torch.device('cuda:0') if torch.cuda.device_count() > 0 else torch.device('cpu') 
 
@@ -435,7 +437,7 @@ for method in ['HERE_CONCH']: #['HERE_ProvGigaPath', 'HERE_CONCH', 'HERE_PLIP', 
     # randomly_1000_data[method]['ALL'] = np.concatenate([
     #     vv for kk, vv in randomly_1000_data[method].items() 
     # ])
-    randomly_1000_data[method]['ALL'] = randomly_1000_data[method]['CPTAC']
+    randomly_1000_data[method]['ALL'] = randomly_1000_data[method][project_names[0]]
 
 
 font = ImageFont.truetype("Gidole-Regular.ttf", size=36)
@@ -697,6 +699,8 @@ def main():
     save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}_mut_debug/Yottixel_results/'
     save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}_mut_debug_intersection/Yottixel_results/'
     save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}_mut_debug_intersection/Yottixel_results_gpu/'
+    save_root = f'/data/zhongz2/CPTAC/search_from_CPTAC/{search_backbone}/{search_method}_mut_debug_intersection/HERE_Yottixel_results_gpu/'
+    
     if idr_torch.rank == 0:
         os.makedirs(os.path.join(save_root, 'retrieved_patches'), exist_ok=True)
         os.makedirs(os.path.join(save_root, 'retrieved_results'), exist_ok=True)

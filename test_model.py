@@ -441,6 +441,124 @@ def main(args):
         os.system(f'rm -rf "{local_temp_dir}"')
 
 
+
+def get_Yottixel_mosaic_patches():
+    
+    import sys,os,glob,shutil,json,h5py
+    import openslide
+    import numpy as np
+    from PIL import Image
+
+    svs_dir = '/data/zhongz2/CPTAC/svs'
+    h5_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5_for_HERE'
+    save_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5_for_HERE_shown'
+    os.makedirs(save_dir, exist_ok=True)
+
+    h5files = glob.glob(h5_dir+'/*.h5')
+    for f in h5files:
+
+        svs_prefix = os.path.splitext(os.path.basename(f))[0]
+        save_dir1 = os.path.join(save_dir, svs_prefix)
+        os.makedirs(save_dir1, exist_ok=True)
+        with h5py.File(f, 'r') as h5file:
+            dset = h5file['coords']
+            all_coords = dset[:]
+            patch_level = h5file['coords'].attrs['patch_level']
+            patch_size = h5file['coords'].attrs['patch_size']
+
+        slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
+        for coord in all_coords:
+            patch = slide.read_region((coord[0], coord[1]), patch_level, (patch_size, patch_size)).convert('RGB')
+            patch.save(os.path.join(save_dir1,'x{}_y{}.jpg'.format(coord[0], coord[1])))
+        print(svs_prefix, ' done')
+
+
+def remove_files():
+
+    import sys,os,glob,shutil,json,h5py
+    import openslide
+    import numpy as np
+
+    h5_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5_for_HERE'
+    pt_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5_for_HERE_feats/CONCH/pt_files'
+
+    prefixes1 = set([os.path.splitext(os.path.basename(f))[0] for f in glob.glob(h5_dir+'/*.h5')])
+    prefixes2 = set([os.path.splitext(os.path.basename(f))[0] for f in glob.glob(pt_dir+'/*.pt')])
+
+    invalid = list(prefixes1 - prefixes2)
+
+    for prefix in invalid:
+
+        os.system('rm -rf "{}"'.format(os.path.join(h5_dir, prefix+'.h5')))
+
+
+
+def save_hdf5(output_path, asset_dict, attr_dict= None, mode='a'):
+    file = h5py.File(output_path, mode)
+    for key, val in asset_dict.items():
+        data_shape = val.shape
+        if key not in file:
+            data_type = val.dtype
+            chunk_shape = (1, ) + data_shape[1:]
+            maxshape = (None, ) + data_shape[1:]
+            dset = file.create_dataset(key, shape=data_shape, maxshape=maxshape, chunks=chunk_shape, dtype=data_type)
+            dset[:] = val
+            if attr_dict is not None:
+                if key in attr_dict.keys():
+                    for attr_key, attr_val in attr_dict[key].items():
+                        dset.attrs[attr_key] = attr_val
+        else:
+            dset = file[key]
+            dset.resize(len(dset) + data_shape[0], axis=0)
+            dset[-data_shape[0]:] = val
+    file.close()
+    return output_path
+
+def get_remaining_files():
+
+    import sys,os,glob,shutil,json,h5py
+    import openslide
+    import numpy as np
+
+    src_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5'
+
+    h5_dir = '/data/zhongz2/CPTAC/yottixel_mosaic_h5_for_HERE'
+
+    prefixes1 = set([os.path.splitext(os.path.basename(f))[0] for f in glob.glob(src_dir+'/*.h5')])
+    prefixes2 = set([os.path.splitext(os.path.basename(f))[0] for f in glob.glob(h5_dir+'/*.h5')])
+
+    invalid = list(prefixes1 - prefixes2)
+
+    patch_level = 0
+    patch_size = 256
+
+    for prefix in invalid:
+
+        save_path_hdf5 = os.path.join(h5_dir, prefix+'.h5')
+        if os.path.exists(save_path_hdf5):
+            print('existed. ', save_path_hdf5)
+            continue
+
+        h5file = h5py.File(os.path.join(src_dir, prefix+'.h5'), 'r')
+        all_coords_1000 = h5file['coords'][:]
+        all_coords_1000 += (500 - 128)
+
+        asset_dict = {'coords': np.array(all_coords_1000)}
+
+        attr = {}
+        for k,v in h5file['coords'].attrs.items():
+            attr[k] = v
+            if k == 'patch_size':
+                attr[k] = patch_size
+            if k == 'save_path':
+                attr[k] = save_path_hdf5
+
+        attr_dict = {'coords': attr}
+        save_hdf5(save_path_hdf5, asset_dict, attr_dict, mode='w')
+
+
+
+
 if __name__ == '__main__':
     args = get_args()
     print('args', args)
