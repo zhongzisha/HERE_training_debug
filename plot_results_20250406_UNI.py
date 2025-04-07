@@ -160,6 +160,7 @@ MORANDI_colors = [
 # ]
 all_colors = {
     'HERE': '#686789', 'Original': '#686789', 'CONCH':'#686789', 
+    'HERE(mosaic)': '#686755',
     'PLIP': '#7D7465', 
     # 'PLIP': '#E5E2B9', 
     'Yottixel': '#BEB1A8', 'KimiaNet': '#BEB1A8', 
@@ -178,7 +179,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250207'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250407'
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
 
@@ -2473,12 +2474,14 @@ def main_20241218_CPTAC_comparision():
     # sns.set_theme(style="whitegrid")
 
     topn = 5
+    version = ''
+    version = '_20250406'
     root = '/Volumes/data-1/temp_20240801'
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
-    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn{topn}'
+    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches_intersection_topn{topn}{version}'
     save_root = f'{SAVE_ROOT}/CPTAC_topn{topn}'
-    save_root = f'{SAVE_ROOT}/Fig5_CPTAC_results'
+    save_root = f'{SAVE_ROOT}/Fig5_CPTAC_results{version}'
     if os.path.exists(save_root):
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
@@ -2496,8 +2499,8 @@ def main_20241218_CPTAC_comparision():
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
         methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
         label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
-        methods = ['RetCCL','SISH_slide','Yottixel', 'HERE_CONCH'][::-1]
-        label_names = [ 'RetCCL','SISH', 'Yottixel', 'HERE'][::-1]
+        methods = ['RetCCL','SISH_slide','Yottixel', 'HEREYottixel_CONCH', 'HERE_CONCH'][::-1]
+        label_names = [ 'RetCCL','SISH', 'Yottixel', 'HERE(mosaic)', 'HERE'][::-1]
         if True:
             data = []
             dfs = []
@@ -2626,7 +2629,7 @@ def main_20241218_CPTAC_comparision():
         g.set(ylim=[-0.05, 1.05])  
         g.set(yticks=[0, 0.2, 0.4, 0.6, 0.8, 1.0], yticklabels=['0', '0.2', '0.4', '0.6', '0.8', '1.0'])
         plt.ylim([-0.05, 1.05])
-        g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
+        g.set_xticklabels(g.get_xticklabels(), rotation=30,ha="right")#, ha="right", va='center')
 
         g=sns.stripplot(data=datadata, palette=[(0,0,0),(0,0,0)],x="method", y=name, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
         g.set(ylabel='Mean Majority Vote Accuracy' if name =='Acc' else 'Average Precision')
@@ -2657,7 +2660,7 @@ def main_20241218_CPTAC_comparision():
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
-        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
+        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE', 'HERE(mosaic)']
         all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
         all_df1 = all_df.copy()
         all_df1['score1'] = np.log(all_df1['score'] - 30)
@@ -2727,7 +2730,7 @@ def main_20241218_CPTAC_comparision():
     root = '/Volumes/Jiang_Lab/Data/Zisha_Zhong/temp_20240801'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_cancer/YottixelPatches'
     root = '/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches'
-    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn{topn}'
+    root = f'/Volumes/data-1/CPTAC/check_CPTAC_search_mutation/YottixelPatches_intersection_topn{topn}{version}'
     dataset_names = ['bcss_512_0.8', 'bcss_512_0.5', 'bcss_256_0.8', 'bcss_256_0.5', 'NuCLS', 'PanNuke', 'kather100k']
     dataset_names1 = ['BCSS', 'BCSS','BCSS','BCSS', 'NuCLS', 'PanNuke', 'Kather100K']
     dataset_names = ['CPTAC']
@@ -2740,8 +2743,8 @@ def main_20241218_CPTAC_comparision():
         label_names = ['Yottixel', 'RetCCL', 'SISH', 'HIPT', 'CLIP', 'PLIP', 'HERE_PLIP', 'MobileNetV3', 'ProvGigaPath', 'HERE_ProvGigaPath', 'CONCH', 'HERE_CONCH', 'UNI', 'HERE_UNI']
         methods = ['Yottixel', 'SISH_slide', 'RetCCL', 'HERE_CONCH']
         label_names = ['Yottixel', 'SISH', 'RetCCL', 'HERE']
-        methods = ['RetCCL','SISH_slide','Yottixel', 'HERE_CONCH'][::-1]
-        label_names = [ 'RetCCL','SISH', 'Yottixel', 'HERE'][::-1]
+        methods = ['RetCCL','SISH_slide', 'HEREYottixel_CONCH','Yottixel', 'HERE_CONCH'][::-1]
+        label_names = [ 'RetCCL','SISH', 'HERE(mosaic)', 'Yottixel', 'HERE'][::-1]
         if True:
             data = []
             dfs = []
@@ -2836,7 +2839,7 @@ def main_20241218_CPTAC_comparision():
         fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
         ax = plt.gca()
         g=sns.boxplot(data=datadata, x="method",  palette=all_colors, y=name, showfliers=False, legend=False, ax=ax) 
-        g.set_xticklabels(g.get_xticklabels(), rotation=15,ha="right")#, ha="right", va='center')
+        g.set_xticklabels(g.get_xticklabels(), rotation=30,ha="right")#, ha="right", va='center')
 
         g.set(ylabel=None)
         g.set(xlabel=None)
@@ -2871,7 +2874,7 @@ def main_20241218_CPTAC_comparision():
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'HERE_PLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'HERE_Prov', 'HERE_CONCH']
         selected_methods = ['RetCCL', 'HIPT', 'SISH', 'CLIP', 'Yottixel', 'PLIP', 'MobileNetV3', 'ProvGigaPath', 'CONCH', 'UNI']
-        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE']
+        selected_methods = ['RetCCL', 'SISH', 'Yottixel', 'HERE', 'HERE(mosaic)']
         all_df = all_df[all_df.index.isin(selected_methods)].reset_index()
         all_df1 = all_df.copy()
         all_df1['score1'] = np.log(all_df1['score'] - 30)
@@ -4278,9 +4281,9 @@ def plot_colorbar_for_heatmap():
 
 
 if __name__ == '__main__':
-    main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
+    # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    main_20241218_CPTAC_comparision()       # Fig5.xlsx
     # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
     # plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
