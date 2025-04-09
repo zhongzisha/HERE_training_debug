@@ -267,36 +267,8 @@ def plot_jinlin_6cases():
     reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
     HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
 
-    # 20250406 6 cases results from Jinlin
-    df3 = pd.read_excel('/Users/zhongz2/down/pilot package.xlsx',index_col=0)
-    col_map_dict = {
-        'method 1': 'HERE',
-        'method 2': 'PLIP',
-        'method 3': 'RetCCL',
-        'method 4': 'SISH',
-        'method 5': 'Yottixel'
-    }
-    for col, new_col in col_map_dict.items():
-        values = df3[col].values
-        new_values = []
-        for v in values:
-            if isinstance(v, str):
-                m = np.array([float(vv) for vv in v.split(',') if vv.isdigit()]).mean()
-            else:
-                m = float(v)
-            new_values.append(m)
-        df3[new_col] = new_values
-    df3.index.name = 'query'
-    df3 = df3.drop(columns=list(col_map_dict.keys()))
 
-    df4 = df[df['query'].isin(df3.index.values)][['query', 'AdaptiveHERE', 'WebPLIP', 'RetCCL', 'SISH', 'Yottixel']]
-    cols_dict = {'AdaptiveHERE': 'HERE', 'WebPLIP': 'PLIP'}
-    df4=df4.rename(columns=cols_dict)
-    df4 = df4.set_index('query')
-    df4 = df4.loc[df3.index.values]
-
-
-    def plot_figure(dff, save_filename):
+    def plot_figure(dff, save_filename, expert_name=None):
         # Plotting
         plt.figure(figsize=(10, 6))
         for col in dff.columns:
@@ -308,10 +280,49 @@ def plot_jinlin_6cases():
         plt.xticks(rotation=45)
         plt.legend()
         plt.grid(True)
-        plt.tight_layout()
+        if expert_name is not None:
+            plt.title(expert_name)
         # plt.show()
+        plt.tight_layout()
         plt.savefig(save_filename)
         plt.close('all')
+
+    # 20250406 6 cases results from Jinlin
+    expert_results = {}
+    for ei, expert_name in enumerate(['_Huang', '_Song', '_Li']):
+        df3 = pd.read_excel(f'/Users/zhongz2/down/pilot package{expert_name}.xlsx',index_col=0)
+        col_map_dict = {
+            'method 1': 'HERE',
+            'method 2': 'PLIP',
+            'method 3': 'RetCCL',
+            'method 4': 'SISH',
+            'method 5': 'Yottixel'
+        }
+        for col, new_col in col_map_dict.items():
+            values = df3[col].values
+            new_values = []
+            for v in values:
+                if isinstance(v, str) and 'na' in v:
+                    v = v.lower().strip()
+                    v = v.replace('na', '0')
+                if isinstance(v, str):
+                    m = np.array([float(vv.strip()) for vv in v.split(',') if vv.strip().isdigit()]).mean()
+                else:
+                    m = float(v)
+                new_values.append(m)
+            df3[new_col] = new_values
+        df3.index.name = 'query'
+        df3 = df3.drop(columns=list(col_map_dict.keys()))
+        expert_results[expert_name] = df3
+
+        plot_figure(df3, f'/Users/zhongz2/down/HERE101_evaluation_expert{ei}.png', expert_name.replace('_', ''))
+
+
+    df4 = df[df['query'].isin(df3.index.values)][['query', 'AdaptiveHERE', 'WebPLIP', 'RetCCL', 'SISH', 'Yottixel']]
+    cols_dict = {'AdaptiveHERE': 'HERE', 'WebPLIP': 'PLIP'}
+    df4=df4.rename(columns=cols_dict)
+    df4 = df4.set_index('query')
+    df4 = df4.loc[df3.index.values]
 
     plot_figure(df4, '/Users/zhongz2/down/old_scores.png')
     plot_figure(df3, '/Users/zhongz2/down/new_scores.png')
