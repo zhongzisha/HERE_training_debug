@@ -43,7 +43,10 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
     result_df1 = result_df
 
     all_scores = {}
-
+    all_prefixes_dict = {}
+    all_gts_dict = {}
+    all_preds_dict = {}
+    all_probs_dict = {}
     for cancer_type in result_df1['cancer_type'].unique().tolist() + ['PanCancer']:
 
         if cancer_type == 'PanCancer':
@@ -82,13 +85,16 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
             result_df2.to_csv(f'{save_root}/per-cancer/{cancer_type}_{model_name}_predictions.csv')
 
         results = [len(labels)]
-        all_gts = []
-        all_preds = []
         for k, v in CLASSIFICATION_DICT.items():
+
+            if k not in all_gts_dict:
+                all_gts_dict[k] = []
+                all_preds_dict[k] = []
+                all_probs_dict[k] = []
+                all_prefixes_dict[k] = []
+
             if k not in labels.columns:
                 results.append(0)
-                all_gts.append(0)
-                all_preds.append(0)
                 continue
 
             valid_ind = ~labels[k].isin([np.nan, IGNORE_INDEX_DICT[k]])
@@ -111,16 +117,15 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
                                         labels=np.arange(2))
                 # cm = confusion_matrix(y_true=gt, y_pred=preds)
                 results.append(auc)
-                all_gts.append(gt)
-                all_preds.append(preds)
+
+                if cancer_type == 'PanCancer':
+                    all_prefixes_dict[k].append(gt.index.values)
+                    all_gts_dict[k].append(gt.values)
+                    all_preds_dict[k].append(preds)
+                    all_probs_dict[k].append(probs)
             except Exception as error:
                 print(k, error)
                 results.append(0)
-                all_gts.append(0)
-                all_preds.append(0)
-
-        import pdb
-        pdb.set_trace()
 
         for k in REGRESSION_LIST:
             if k not in labels.columns and k[5:] not in labels.columns:
@@ -141,14 +146,118 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
 
         all_scores[cancer_type] = np.array(results).reshape(1, -1)
 
+    lines = []
+    lines_right = []
+    for k, v in all_gts_dict.items():
+        v = np.concatenate(v)
+        vv = np.concatenate(all_preds_dict[k])
+        vvv = np.concatenate(all_prefixes_dict[k])
+        vvvv = np.concatenate(all_probs_dict[k])
+        all_gts_dict[k] = v
+        all_preds_dict[k] = vv
+        all_prefixes_dict[k] = vvv
+
+        auc = roc_auc_score(y_true=v, y_score=vvvv[:,1], average='weighted', multi_class='ovo', labels=np.arange(2))
+
+        print(k, auc)
+        wrong_inds = np.where(v!=vv)[0]
+        right_inds = np.where(v==vv)[0]
+        if len(wrong_inds) > 0:
+            print(vvv[wrong_inds])
+            lines.append('{},{}\n'.format(k, '|'.join(vvv[wrong_inds])))
+        if len(right_inds) > 0:
+            right_inds = np.random.choice(right_inds, size=min(5, len(right_inds)), replace=False)
+            lines_right.append('{},{}\n'.format(k, '|'.join(vvv[right_inds])))
+        if save_root is not None:
+            df = pd.DataFrame(np.stack([all_gts_dict[k], all_preds_dict[k]]).T, columns=['gt', 'pred'])
+            df.insert(0, 'svs_prefix', all_prefixes_dict[k])
+            df.insert(len(df.columns), 'probs', vvvv[:,1])
+            df.to_csv(f'{save_root}/{model_name}_{k}_gt_and_pred.csv', index=None)
+    
     results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=['N']+list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
     results.index = list(all_scores.keys())
     results['N'] = results['N'].map(int)
 
     if save_root is not None:
         results.to_csv(f'{save_root}/{model_name}_prediction_scores.csv')
+
+        if len(lines)>0:
+            with open(f'{save_root}/{model_name}_wrong.csv', 'w') as fp:
+                fp.writelines(lines)
+
+        if len(lines_right)>0:
+            with open(f'{save_root}/{model_name}_right5.csv', 'w') as fp:
+                fp.writelines(lines_right)
+    
     
     return results
+
+
+def move_right_and_wrong_TCGA_for_heatmap():
+
+    import sys,os,shutil,glob
+
+    result_dir = '/Volumes/data-1/CPTAC/predictions_v2_TCGA_filterTrue_2_20250409/test'
+    heatmap_dir = '/Volumes/data-1/download/TCGA_test3/CONCH/heatmap_files'
+
+    exist_prefixes = [os.path.splitext(os.path.basename(f))[0].replace('_heatmap', '') for f in glob.glob(heatmap_dir+'/*.tif')]
+
+    save_root = '/Users/zhongz2/down/check_heatmaps'
+    for sub in ['wrong', 'right']:
+        # df = pd.read_csv(result_dir+'/CONCH_{}.csv'.format(sub))
+        with open(result_dir+'/CONCH_{}.csv'.format(sub), 'r') as fp:
+            lines = fp.readlines()
+        for line in lines:
+            mut_cls, svs_prefixes = line.strip().split(',')
+            svs_prefixes = svs_prefixes.split('|')
+
+            save_dir = os.path.join(save_root, mut_cls, sub)
+            os.makedirs(save_dir, exist_ok=True)
+
+            for svs_prefix in svs_prefixes:
+                if svs_prefix in exist_prefixes:
+                    os.system('cp "{}" "{}"'.format(os.path.join(heatmap_dir,svs_prefix+'_heatmap.tif'), os.path.join(save_dir, svs_prefix+'_heatmap.tif')))
+
+
+def extract_thumbnails_TCGA_for_heatmap():
+
+    import sys,os,shutil,glob
+    import openslide
+
+    result_dir = '/data/zhongz2/CPTAC/predictions_v2_TCGA_filterTrue_2_20250409/test'
+    heatmap_dir = '/data/zhongz2/download/TCGA_test3/CONCH/heatmap_files'
+    svs_dir = '/data/zhongz2/tcga/TCGA-ALL2_256/svs'
+    exist_prefixes = [os.path.splitext(os.path.basename(f))[0].replace('_heatmap', '') for f in glob.glob(heatmap_dir+'/*.tif')]
+
+    save_dir = '/data/zhongz2/check_TCGA_heatmaps'
+    os.makedirs(save_dir, exist_ok=True)
+
+    for svs_prefix in exist_prefixes:
+        
+        svs_filename = os.path.join(svs_dir, svs_prefix+'.svs')
+
+        slide = openslide.open_slide(svs_filename)
+
+        W, H = slide.level_dimensions[0]
+        scale = 4000. / max(W, H)
+
+        thumbnail = slide.get_thumbnail((int(scale*W), int(scale*H)))
+        thumbnail.save(f"{save_dir}/{svs_prefix}_thumbnail.png")
+
+
+
+    for svs_prefix in exist_prefixes:
+        
+        svs_filename = os.path.join(heatmap_dir, svs_prefix+'_heatmap.tif')
+
+        slide = openslide.open_slide(svs_filename)
+
+        W, H = slide.level_dimensions[0]
+        scale = 4000. / max(W, H)
+
+        thumbnail = slide.get_thumbnail((int(scale*W), int(scale*H)))
+        thumbnail.save(f"{save_dir}/{svs_prefix}_heatmap.png")
+
 
 
 def do_results_TCGA_v2_20250409():
