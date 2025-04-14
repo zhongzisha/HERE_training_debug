@@ -146,8 +146,13 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
 
         all_scores[cancer_type] = np.array(results).reshape(1, -1)
 
+    import pdb
+    pdb.set_trace()
+
     lines = []
     lines_right = []
+    wrong_dict = {}
+    right_dict = {}
     for k, v in all_gts_dict.items():
         v = np.concatenate(v)
         vv = np.concatenate(all_preds_dict[k])
@@ -169,11 +174,38 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
             right_inds = np.random.choice(right_inds, size=min(5, len(right_inds)), replace=False)
             lines_right.append('{},{}\n'.format(k, '|'.join(vvv[right_inds])))
         if save_root is not None:
-            df = pd.DataFrame(np.stack([all_gts_dict[k], all_preds_dict[k]]).T, columns=['gt', 'pred'])
+            df = pd.DataFrame(np.stack([all_gts_dict[k], all_preds_dict[k]]).T.astype(np.int32), columns=['gt', 'pred'])
             df.insert(0, 'svs_prefix', all_prefixes_dict[k])
             df.insert(len(df.columns), 'probs', vvvv[:,1])
             df.to_csv(f'{save_root}/{model_name}_{k}_gt_and_pred.csv', index=None)
-    
+
+            wrong_df = df[df['gt']!=df['pred']]
+            if len(wrong_df)>0:
+                for svs_prefix in wrong_df['svs_prefix'].values:
+                    if svs_prefix in wrong_dict:
+                        wrong_dict[svs_prefix] += 1
+                    else:
+                        wrong_dict[svs_prefix] = 1
+
+            right_df = df[df['gt']==df['pred']]
+            if len(right_df)>0:
+                for svs_prefix in right_df['svs_prefix'].values:
+                    if svs_prefix in right_dict:
+                        right_dict[svs_prefix] += 1
+                    else:
+                        right_dict[svs_prefix] = 1
+                                                
+    wrong_df = pd.DataFrame([wrong_dict]).T
+    wrong_df.index.name = 'svs_prefix'
+    wrong_df.columns = ['count']
+    wrong_df = wrong_df.sort_values('count', ascending=False)
+    wrong_df.to_csv(f'{save_root}/{model_name}_wrong_count.csv')
+    right_df = pd.DataFrame([right_dict]).T
+    right_df.index.name = 'svs_prefix'
+    right_df.columns = ['count']
+    right_df = right_df.sort_values('count', ascending=False)
+    right_df.to_csv(f'{save_root}/{model_name}_right_count.csv')
+
     results = pd.DataFrame(np.concatenate([v for k,v in all_scores.items()]), columns=['N']+list(CLASSIFICATION_DICT.keys())+REGRESSION_LIST)
     results.index = list(all_scores.keys())
     results['N'] = results['N'].map(int)
@@ -186,7 +218,7 @@ def check_results_forTCGA_v2_20250409(subset='test', model_name='CONCH', csv_fil
                 fp.writelines(lines)
 
         if len(lines_right)>0:
-            with open(f'{save_root}/{model_name}_right5.csv', 'w') as fp:
+            with open(f'{save_root}/{model_name}_right.csv', 'w') as fp:
                 fp.writelines(lines_right)
     
     

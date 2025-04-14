@@ -118,7 +118,6 @@ def main():
             del img, img_vips
             gc.collect()
 
-
             save_dir = os.path.join(save_root_top_patches, svs_prefix)
             os.makedirs(save_dir, exist_ok=True)
             feats = torch.load(os.path.join(feats_dir, svs_prefix+'.pt'))
