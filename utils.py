@@ -529,7 +529,7 @@ def visHeatmap(wsi, scores, coords, vis_level=1,
                binarize=False, thresh=0.5,
                max_size=None,
                custom_downsample=1,
-               cmap='jet', return_scores=False):
+               cmap='jet'):
     """
     Args:
         scores (numpy array of float): Attention scores
@@ -712,10 +712,7 @@ def visHeatmap(wsi, scores, coords, vis_level=1,
         resizeFactor = max_size / w if w > h else max_size / h
         img = img.resize((int(w * resizeFactor), int(h * resizeFactor)))
 
-    if return_scores:
-        return img, scores
-    else:
-        return img
+    return img
 
 
 def visWSI(wsi, vis_level=0, color=(0, 255, 0), hole_color=(0, 0, 255), annot_color=(255, 0, 0),

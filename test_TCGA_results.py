@@ -306,7 +306,7 @@ def do_results_TCGA_v2_20250409():
     }
     postfix = ''
     postfix = '_20250409'
-    for subset in ['test']:# ['trainval', 'test']:
+    for subset in ['trainval']:# ['trainval', 'test']:
         for model_name in ['CONCH']: # ['UNI', 'ProvGigaPath', 'CONCH']:
             for do_filter in [True]: # [True, False]:
                 split = best_splits[model_name]
