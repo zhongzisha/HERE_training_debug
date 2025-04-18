@@ -92,18 +92,28 @@ def save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_
         if 'auc' in key or 'mse' in key or 'c_index' in key \
                 or 'r2score' in key or 'pearsonr' in key or 'pearmanr' in key:
             pass
-        else:  # surv, loss
-            key += '_loss'
+        # else:  # surv, loss
+            # key = key.replace('_cls', '').replace('_sum', '')
 
-        font_size = 30
+        font_size = 18
         figure_width = 7
         plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
         fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
         plt.xlabel('Epochs')
-        plt.ylabel('AUC scores' if 'cls' in task_type else 'Spearmanr correlation score')
+        if task_type != 'loss':
+            plt.ylabel('AUC scores' if 'cls' in task_type else 'Spearmanr correlation score')
+        else:
+            if '_cls' == key[-4:]:
+                plt.ylabel('Cross-entropy loss')
+            else:
+                plt.ylabel('Mean-squared loss')
 
         # plt.title('{} task: {}'.format(task_type, key), fontsize=font_size)
-        plt.title(key.replace('_cls_auc_weighted', '') if 'auc' in key else key.replace('_sum_spearmanr_corr', ''), fontsize=font_size)
+        if task_type == 'loss':
+            key1 = key.replace('_cls', '').replace('_sum', '')
+        else:
+            key1 = key
+        plt.title(key1.replace('_cls_auc_weighted', '') if 'auc' in key1 else key1.replace('_sum_spearmanr_corr', '').replace('_spearmanr_corr', ''), fontsize=font_size)
         plt.tick_params(pad = 10)
         print(key)
 
@@ -148,6 +158,9 @@ def save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_
             plt.ylim(-1.0, 1.1)
         if '_pearmanr_corr' in key:
             key = key.replace('_pearmanr_corr', '_pearsonr_corr')
+        
+        plt.tight_layout()
+
         plt.savefig(os.path.join(save_root,
                                  '{}_{}_step{}.png'.format(subset, key.replace('/', '_'), epoch_step)), bbox_inches='tight', transparent=True)
         plt.savefig(os.path.join(save_root,
@@ -479,7 +492,7 @@ def check_best_split_v2():
 
 
 
-def main(results_dir):
+def main(results_dir, task_types=['cls', 'reg']):
 
     proj_name = 'TCGA-ALL2'
     per_cancer = 0
@@ -501,7 +514,8 @@ def main(results_dir):
         # subsets = ['train', 'test1', 'test2']  # here, train is the combination of train and val
         subsets = ['train', 'test', 'outside_test0', 'outside_test1']
 
-    task_types = ['cls', 'reg']
+    # task_types = ['cls', 'reg']
+    # task_types = ['loss']
     accum_iters = [4]
     network_dims = {   # only for TCGA-ALL2
         # 'mobilenetv3': 1280,
@@ -511,6 +525,7 @@ def main(results_dir):
         'CONCH': 512,
         'UNI': 1024
     }
+    save_postfix = '_'.join(task_types)
 
     save_root = '/Users/zhongz2/down/figures_20240801_e50_top3'
     save_root = '/Users/zhongz2/down/figures_20240830_e100_top3'
@@ -520,7 +535,7 @@ def main(results_dir):
     sub_epochs = [1]
     # results_dir = 'results_20241128_e100_noattention'
     # results_dir = 'results_20240724_e100'
-    save_root = f'/Users/zhongz2/down/temp_20250113/train_figures_{results_dir}' # Add UNI 
+    save_root = f'/Users/zhongz2/down/temp_20250418/train_figures_{results_dir}_{save_postfix}' # Add UNI 
     if os.path.isdir(save_root):
         shutil.rmtree(save_root, ignore_errors=True)
     os.makedirs(save_root, exist_ok=True)
@@ -551,6 +566,8 @@ def main(results_dir):
                         raise ValueError('error project name')
                 elif task_type == 'reg':
                     task_names = REGRESSION_LIST
+                elif task_type == 'loss':
+                    task_names = list(CLASSIFICATION_DICT.keys()) + REGRESSION_LIST
                 else:
                     task_names = None
 
@@ -566,6 +583,8 @@ def main(results_dir):
                         accu_col = [task_name + '_spearmanr_corr']  # pearmanr_corr should be pearsonr
                     elif task_type == 'surv':
                         accu_col = ['c_index']
+                    elif task_type == 'loss':
+                        accu_col = [task_name]
                     else:
                         accu_col = None
                     select_columns = accu_col
@@ -666,25 +685,30 @@ def main(results_dir):
                 fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
                 with open(savefilename.replace('.png', '_data.pkl'), 'wb') as fp:
                     pickle.dump(all_mean_results, fp)
-                sortresults={}
-                for prefix, all_mean_results_ in all_mean_results.items():
-                    x = np.array(all_mean_results_).sum(axis=0).flatten()
-                    best_epoch = np.argsort(x)[-1]
-                    plt.scatter(best_epoch, x[best_epoch], s=144, c='red')
-                    sortresults[prefix] = x[best_epoch]
+                # sortresults={}
                 for prefix, all_mean_results_ in all_mean_results.items():
                     all_mean_results_ = all_mean_results[prefix]
                     x = np.array(all_mean_results_).sum(axis=0).flatten()
-                    best_epoch = np.argsort(x)[-1]
+                    best_epoch = np.argsort(x)[-1] if task_type != 'loss' else np.argsort(x)[0]
                     label = shorten_prefix2(prefix)
                     plt.plot(x, 'o-', label=label, color=COMMON_COLORS[label])
 
+                for prefix, all_mean_results_ in all_mean_results.items():
+                    x = np.array(all_mean_results_).sum(axis=0).flatten()
+                    best_epoch = np.argsort(x)[-1] if task_type != 'loss' else np.argsort(x)[0]
+                    if True: #task_type != 'loss':
+                        plt.scatter(best_epoch, x[best_epoch], s=144, c='red')
+                    # sortresults[prefix] = x[best_epoch]
+
                 plt.xlabel('Epochs')
-                plt.ylabel('Overall scores')
+                if task_type != 'loss':
+                    plt.ylabel('Overall scores')
+                else:
+                    plt.ylabel('Overall losses')
                 plt.title(label_names[subset], fontsize=font_size)
                 plt.grid()
                 if subset == 'train':
-                    leg=plt.legend(loc='lower right',handlelength=0, handletextpad=0, fancybox=True)
+                    leg=plt.legend(loc='lower right' if task_type!='loss' else 'upper right',handlelength=0, handletextpad=0, fancybox=True)
                     for item, text in zip(leg.legend_handles, leg.get_texts()):
                         print(item.get_color(), text)
                         text.set_color(item.get_color())
@@ -694,63 +718,64 @@ def main(results_dir):
                 plt.savefig(savefilename.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
                 plt.close()
 
-            # processing all_ranks
-            num_tasks = sum([len(all_ranks[task_type]) for task_type in task_types])  # len(all_ranks['cls']) + len(all_ranks['reg'])
-            num_prefixes = len(prefixes)
-            scores = np.zeros((num_prefixes, num_tasks), dtype=np.uint16)
-            ind = 0
-            for task_index, task_type in enumerate(task_types):
-                for ki, key in enumerate(all_ranks[task_type].keys()):
-                    sort_inds = list(all_ranks[task_type][key][0].keys())
-                    ranks = list(all_ranks[task_type][key][0].values())
-                    scores[sort_inds, ind] = ranks
-                    ind += 1
+            if False:
+                # processing all_ranks
+                num_tasks = sum([len(all_ranks[task_type]) for task_type in task_types])  # len(all_ranks['cls']) + len(all_ranks['reg'])
+                num_prefixes = len(prefixes)
+                scores = np.zeros((num_prefixes, num_tasks), dtype=np.uint16)
+                ind = 0
+                for task_index, task_type in enumerate(task_types):
+                    for ki, key in enumerate(all_ranks[task_type].keys()):
+                        sort_inds = list(all_ranks[task_type][key][0].keys())
+                        ranks = list(all_ranks[task_type][key][0].values())
+                        scores[sort_inds, ind] = ranks
+                        ind += 1
 
-            plot_box_plot_for_check(scores, prefixes, title='{}'.format(subset),
-                                    save_filename=os.path.join('{}/{}_boxplot.png'.format(save_root, subset)))
+                plot_box_plot_for_check(scores, prefixes, title='{}'.format(subset),
+                                        save_filename=os.path.join('{}/{}_boxplot.png'.format(save_root, subset)))
 
-            for task_index, task_type in enumerate(task_types):
-                savefilename111 = os.path.join('{}/{}_{}_best_scores.png'.format(save_root, subset, task_type))
-                # fig = plt.figure(figsize=(36, 36) if task_type=='reg' else (16, 16))
-                # ax = fig.add_subplot(111)
-                font_size = 30
-                font_size_label = 20
-                figure_width = 7
-                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-                plt.tick_params(pad = 10)
-                fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(figure_width, figure_width), frameon=False)
+                for task_index, task_type in enumerate(task_types):
+                    savefilename111 = os.path.join('{}/{}_{}_best_scores.png'.format(save_root, subset, task_type))
+                    # fig = plt.figure(figsize=(36, 36) if task_type=='reg' else (16, 16))
+                    # ax = fig.add_subplot(111)
+                    font_size = 30
+                    font_size_label = 20
+                    figure_width = 7
+                    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                    plt.tick_params(pad = 10)
+                    fig, ax = plt.subplots(nrows=1, ncols=1, figsize=(figure_width, figure_width), frameon=False)
 
-                xs = []
-                ys = []
-                color = ['cyan', 'blue', 'green', 'red']
-                for kkks, vvvs in all_best_scores[task_type].items():
-                    for kkkk, vvvv in vvvs.items():
-                        xs.append(kkkk.replace('_sum_spearmanr_corr', '').replace('_cls_auc_weighted', '').replace('_auc_weighted', '').replace('CLS_', '').replace('_spearmanr_corr', ''))
-                        ys.append(vvvv)
-                        break
+                    xs = []
+                    ys = []
+                    color = ['cyan', 'blue', 'green', 'red']
+                    for kkks, vvvs in all_best_scores[task_type].items():
+                        for kkkk, vvvv in vvvs.items():
+                            xs.append(kkkk.replace('_sum_spearmanr_corr', '').replace('_cls_auc_weighted', '').replace('_auc_weighted', '').replace('CLS_', '').replace('_spearmanr_corr', ''))
+                            ys.append(vvvv)
+                            break
 
-                xs = np.array(xs)
-                ys = np.array(ys)
-                ind1 = np.where(ys<0.6)[0]
-                ind2 = np.where((ys>=0.6)&(ys<0.7))[0]
-                ind3 = np.where((ys>=0.7)&(ys<0.8))[0]
-                ind4 = np.where(ys>=0.8)[0]
-                y_pos = np.arange(len(xs))
-                for iii, indd in enumerate([ind1, ind2, ind3, ind4]):
-                    ax.barh(y_pos[indd], ys[indd], align='center', color=color[iii])
-                ax.set_yticks(y_pos, labels=xs)
-                ax.invert_yaxis()  # labels read top-to-bottom
-                ax.set_xlabel('Tasks')
-                ax.set_title('Spearman Correlation' if task_type == 'reg' else "AUC")
+                    xs = np.array(xs)
+                    ys = np.array(ys)
+                    ind1 = np.where(ys<0.6)[0]
+                    ind2 = np.where((ys>=0.6)&(ys<0.7))[0]
+                    ind3 = np.where((ys>=0.7)&(ys<0.8))[0]
+                    ind4 = np.where(ys>=0.8)[0]
+                    y_pos = np.arange(len(xs))
+                    for iii, indd in enumerate([ind1, ind2, ind3, ind4]):
+                        ax.barh(y_pos[indd], ys[indd], align='center', color=color[iii])
+                    ax.set_yticks(y_pos, labels=xs)
+                    ax.invert_yaxis()  # labels read top-to-bottom
+                    ax.set_xlabel('Tasks')
+                    ax.set_title('Spearman Correlation' if task_type == 'reg' else "AUC")
 
-                plt.grid()
-                plt.legend(loc='lower right')
-                if task_type == 'reg':
-                    plt.yticks(fontsize=font_size)
-                    plt.xticks(fontsize=font_size)
-                plt.savefig(savefilename111, bbox_inches='tight', transparent=True)
-                plt.savefig(savefilename111.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
-                plt.close()
+                    plt.grid()
+                    plt.legend(loc='lower right')
+                    if task_type == 'reg':
+                        plt.yticks(fontsize=font_size)
+                        plt.xticks(fontsize=font_size)
+                    plt.savefig(savefilename111, bbox_inches='tight', transparent=True)
+                    plt.savefig(savefilename111.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
+                    plt.close()
 
 
 
@@ -785,7 +810,7 @@ def plot_loss_curves():
     plt.close('all')
 
 if __name__ == '__main__':
-    results_dir = 'results_20241128_e100_noattention'
-    main(results_dir)
-    results_dir = 'results_20240724_e100'
-    main(results_dir)
+
+    for results_dir in ['results_20240724_e100', 'results_20241128_e100_noattention']:
+        for task_types in [['cls', 'reg'], ['loss']]:
+            main(results_dir, task_types=task_types)

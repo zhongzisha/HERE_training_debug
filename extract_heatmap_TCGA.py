@@ -109,24 +109,29 @@ def clustering(X0, n_clusters=8, top_n=5):
     # For each cluster, find top N closest samples
     top_nearest_indices = []
     cluster_ids = []
-    all_cluster_indices = []
     for cluster_id in range(kmeans.n_clusters):
         # Get distances to this centroid
         dists_to_cluster = distances[:, cluster_id]
         
         # Get indices of samples assigned to this cluster
         cluster_members = np.where(kmeans.labels_ == cluster_id)[0]
-        all_cluster_indices.append(cluster_members)
         
         # Sort those members by distance to centroid
         sorted_members = cluster_members[np.argsort(dists_to_cluster[cluster_members])]
         
         # Take top N
         top_n_ids = sorted_members[:min(top_n, len(sorted_members))]
+
+        if len(top_n_ids) != top_n:
+            remaining = top_n - len(top_n_ids)
+            top_n_ids = top_n_ids.tolist()
+            for ii in range(remaining):
+                top_n_ids.append(top_n_ids[-1])
+            top_n_ids = np.array(top_n_ids)
         top_nearest_indices.append(top_n_ids)
         cluster_ids.append(np.ones_like(top_n_ids)*cluster_id)
     
-    return np.concatenate(top_nearest_indices), np.concatenate(cluster_ids), np.concatenate(all_cluster_indices)
+    return np.concatenate(top_nearest_indices), np.concatenate(cluster_ids)
 
 
 def _save_pdf(save_dir, texts, colors, svs_prefix, cancer_type, thres1, thres2):
@@ -293,7 +298,7 @@ def main():
                     colors.append(gray)
                         
 
-            try:
+            if True: #try:
                 A = np.copy(A_raw)[0]
                 attention_scores = to_percentiles(A)
                 attention_scores /= 100
@@ -313,7 +318,7 @@ def main():
                         continue
 
                     red_feats = feats[red_inds].cpu().numpy()
-                    red_top_inds, red_top_cluster_ids, red_cluster_ids = clustering(red_feats, n_clusters=num_clusters, top_n=top_n)
+                    red_top_inds, red_top_cluster_ids = clustering(red_feats, n_clusters=num_clusters, top_n=top_n)
                     red_top_inds = red_inds[red_top_inds]
 
                     if False:
@@ -334,6 +339,12 @@ def main():
                                 patch = np.array(slide.read_region((int(x), int(y)), patch_level, (patch_size, patch_size)).convert('RGB'))
                                 images.append(patch)
                         images = np.stack(images)
+                        num_images = len(images)
+
+                        if num_images != num_clusters * top_n:
+                            import pdb
+                            pdb.set_trace()
+
                         combined = combine_images_with_labels(images, num_clusters, top_n, (patch_size, patch_size), margin=margin,\
                             font_size=48)
                         cv2.imwrite(os.path.join(save_dir, f'{tb}.png'), combined[:,:,::-1])
@@ -362,9 +373,9 @@ def main():
                 # time.sleep(1)
                 # del img, img_vips
 
-            except:
-                print(f'error {f}')
-                is_ok = False
+            # except:
+            #     print(f'error {f}')
+            #     is_ok = False
 
             if not is_ok:
                 top_bottom['bottom']+=0.05
@@ -381,56 +392,64 @@ def find_case_with_mutation1():
     import numpy as np
     from common import CLASSIFICATION_DICT, REGRESSION_LIST, IGNORE_INDEX_DICT, PAN_CANCER_SITES
 
-    subset = 'test'
-    model_name = 'CONCH'
-    best_split = 3
-    prefix = 'TCGA_{}{}'.format(subset, best_split) # sys.argv[1] # TCGA_trainval3 or TCGA_test3
-    result_dir = f'/data/zhongz2/download/TCGA_{subset}{best_split}/{model_name}/heatmap_top_patches2'
+    select_count = 20
 
-    csv_filename = f'/data/zhongz2/temp29/debug/splits/{subset}-{best_split}.csv'
-    all_labels = pd.read_csv(csv_filename, low_memory=False)
-    all_labels['cancer_type'] = all_labels['PanCancerSiteID'].map({site_id+1: site_name for site_id, site_name in enumerate(PAN_CANCER_SITES)})
-    all_labels['svs_prefix'] = [os.path.splitext(os.path.basename(row['DX_filename']))[0] for _, row in all_labels.iterrows()]
-    all_labels = all_labels.set_index('svs_prefix')
+    for subset in ['trainval', 'test']:
+        model_name = 'CONCH'
+        best_split = 3
+        prefix = 'TCGA_{}{}'.format(subset, best_split) # sys.argv[1] # TCGA_trainval3 or TCGA_test3
+        result_dir = f'/data/zhongz2/download/TCGA_{subset}{best_split}/{model_name}/heatmap_top_patches2'
 
-    all_results = {}
-    result_dict = {}
-    for cls_name in CLASSIFICATION_DICT.keys():
-        print(cls_name)
-        df = pd.read_csv(f'/data/zhongz2/CPTAC/predictions_v2_TCGA_filterTrue_2_20250409/{subset}/{model_name}_{cls_name}_gt_and_pred.csv')
+        csv_filename = f'/data/zhongz2/temp29/debug/splits/{subset}-{best_split}.csv'
+        all_labels = pd.read_csv(csv_filename, low_memory=False)
+        all_labels['cancer_type'] = all_labels['PanCancerSiteID'].map({site_id+1: site_name for site_id, site_name in enumerate(PAN_CANCER_SITES)})
+        all_labels['svs_prefix'] = [os.path.splitext(os.path.basename(row['DX_filename']))[0] for _, row in all_labels.iterrows()]
+        all_labels = all_labels.set_index('svs_prefix')
 
-        all_results[cls_name] = df
+        all_results = {}
+        result_dict = {}
+        for cls_name in CLASSIFICATION_DICT.keys():
+            print(cls_name)
+            df = pd.read_csv(f'/data/zhongz2/CPTAC/predictions_v2_TCGA_filterTrue_2_20250409/{subset}/{model_name}_{cls_name}_gt_and_pred.csv')
 
-        right = df[(df['gt']==df['pred']) & (df['gt']==1)]
-        wrong = df[(df['gt']!=df['pred']) & (df['gt']==1)]
+            all_results[cls_name] = df
 
-        if len(right) > 0:
-            if 'right' in result_dict:
-                result_dict['right'].extend(right['svs_prefix'].values.tolist())
-            else:
-                result_dict['right'] = right['svs_prefix'].values.tolist()
+            right = df[(df['gt']==df['pred']) & (df['gt']==1)]
+            wrong = df[(df['gt']!=df['pred']) & (df['gt']==1)]
 
-        if len(wrong) > 0:
-            if 'wrong' in result_dict:
-                result_dict['wrong'].extend(wrong['svs_prefix'].values.tolist())
-            else:
-                result_dict['wrong'] = wrong['svs_prefix'].values.tolist()
+            if len(right) > 0:
+                if 'right' in result_dict:
+                    result_dict['right'].extend(right['svs_prefix'].values.tolist())
+                else:
+                    result_dict['right'] = right['svs_prefix'].values.tolist()
 
-    save_root = '/data/zhongz2/check_attention_patches'
-    os.makedirs(save_root, exist_ok=True)
+            if len(wrong) > 0:
+                if 'wrong' in result_dict:
+                    result_dict['wrong'].extend(wrong['svs_prefix'].values.tolist())
+                else:
+                    result_dict['wrong'] = wrong['svs_prefix'].values.tolist()
 
+        save_root = f'/data/zhongz2/check_attention_patches/'
+        os.makedirs(save_root, exist_ok=True)
 
-    for k, l in result_dict.items():
-        a,b = np.unique(l, return_counts=True)
-        inds = np.argsort(b)[::-1]
-        a = a[inds]
-        b = b[inds]
-        print(k, b)
-        save_dir = os.path.join(save_root, k)
-        os.makedirs(save_dir, exist_ok=True)
-        for aa,bb in zip(a, b):
-            os.system('cp "{}" "{}"'.format(os.path.join(result_dir, aa+'.pdf'), os.path.join(save_dir, f'{bb}_{aa}.pdf')))
+        for k, l in result_dict.items():
+            command = 'convert -density 300 -quality 100'
 
+            a,b = np.unique(l, return_counts=True)
+            inds = np.argsort(b)[::-1]
+            a = a[inds][:min(select_count, len(b))]
+            b = b[inds][:min(select_count, len(b))]
+            print(k, b)
+            # save_dir = os.path.join(save_root, k)
+            # os.makedirs(save_dir, exist_ok=True)
+            for aa,bb in zip(a, b):
+                # os.system('cp "{}" "{}"'.format(os.path.join(result_dir, aa+'.pdf'), os.path.join(save_dir, f'{bb}_{aa}.pdf')))
+                command += " " + os.path.join(result_dir, aa+'.pdf')
+            
+            command += " " + os.path.join(save_root, f'{prefix}_{model_name}_{k}_Top{select_count}_cases.pdf')
+
+            with open(os.path.join(save_root, 'command_{}.sh'.format(k)), 'w') as fp:
+                fp.write(command)
 
 if __name__ == '__main__':
     main()

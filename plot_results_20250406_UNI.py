@@ -3264,6 +3264,7 @@ def plot_segmentation_patching():  # run on Biowulf
     svs_prefix = 'TCGA-06-0124-01Z-00-DX2.b3bd2a52-1a9a-409e-8908-6a2f30878080'
     svs_prefix = 'TCGA-05-4244-01Z-00-DX1.d4ff32cd-38cf-40ea-8213-45c2b100ac01'
     svs_prefix = 'TCGA-86-8358-01Z-00-DX1.C50100F8-9414-4A06-BEDF-93E7B01B24D6'
+    svs_prefix = 'TCGA-G4-6303-01Z-00-DX1.5819f041-d9b8-4fd2-bf52-65677be31df1'
     
     slide = openslide.open_slide(os.path.join(svs_dir, svs_prefix+'.svs'))
 
