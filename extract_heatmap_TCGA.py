@@ -187,8 +187,10 @@ def _save_pdf(save_dir, texts, colors, svs_prefix, cancer_type, thres1, thres2):
         xx += c.stringWidth(word + "  ", font_name, font_size)
     
     c.setFillColor(black)
-    c.drawCentredString(left_x + left_w / 2, page_height - 3*padding,   f"       Top 5 patches (attention_score<{thres1:.2f})")
-    c.drawCentredString(right_x + right_w / 2, page_height - 3*padding, f"       Top 5 patches (attention_score>{thres2:.2f})")
+    # c.drawCentredString(left_x + left_w / 2, page_height - 3*padding,   f"             Top patches (attention_score<{thres1:.2f})")
+    # c.drawCentredString(right_x + right_w / 2, page_height - 3*padding, f"             Top patches (attention_score>{thres2:.2f})")
+    c.drawCentredString(left_x + left_w*1/6+left_w*5/6 / 2, page_height - 3*padding,   f"Top patches (attention_score<{thres1:.2f})")
+    c.drawCentredString(right_x + right_w*1/6+right_w*5/6 / 2, page_height - 3*padding, f"Top patches (attention_score>{thres2:.2f})")
 
     # Draw images without resizing them beforehand
     c.drawImage(left_path, left_x, y, width=left_w, height=left_h, preserveAspectRatio=True, mask='auto')
@@ -248,6 +250,7 @@ def main():
     needtodo_files = [needtodo_files[i] for i in index_splits[idr_torch.rank]]
     print(idr_torch.rank, len(needtodo_files))
 
+    selected_svs_prefixes = ['TCGA-G4-6303-01Z-00-DX1.5819f041-d9b8-4fd2-bf52-65677be31df1']
     
     for fi, f in enumerate(needtodo_files):
         # if fi == 10:
@@ -342,12 +345,31 @@ def main():
                         num_images = len(images)
 
                         if num_images != num_clusters * top_n:
-                            import pdb
-                            pdb.set_trace()
+                            # import pdb
+                            # pdb.set_trace()
+                            print('no enough images ', f)
 
                         combined = combine_images_with_labels(images, num_clusters, top_n, (patch_size, patch_size), margin=margin,\
                             font_size=48)
                         cv2.imwrite(os.path.join(save_dir, f'{tb}.png'), combined[:,:,::-1])
+                        np.save(os.path.join(save_dir, f'{tb}_images.npy'), combined[:, :, ::-1])
+
+                        if svs_prefix in selected_svs_prefixes:
+                            images = []
+                            for rid in range(5):
+                                rid_inds = np.where(red_top_cluster_ids==rid)[0]
+                                for cid, ind in enumerate(red_top_inds[rid_inds]):
+                                    x,y = all_coords[ind]
+                                    patch = np.array(slide.read_region((int(x), int(y)), patch_level, (patch_size, patch_size)).convert('RGB'))
+                                    images.append(patch)  
+                                    if cid == 1:
+                                        break 
+                            images = np.stack(images)
+                            num_images = len(images)
+                            combined = combine_images_with_labels(images, 5, 2, (patch_size, patch_size), margin=margin,\
+                                font_size=48)
+                            cv2.imwrite(os.path.join(save_dir, f'{tb}_selected.png'), combined[:,:,::-1])
+                             
                     # patch.save(os.path.join(save_dir, f'{tb}_c{cid}_patch_x{x}_y{y}.jpg'))
 
                 time.sleep(1)

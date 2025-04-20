@@ -7,6 +7,11 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 from matplotlib.backends.backend_pdf import PdfPages
 from common import PAN_CANCER_SITES, CLASSIFICATION_DICT, REGRESSION_LIST
+from reportlab.pdfgen import canvas
+from reportlab.lib.utils import ImageReader
+from reportlab.lib.pagesizes import landscape, A4
+from reportlab.lib.colors import red, green, black, gray
+from PIL import Image
 
 morandi_colors = [
     '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9', 
@@ -88,6 +93,7 @@ def save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_
         ranks.append({ind: rank for rank, ind in enumerate(sorted_indices)})
 
     best_scores = {}
+    img_paths = []
     for ki, key in enumerate(select_columns):
         if 'auc' in key or 'mse' in key or 'c_index' in key \
                 or 'r2score' in key or 'pearsonr' in key or 'pearmanr' in key:
@@ -113,7 +119,8 @@ def save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_
             key1 = key.replace('_cls', '').replace('_sum', '')
         else:
             key1 = key
-        plt.title(key1.replace('_cls_auc_weighted', '') if 'auc' in key1 else key1.replace('_sum_spearmanr_corr', '').replace('_spearmanr_corr', ''), fontsize=font_size)
+        title = key1.replace('_cls_auc_weighted', '') if 'auc' in key1 else key1.replace('_sum_spearmanr_corr', '').replace('_spearmanr_corr', '')
+        plt.title(title + " ({})".format(subset), fontsize=font_size)
         plt.tick_params(pad = 10)
         print(key)
 
@@ -161,15 +168,17 @@ def save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_
         
         plt.tight_layout()
 
-        plt.savefig(os.path.join(save_root,
-                                 '{}_{}_step{}.png'.format(subset, key.replace('/', '_'), epoch_step)), bbox_inches='tight', transparent=True)
-        plt.savefig(os.path.join(save_root,
-                                 '{}_{}_step{}.svg'.format(subset, key.replace('/', '_'), epoch_step)), bbox_inches='tight', transparent=True, format='svg')
+        save_filename = os.path.join(save_root, '{}_{}_step{}.png'.format(subset, key.replace('/', '_'), epoch_step))
+        plt.savefig(save_filename, bbox_inches='tight', transparent=True, dpi=600)
+        plt.savefig(save_filename.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
 
         if pdf_file_handle is not None:
             pdf_file_handle.savefig(fig)
+
         plt.close()
-    return ranks, best_scores
+
+        img_paths.append(save_filename)
+    return ranks, best_scores, img_paths
 
 """
 begin mobilenetv3
@@ -491,6 +500,110 @@ def check_best_split_v2():
 
 
 
+def create_pdf_preserve_quality_300dpi(list0, list1, output_path="output.pdf"):
+    dpi = 600
+    pt_per_inch = 72  # 1 inch = 72 points
+
+    c = canvas.Canvas(output_path)
+
+    for img0_path, img1_path in zip(list0, list1):
+        img0 = Image.open(img0_path)
+        img1 = Image.open(img1_path)
+
+        # Use original pixel size scaled to 300 DPI
+        img0_width_pt = img0.width * pt_per_inch / dpi
+        img0_height_pt = img0.height * pt_per_inch / dpi
+        img1_width_pt = img1.width * pt_per_inch / dpi
+        img1_height_pt = img1.height * pt_per_inch / dpi
+
+        page_width = img0_width_pt + img1_width_pt
+        page_height = max(img0_height_pt, img1_height_pt)
+
+        c.setPageSize((page_width, page_height))
+
+        # Align images to the bottom
+        c.drawImage(ImageReader(img0), 0, 0, width=img0_width_pt, height=img0_height_pt)
+        c.drawImage(ImageReader(img1), img0_width_pt, 0, width=img1_width_pt, height=img1_height_pt)
+
+        c.showPage()
+
+    c.save()
+
+
+def _save_pdf(list0, list1, output_path="output.pdf"):
+
+
+    # left_path = os.path.join(save_dir, f"bottom.png")
+    # right_path = os.path.join(save_dir, f"top.png")
+
+    # if not (os.path.exists(left_path) and os.path.exists(right_path)):
+    #     print(f"Missing image(s), skipping.")
+    #     return False
+
+    # left_img = Image.open(left_path)
+    # right_img = Image.open(right_path)
+
+    output_pdf = output_path # os.path.join(save_dir, '..', f'{svs_prefix}.pdf')
+    page_width, page_height = landscape(A4)
+
+    c = canvas.Canvas(output_pdf, pagesize=landscape(A4))
+    padding = 1 # 20
+    title_height = 0 # 30
+    font_size = 16
+    font_name = "Helvetica"
+
+    for left_path, right_path in zip(list0, list1):
+        left_img = Image.open(left_path)
+        right_img = Image.open(right_path)
+
+        # Calculate max dimensions per side
+        max_width = (page_width - padding)/2 # (page_width - 3 * padding) / 2
+        max_height = page_height - padding # page_height - title_height - 4 * padding
+
+        def get_scaled_dimensions(img):
+            ratio = min(max_width / img.width, max_height / img.height, 1.0)
+            return int(img.width * ratio), int(img.height * ratio)
+
+        left_w, left_h = get_scaled_dimensions(left_img)
+        right_w, right_h = get_scaled_dimensions(right_img)
+
+        left_x = padding
+        right_x = padding * 2 + max_width
+        y = (page_height - max(left_h, right_h)) / 2 #  - 10
+
+        # Draw titles
+        # c.setFont(font_name, font_size)
+        # c.drawCentredString(page_width/2, page_height-padding, svs_prefix + " ({})".format(cancer_type))
+        # c.drawCentredString(page_width/2, page_height-2*padding, os.path.basename(dir_path))
+
+        # total_width = sum(c.stringWidth(word + "  ", font_name, font_size) for word in texts)
+        # start_x = (page_width - total_width) / 2
+        # xx = start_x
+        # yy = page_height-2*padding
+        # for word, color in zip(texts, colors):
+        #     c.setFillColor(color)
+        #     c.drawString(xx, yy, word)
+        #     # Add spacing after the word based on its width
+        #     xx += c.stringWidth(word + "  ", font_name, font_size)
+        
+        # c.setFillColor(black)
+        # # c.drawCentredString(left_x + left_w / 2, page_height - 3*padding,   f"             Top patches (attention_score<{thres1:.2f})")
+        # # c.drawCentredString(right_x + right_w / 2, page_height - 3*padding, f"             Top patches (attention_score>{thres2:.2f})")
+        # c.drawCentredString(left_x + left_w*1/6+left_w*5/6 / 2, page_height - 3*padding,   f"Top patches (attention_score<{thres1:.2f})")
+        # c.drawCentredString(right_x + right_w*1/6+right_w*5/6 / 2, page_height - 3*padding, f"Top patches (attention_score>{thres2:.2f})")
+
+        # Draw images without resizing them beforehand
+        c.drawImage(left_path, left_x, y, width=left_w, height=left_h, preserveAspectRatio=True, mask='auto')
+        c.drawImage(right_path, right_x, y, width=right_w, height=right_h, preserveAspectRatio=True, mask='auto')
+
+        c.showPage()
+
+    c.save()
+    # print(f"PDF saved to {output_pdf}")
+    # image = convert_from_bytes(c.getpdfdata())[0]
+    # image.save(output_pdf.replace('.pdf', '.png'))
+    # drawToFile(c, output_pdf.replace('.pdf', '.png'), fmt='PNG')
+    
 
 def main(results_dir, task_types=['cls', 'reg']):
 
@@ -535,13 +648,16 @@ def main(results_dir, task_types=['cls', 'reg']):
     sub_epochs = [1]
     # results_dir = 'results_20241128_e100_noattention'
     # results_dir = 'results_20240724_e100'
-    save_root = f'/Users/zhongz2/down/temp_20250418/train_figures_{results_dir}_{save_postfix}' # Add UNI 
+    save_root = f'/Users/zhongz2/down/temp_20250419/train_figures_{results_dir}_{save_postfix}' # Add UNI 
     if os.path.isdir(save_root):
         shutil.rmtree(save_root, ignore_errors=True)
     os.makedirs(save_root, exist_ok=True)
 
     for site_id, site_name in enumerate(all_sites):
         print('begin {}'.format(site_name))
+
+        all_img_paths = {}
+
         for subset in subsets:
 
             if per_cancer:
@@ -558,6 +674,7 @@ def main(results_dir, task_types=['cls', 'reg']):
             prefixes = None
             all_results = {}
 
+            temp_img_paths = []
             for task_type in task_types:  # no 'cls'
                 if task_type == 'cls':
                     if proj_name == 'TCGA-ALL2':
@@ -667,11 +784,14 @@ def main(results_dir, task_types=['cls', 'reg']):
                     all_results_ = np.array(all_results_)
                     all_results[task_type].append(all_results_)
 
-                    ranks, best_scores = save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_results,
+                    ranks, best_scores, img_paths = save_figure_to_one_pdf_new2(subset, task_type, task_name, mean_results, std_results,
                                                    select_columns, epoch_step, prefixes, save_dir,
                                                    pdf_file_handle=pdf_file_handle)
                     all_ranks[task_type][task_name] = ranks
                     all_best_scores[task_type][task_name] = best_scores
+                    if len(img_paths) > 0:
+                        temp_img_paths.extend(img_paths)
+
             pdf_file_handle.close()
 
             if not per_cancer:
@@ -714,9 +834,13 @@ def main(results_dir, task_types=['cls', 'reg']):
                         text.set_color(item.get_color())
                         item.set_visible(False)
                 # plt.tight_layout()
-                plt.savefig(savefilename, bbox_inches='tight', transparent=True)
+                plt.savefig(savefilename, bbox_inches='tight', transparent=True, dpi=600)
                 plt.savefig(savefilename.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
                 plt.close()
+
+                temp_img_paths.insert(0, savefilename)
+
+            all_img_paths[subset] = temp_img_paths
 
             if False:
                 # processing all_ranks
@@ -773,11 +897,18 @@ def main(results_dir, task_types=['cls', 'reg']):
                     if task_type == 'reg':
                         plt.yticks(fontsize=font_size)
                         plt.xticks(fontsize=font_size)
-                    plt.savefig(savefilename111, bbox_inches='tight', transparent=True)
+                    plt.savefig(savefilename111, bbox_inches='tight', transparent=True, dpi=600)
                     plt.savefig(savefilename111.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
                     plt.close()
 
-
+        # import pdb
+        # pdb.set_trace()
+        savefilename = os.path.join('{}/all_in_one_{}.pkl'.format(save_root, site_name))
+        with open(savefilename, 'wb') as fp:
+            pickle.dump(all_img_paths, fp) 
+        create_pdf_preserve_quality_300dpi(all_img_paths['train'], all_img_paths['test'], 
+            output_path=savefilename.replace('.pkl', '.pdf'))
+        _save_pdf(all_img_paths['train'], all_img_paths['test'], savefilename.replace('.pkl', '_v2.pdf'))
 
 def plot_loss_curves():
 
@@ -811,6 +942,12 @@ def plot_loss_curves():
 
 if __name__ == '__main__':
 
-    for results_dir in ['results_20240724_e100', 'results_20241128_e100_noattention']:
-        for task_types in [['cls', 'reg'], ['loss']]:
-            main(results_dir, task_types=task_types)
+    if False:
+        for results_dir in ['results_20240724_e100']:
+            for task_types in [['loss']]:
+                main(results_dir, task_types=task_types)
+    else:
+        for results_dir in ['results_20240724_e100', 'results_20241128_e100_noattention']:
+            for task_types in [['cls', 'reg'], ['loss']]:
+                main(results_dir, task_types=task_types)
+
