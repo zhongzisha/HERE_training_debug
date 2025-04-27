@@ -179,7 +179,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250407'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250427'
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
 
@@ -656,6 +656,634 @@ def plot_jinlin_evaluation_boxplots():
         plt.close('all')
 
     writer.close()
+
+
+
+
+
+# 20250427
+def plot_jinlin_evaluation_boxplots_20250427():
+
+    # 20240831 update different colors for R0 vs R2|R4, HERE_CONCH
+    import os
+    import numpy as np
+    import pandas as pd
+    # from matplotlib import pyplot as plt
+    import seaborn as sns
+    from statsmodels.stats.multitest import multipletests
+    from scipy.stats import ranksums, wilcoxon
+    import matplotlib.pyplot as plt
+    import matplotlib as mpl
+    import matplotlib.colors
+    import matplotlib.lines
+    from matplotlib.transforms import Bbox, TransformedBbox
+    from matplotlib.legend_handler import HandlerBase
+    from matplotlib.image import BboxImage
+    from matplotlib.patches import Circle
+    from matplotlib.offsetbox import (TextArea, DrawingArea, OffsetImage,
+                                    AnnotationBbox)
+    from matplotlib.cbook import get_sample_data
+    from statannotations.Annotator import Annotator
+
+    def cohend(d1, d2) -> pd.Series:
+        # calculate the size of samples
+        n1, n2 = len(d1), len(d2)
+        # calculate the variance of the samples
+        s1, s2 = np.var(d1, ddof=1), np.var(d2, ddof=1)
+        # calculate the pooled standard deviation
+        s = np.sqrt(((n1 - 1) * s1 + (n2 - 1) * s2) / (n1 + n2 - 2))
+        # calculate the means of the samples
+        u1, u2 = np.mean(d1, axis=0), np.mean(d2, axis=0)
+        # return the effect size
+        return (u1 - u2) / s
+
+
+    # excel_filename = '/Users/zhongz2/down/HERE/Tables/refined.xlsx'
+    # df = pd.read_excel(excel_filename, index_col=0)
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0426.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0507.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0508.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0522.xlsx'
+    excel_filename = '/Users/zhongz2/down/HERE/Tables/refined Ver0831.xlsx'
+    df = pd.read_excel(excel_filename)
+
+    # 20241213 Jinin evaluation 6 cases
+    # df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES.xlsx', sheet_name='CombinedZZS')
+
+    # 20241215 Jinin evaluation 6 cases
+    df1 = pd.read_excel('/Users/zhongz2/down/hidare_result  6 METHODS 5-6 CASES_20241215.xlsx', sheet_name='CombinedZZS')
+    df1 = df1.groupby('query').agg({'RetCCL': 'mean', 'Yottixel': 'mean', 'SISH': 'mean'})
+    # 20250115 Jinlin evaluation 101 cases for 3 methods
+    df11 = pd.read_excel('/Users/zhongz2/down/refined Ver20250111.xlsx', sheet_name='CombinedZZS')
+    for method in ['RetCCL', 'SISH', 'Yottixel']:
+        vals = []
+        for v in df11[method].values:
+            if isinstance(v, str):
+                m = np.array([float(vv) for vv in v.split(',')]).mean()
+            else:
+                m = v
+            vals.append(m)
+        print(vals)
+        df11[method] = vals
+    df1 = df11.set_index('query')
+    df2 = df1.merge(df, left_on='query', right_on='query', how='inner').reset_index()
+
+    df = df2
+
+    if 'AdaptiveHERE' not in df.columns:
+        # get Adaptive HERE score
+        df['AdaptiveHERE'] = df[['r0', 'r2', 'r4']].fillna(-1).max(axis=1)
+        df.to_excel(excel_filename)
+
+    df['r2_r4'] = df[['r2', 'r4']].fillna(-1).max(axis=1)
+
+    sites = df['site'].value_counts().index.values
+    site_mappers = {kk:kk for kk in sites[:10]}
+    site_mappers.update({kk:'others' for ii,kk in enumerate(sites) if ii>=10})
+    df['tissue site'] = df['site'].values
+    df['tissue site'] = df['tissue site'].map(site_mappers)
+    sites = ['lung', 'liver', 'ovary', 'stomach', 'breast', 'lymph node', 'soft tissue', 'testis', 'kidney', 'colon', 'others']
+
+
+    compared_method = 'AdapHERECONCH'
+    data0 = df[[compared_method]]
+    data1 = df[['WebPLIP']]
+    res = ranksums(data1, data0)
+    zscores = res.statistic 
+    reject, pvals_corrected, alphacSidakfloat, alphacBonffloat = multipletests(res.pvalue, method='fdr_bh')
+    HERE_wins = 100*len(np.where(df[compared_method]>df['WebPLIP'])[0])/len(df)
+
+
+    def hex_to_rgb(value):
+        """Convert a hex color to an RGB tuple."""
+        value = value.lstrip('#')
+        return tuple(int(value[i:i+2], 16)/255. for i in (0, 2, 4))
+    # groups = ['structure']
+    COLOR_PALETTES={
+        'structure': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell type':  [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell shape': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cytoplasm': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'label': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ]
+    }
+    COLOR_PALETTES={
+        'structure': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'tissue site': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell type':  [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cell shape': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'cytoplasm': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ],
+        'label': [
+            '#686789', '#B77F70', '#E5E2B9', '#BEB1A8', '#A79A89', '#8A95A9',  '#ECCED0', 
+            '#7D7465', '#E8D3C0', '#7A8A71', '#789798', '#B57C82', '#9FABB9', '#B0B1B6', '#8A95A9',  '#ECCED0', 
+            # '#99857E', '#88878D', '#91A0A5', '#9AA690' 
+        ]
+    }
+
+    for k,v in COLOR_PALETTES.items():
+        newv = []
+        for vv in v:
+            if isinstance(vv, str) and '#' in vv:
+                newv.append(hex_to_rgb(vv))
+            else:
+                newv.append(vv)
+        # newv = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in newv]
+        COLOR_PALETTES[k] = newv
+
+    df0 = df.copy()
+
+    # 20250406 6 cases results from Jinlin
+    expert_results = {}
+    for ei, expert_name in enumerate(['_Li']): #enumerate(['_Huang', '_Song', '_Li']):
+
+        save_root = f'{SAVE_ROOT}/Fig4 evaluation results ({expert_name})'
+        if os.path.exists(save_root):
+            os.system('rm -rf "{}"'.format(save_root))
+        os.makedirs(save_root, exist_ok=True)
+
+        writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Fig3&4_{expert_name}.xlsx'))
+
+        df3 = pd.read_excel(f'/Users/zhongz2/down/pilot package{expert_name}.xlsx',index_col=0)
+        df3_1 = pd.read_excel(f'/Users/zhongz2/down/scores_without_6cases{expert_name}.xlsx',index_col=0)
+        df3 = pd.concat([df3, df3_1])
+        col_map_dict = {
+            'method1': compared_method,  # HERE
+            'method2': 'WebPLIP',
+            'method3': 'RetCCL',
+            'method4': 'SISH',
+            'method5': 'Yottixel'
+        }
+        for col, new_col in col_map_dict.items():
+            values = df3[col].values
+            new_values = []
+            for v in values:
+                if isinstance(v, str) and 'na' in v:
+                    v = v.lower().strip()
+                    v = v.replace('na', '0')
+                if isinstance(v, str):
+                    m = np.array([float(vv.strip()) for vv in v.split(',') if vv.strip().isdigit()]).mean()
+                else:
+                    m = float(v)
+                new_values.append(m)
+            df3[new_col] = new_values
+        df3.index.name = 'query'
+        df3 = df3.drop(columns=list(col_map_dict.keys()))
+        df3 = df3.reset_index()
+
+        df = df0.copy()
+        df = df.drop(columns=list(col_map_dict.values()))
+        df = df.merge(df3, left_on='query', right_on='query')
+
+        df11=df.copy()
+        group_names = {
+            'structure': 'tissue structure',
+            'cell type': 'cell type',
+            'cell shape': 'cellular shape',
+            'cytoplasm': 'cytoplasm',
+            'label': 'tissue composition',
+            'tissue site': 'tissue site'
+        }
+
+        groups = ['structure', 'cell type', 'cell shape', 'cytoplasm', 'label', 'tissue site']
+        # groups = ['structure','tissue site']
+        group_names = {
+            'structure': 'tissue structure',
+            'cell type': 'cell type',
+            'cell shape': 'cellular shape',
+            'cytoplasm': 'cytoplasm',
+            'label': 'tissue composition',
+            'tissue site': 'tissue site'
+        }
+        df11 = df11[['query'] +list(group_names.keys())+['WebPLIP', 'RetCCL', 'Yottixel', 'SISH', compared_method]]
+        cols_dict = group_names.copy()
+        cols_dict.update({compared_method: 'HERE', 'WebPLIP': 'PLIP'})
+        df11=df11.rename(columns=cols_dict)
+        df11.to_excel(writer, sheet_name='Fig 3, Fig 4b,4c HERE101')
+
+        df2 = df[[compared_method, 'WebPLIP', 'RetCCL', 'Yottixel', 'SISH']].rename(columns={compared_method: 'HERE', 'WebPLIP': 'PLIP'})
+        df3 = pd.melt(df2, value_vars=['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE'], var_name='method', value_name='score')
+        df3['court'] = [i for i in range(len(df2))]*5
+
+        order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+
+        pvalues = {}
+        for method in ['RetCCL', 'Yottixel', 'SISH', 'PLIP']:
+            U, pvalue = wilcoxon(df2[method].values, df2['HERE'].values, alternative='two-sided')
+            pvalues[method] = pvalue
+
+        font_size = 30
+        figure_height = 8
+        figure_width = 7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.tick_params(pad = 10)
+        fig = plt.figure(figsize=(figure_width, figure_height), frameon=True)
+        ax = plt.gca()
+
+        num_group = 1
+        palette = [(0, 0, 0), (0, 0, 0)]
+        g=sns.boxplot(data=df3, x="method", y="score", order=order, showfliers=False, palette=all_colors, ax=ax, linewidth=2) 
+
+        g.set(ylabel=None)
+        g.set(xlabel=None)
+
+        for i,box in enumerate([p for p in g.patches if not p.get_label()]): 
+            color = box.get_facecolor()
+            box.set_edgecolor(color)
+            box.set_facecolor((0, 0, 0, 0))
+
+            # iterate over whiskers and median lines
+            # for j in range(5*i,5*(i+1)):
+            #     g.lines[j].set_color(color) 
+
+        plt.ylim([0.5, 5.5])  
+        plt.yticks(ticks=[1, 2, 3, 4, 5], labels=['(dissimilar) 1', '(slightly dissimilar) 2', '(similar) 3', '(highly similar) 4', '(indistinguishable) 5'])
+        # sns.despine(top=False, right=False, bottom=False, left=False, ax=g)
+        sns.despine(top=True, right=True, bottom=False, left=False, ax=g)
+        # g=sns.stripplot(data=df3, x="method", y="score", legend=False, marker="$\circ$", ec="face", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+        g=sns.stripplot(data=df3, x="method", y="score", order=order, legend=False, marker="$\circ$", s=10, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3)
+        g.set(ylabel='Expert score')
+        g.set(xlabel=None)
+        g.set_xticklabels(order, rotation=25, ha="right")#, va='center', rotation_mode='anchor')
+
+        # pairs = [(), (), (), ()]
+        # # Annotate the plot
+        # annotator = Annotator(ax, pairs, data=df3, x="method", y="score")
+        # annotator.configure(test='t-test_ind', text_format='simple', loc='inside')
+        # annotator.apply_and_annotate()
+
+        # Annotate p-value
+        for ii, method in enumerate(order[:-1]):
+            x1, x2 = ii, 4  # x-coordinates of the groups
+            y, h, col = df3['score'].max() + 0.1, 0.05, 'k'  # y-coordinate, height, color
+            # y += (ii+1)*h  # (4 - ii) * h + 0.5
+            # h *= (4-ii)
+            y += (4-ii-1)*0.45
+            # y += (ii+1)*0.1
+            ax.plot([x1, x1, x2, x2], [y, y + h, y + h, y], lw=1.5, c=col, clip_on=False)
+            # ax.text((x1 + x2) * .5, y + h, "p = {:.3e}".format(pvalues[method]), ha='center', va='bottom', color=col)
+            ax.text((x1 + x2) * .5, y + h, "{:.3E}".format(pvalues[method]), ha='center', va='bottom', color=col, fontsize=28, clip_on=False)
+
+        # plt.tight_layout()
+
+        # for i in range(1):
+        #     for p1, p2 in zip(g.collections[i].get_offsets().data, g.collections[i+num_group].get_offsets().data):
+        #         plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color='gray', alpha=0.5)
+
+        # plt.text(0, 5.15, 'P={:.2e}'.format(pvalue), fontsize=30, color=(0, 0, 0))
+        plt.savefig(f'{save_root}/overall_boxplot2.png', bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(f'{save_root}/overall_boxplot2.svg', bbox_inches='tight', transparent=True, format='svg')
+        df3.to_excel(f'{save_root}/overall_boxplot2.xlsx')
+        plt.close()
+
+        df4 = df2[['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE']]
+        df4.insert(0, column='query', value=df['query'].values)
+
+
+        for expname in ['overall']: #, 'R0_vs_R2R4']:
+            if expname == 'overall':
+                df1 = df[['WebPLIP','RetCCL', 'SISH', 'Yottixel', compared_method] + groups].rename(columns={'WebPLIP': 'PLIP','RetCCL':'RetCCL','SISH':'SISH','Yottixel':'Yottixel', compared_method: 'HERE'})
+                df2 = pd.melt(df1, value_vars=['PLIP','RetCCL', 'SISH', 'Yottixel','HERE'], id_vars=groups, var_name='method', value_name='score')
+            else:
+                df1 = df[df['r2_r4']>0][['r0', 'r2_r4'] + groups].rename(columns={'r0': 'R0', 'r2_r4':'R2(R4)'})
+                df2 = pd.melt(df1, value_vars=['R0','R2(R4)'], id_vars=groups, var_name='method', value_name='score')
+            df2['court'] = [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))] + [i for i in range(len(df1))]
+
+            hue_orders = []
+            new_ticks = []
+            df3_long = []
+            num_groups = {}
+            for group in groups:
+                df3 = df2.copy()
+                
+                if 'HERE' in df1.columns:
+                    sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
+                    hue_order = sorted_HERE.index.values
+                else:
+                    hue_order = sorted(df3[group].value_counts().index.values)
+                hue_orders.extend(hue_order)
+                
+                df4 = (df3[group].value_counts()//5).loc[hue_order].reset_index()
+                num_groups[group] = len(df3[group].value_counts())
+
+                # boxplot-v2 (20240522) using twin axis 
+                mapper_dict = {row[group]: '{}'.format(row['count']) for _, row in df4.iterrows()}
+                # df31 = df3.replace({group: mapper_dict})
+                new_ticks_ = []
+                for v in hue_order:
+                    new_ticks_.append(mapper_dict[v])
+                new_ticks.extend(new_ticks_)
+
+                df3_long.append(df3[[group, 'method', 'score']].rename(columns={group:'group'}))
+            df3_long = pd.concat(df3_long, axis=0)
+            max_len_l = max([len(v) for v in df3_long['group'].values])
+            max_len_r = max([len(v) for v in new_ticks])
+            max_num_group = max(list(num_groups.values()))
+            # import pdb
+            # pdb.set_trace()
+
+            hue_orders = {}
+            for group in groups:
+
+                df3 = df2.copy()
+                
+                # if group == 'pattern2':
+                #     df3 = df2[df2['pattern2'].isin(['nest', 'glandular', 'sheets', 'spindle', 'papillary'])].reset_index(drop=True)
+                
+                if False:
+                    valid_labels = []
+                    for group_label in df3[group].value_counts().index.values:
+                        if min(df3[df3[group]==group_label]['method'].value_counts()) > 2:
+                            valid_labels.append(group_label)
+                    df3 = df3[df3[group].isin(valid_labels)].reset_index(drop=True)
+
+                num_group = len(df3[group].value_counts())
+                if expname == 'overall':
+                    palette = [COLOR_PALETTES[group][i] for i in range(num_group)]
+                else:
+                    palette = [COLOR_PALETTES[group][-i-1] for i in range(num_group)]
+
+                alpha = 0.7
+                palette = [np.array(pp)*alpha+(1-alpha) for pp in palette]
+
+                if 'HERE' in df1.columns:
+                    sorted_HERE = df1[[group, 'HERE']].groupby(group).mean().sort_values('HERE')
+                    hue_order = sorted_HERE.index.values
+                else:
+                    hue_order = sorted(df3[group].value_counts().index.values)
+                # hue_orders[expname][group] = hue_order
+                # if group == 'label' and expname != 'overall':
+                #     hue_order = hue_orders['overall'][group]
+                if group == 'tissue site':
+                    hue_order = sites
+                print('hue_order', hue_order)
+                if expname == 'overall':
+                    # df4 = df3[group].value_counts().loc[hue_order].reset_index()
+                    # print('df4', df4)
+                    # df4 = pd.concat([df4.iloc[range(0, len(df4), 2), :], df4.iloc[range(1, len(df4), 2), :]], axis=0).reset_index(drop=True)
+                    # df4 = df4.set_index(group)
+                    df4 = (df3[group].value_counts()//5).loc[hue_order].reset_index()
+                    # pie chart
+                    # plt.rcParams['font.family'] = 'Heiti TC'  # 替换为你选择的字体
+                    total = df4['count'].sum()
+
+                    def fmt(x):
+                        # return '{:.1f}%\n(n={:.0f})'.format(x, total*x/100)
+                        return '{:.0f}'.format(total*x/100)
+
+                    if True:
+                        font_size = 30
+                        figure_height = 9
+                        figure_width = 9
+                        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                        plt.tick_params(pad = 10)
+                        fig, ax = plt.subplots(figsize=(figure_width, figure_height), frameon=False)
+                        labels=df4[group].values
+                        print('df4', df4)
+                        palette1 = [(1, 1, 1) for _ in range(len(palette))]
+                        # pie_patches, pie_texts, pie_autotexts = ax.pie(df4['count'].values, autopct=fmt, colors=palette)
+                        pie_patches, pie_texts, pie_autotexts = ax.pie(df4['count'].values, autopct=fmt, colors=palette1, radius=1, textprops={'fontsize': 50})
+                        # pie_hander_map = {v: HandlerLineImage("/Users/zhongz2/down/hidare_evaluation_from_Jinlin/png_for_shown/1035409-1.png") for v in pie_patches}
+                        # plt.legend(handles=pie_patches, labels=['' for _ in range(len(pie_patches))], handler_map=pie_hander_map)
+                        bbox_props = dict(boxstyle="square,pad=0.3", fc="w", ec="k", lw=0.72)
+                        kw = dict(arrowprops=dict(arrowstyle="->"), bbox=bbox_props, zorder=0, va="center")
+                        kw1 = dict(bbox=bbox_props, zorder=0, va="center")
+                        for i, (p, label) in enumerate(zip(pie_patches, labels)):
+                            ang = (p.theta2 - p.theta1)/2. + p.theta1
+                            print(label)
+                            y = np.sin(np.deg2rad(ang))
+                            x = np.cos(np.deg2rad(ang))
+                            horizontalalignment = {-1: "right", 1: "left"}[int(np.sign(x))]
+                            connectionstyle = f"angle,angleA=0,angleB={ang}"
+                            kw["arrowprops"].update({"connectionstyle": connectionstyle})
+                            # Annotate the 2nd position with another image (a Grace Hopper portrait)
+
+                            arr_img = plt.imread("/Users/zhongz2/down/hidare_evaluation_from_Jinlin/allpng_for_shown/p256/{}.png".format(df[df[group]==label]['query'].values[0]), format='png')
+                            imagebox = OffsetImage(arr_img, zoom=0.6)
+                            imagebox.image.axes = ax
+                            ab = AnnotationBbox(imagebox, xy=(x,y),
+                                                xybox=(1.3*np.sign(x), 1.35*y),
+                                                # xycoords='data',
+                                                # boxcoords="offset points",
+                                                pad=0.01,
+                                                arrowprops=dict(
+                                                    arrowstyle="->",
+                                                    connectionstyle=connectionstyle)
+                                                )
+                            ax.add_artist(ab)
+                            # text_anno = ax.annotate(labels[i], xy=(x, y), 
+                            #                         xytext=(1.55*np.sign(x), 1.35*y), 
+                            #                         horizontalalignment=horizontalalignment, **kw1)
+                            text_anno = ax.annotate(labels[i], xy=(x, y), 
+                                                    xytext=(1.55*np.sign(x), 1.35*y), 
+                                                    horizontalalignment=horizontalalignment,
+                                                    fontsize=50)
+                            extent = text_anno.get_window_extent() # [[xmin, ymin], [xmax, ymax]]
+
+                            p.set_linewidth(2)
+                            p.set_edgecolor('black')
+
+
+                        # plt.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05))
+                        # plt.title(group_names[group]) 
+                        plt.savefig(f'{save_root}/pie_{group}_{expname}.png', bbox_inches='tight', transparent=True, format='png')
+                        plt.savefig(f'{save_root}/pie_{group}_{expname}.svg', bbox_inches='tight', transparent=True, format='svg')
+                        
+                        plt.close()
+
+                    # df4 = df4.reset_index()
+                    # df4.columns=['', group]
+                    df4['color'] = [(int(vv[0]*255), int(vv[1]*255), int(vv[2]*255)) for vv in palette]
+                    df4.to_excel(f'{save_root}/count_forPieChart_{group}_{expname}.xlsx')
+
+                # boxplot-v2 (20240522) using twin axis 
+                if True:
+                    mapper_dict = {row[group]: '{}'.format(row['count']) for _, row in df4.iterrows()}
+                    # df31 = df3.replace({group: mapper_dict})
+                    hue_order = hue_order.tolist() if not isinstance(hue_order, list) else hue_order
+                    new_ticks = []
+                    for v in hue_order:
+                        new_ticks.append(mapper_dict[v])
+                    df33 = df3[[group, 'score', 'method']]
+                    remain_count = max_num_group - len(df4)
+                    new_cat = hue_order[-1]
+                    new_tick = new_ticks[-1]
+                    df333 = [df33]
+                    for ii in range(remain_count):
+                        hue_order.append(f'{new_cat}_{ii}')
+                        temp= df33[df33[group]==new_cat].reset_index(drop=True)
+                        temp[group]=temp[group].map({new_cat:f'{new_cat}_{ii}'})
+                        df333.append(temp)
+                        new_ticks.append(new_tick)
+                    df333 = pd.concat(df333, axis=0)
+
+                    for do_legend in [0, 1]:
+
+                        postfix = '_v2'
+                        if do_legend==1:
+                            postfix='_v2_legend'
+
+                        for style1 in ['style2']:
+                            font_size = 30
+                            figure_height = 7
+                            figure_width = 12
+                            plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                            plt.rcParams['axes.edgecolor'] = 'black'
+                            plt.tick_params(pad = 10)
+                            # fig = plt.figure(figsize=(figure_width, figure_height), frameon=False)
+                            # ax = plt.gca()
+                            g=sns.catplot(
+                                data=df333, x=group, y="score", hue="method", kind="box", palette=all_colors, 
+                                #ax=ax, 
+                                hue_order=order,
+                                order=hue_order, legend=do_legend==1,
+                                height=figure_height,
+                                aspect=(len(new_ticks)*(figure_height/3))/figure_height, 
+                                # dodge=True,  # Ensure consistent spacing for hue categories
+                                # width=0.8,  # Set a fixed width for the boxes
+                            )
+
+                            x0y0s,x1y1s = [],[]
+                            for p in g.ax.patches:
+                                box = p.get_extents().get_points() # [x0,y0],[x1,y1]
+                                x0,y0 = box[0]
+                                x1,y1 = box[1]
+                                x0, y0 = g.ax.transData.inverted().transform((x0, y0))
+                                x1, y1 = g.ax.transData.inverted().transform((x1, y1))
+                                x0y0s.append([x0,y0])
+                                x1y1s.append([x1,y1])
+                            x0y0s = np.array(x0y0s)
+                            x1y1s = np.array(x1y1s)
+                            sort_inds = np.argsort(x0y0s[:,0])
+                            x0y0s = x0y0s[sort_inds]
+                            sort_inds = np.argsort(x1y1s[:,0])
+                            x1y1s = x1y1s[sort_inds]
+
+                            # if group=='structure':
+                            #     g.fig.legend(labels=hue_order, ncol=2, loc='outside right')
+                            # plt.setp(ax.get_legend().get_texts(), fontsize='24') # for legend text
+                            # plt.setp(ax.get_legend().get_title(), fontsize='24') # for legend title
+                            xticklabels = []
+                            for v in g.ax.get_xticklabels():
+                                xticklabels.append(v.get_text().rjust(max_len_l))
+                            if style1=='style1':
+                                g.ax.set_yticklabels(g.ax.get_yticklabels(), rotation=90, ha="right", va="center")
+                                g.ax.set_xticklabels(xticklabels, rotation=90, ha="right", va='center', rotation_mode='anchor')
+                            else:        
+                                g.ax.set_yticklabels(g.ax.get_yticklabels())#, rotation=90, ha="right", va="center")                
+                                # g.ax.set_xticklabels(xticklabels, rotation=45, ha="right", va='center', rotation_mode='anchor')                            g.ax.set_xticklabels(xticklabels, rotation=45, ha="right", va='center', rotation_mode='anchor')
+                                g.ax.set_xticklabels(xticklabels, rotation=15, ha="right")#, va='center', rotation_mode='anchor')
+
+                            g.set(ylabel=None)
+                            g.set(xlabel=None)
+                            g.ax.set(ylim=[0.5, 5.5])  
+                            g.ax.set(yticks=[1, 2, 3, 4, 5])
+                            plt.ylim([0.5, 5.5])
+                            plt.yticks([1, 2,3,4,5], labels=[1,2,3,4,5])
+                            # plt.yticks(np.arange(0.5, 5.5, 0.5))
+                            # sns.despine(top=True, right=True, bottom=False, left=False, ax=g.ax)
+
+                            # g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                            #     marker="$\circ$", ec="face", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                            #     order=hue_order)
+                            g.map_dataframe(sns.stripplot, x=group, y="score", hue="method", legend=False, dodge=True, 
+                                marker="$\circ$", s=5, linewidth=0.1, facecolor=(0, 0, 0), alpha=0.3,
+                                hue_order=order,
+                                order=hue_order)
+                            g.set(ylabel='Expert score')
+                            # g.set(xlabel=group_names[group])
+                            g.set(xlabel=None)
+                            # g.map_dataframe(sns.catplot, data=df3, x="method", y="score", hue=group, kind="strip", palette='dark:.25', legend=False, dodge=True)
+                            # sns.swarmplot(data=df3, x="method", y="score", hue=group, palette='dark:.25', legend=False, dodge=True)
+                            # sns.lineplot(data=df3, x="method", y="score", hue=group, units="court", palette='dark:.7', estimator=None, legend=False)
+                            # g.map_dataframe(sns.lineplot, x="method", y="score", hue=group, units="court", estimator=None)
+                            # connect line
+                            if False:
+                                for i in range(num_group):
+                                    for p1, p2 in zip(g.ax.collections[i].get_offsets().data, g.ax.collections[i+num_group].get_offsets().data):
+                                        plt.plot([p1[0], p2[0]], [p1[1], p2[1]], color=palette[i], alpha=0.2)
+
+                            ax2 = g.ax.secondary_xaxis('top')
+                            ax2.set_xticks(g.ax.get_xticks())
+                            new_ticks = [v.ljust(max_len_r) for v in new_ticks]
+                            # print('new_ticks', new_ticks)
+                            # import pdb
+                            # pdb.set_trace()
+                            if style1=='style1':
+                                ax2.set_xticklabels(new_ticks, rotation=90, ha="left", va='center', rotation_mode='anchor')
+                            else:
+                                ax2.set_xticklabels(new_ticks)#,rotation=90, ha="left", va='center', rotation_mode='anchor')
+                            ax2.tick_params(axis='x', length=0)
+                            ax2.spines['top'].set_visible(False)
+
+                            if num_groups[group] != max_num_group:
+                                sns.despine(top=True, right=True, bottom=True, left=False, ax=g.ax)
+                                # g.ax.spines['top'].set_visible(False)
+                                xmin,xmax=g.ax.get_xlim()
+                                ymin,ymax=g.ax.get_ylim()
+                                margin=np.abs(xmin-x0y0s[0,0])
+                                xx=margin+x1y1s[num_groups[group]*5-1,0]
+                                # g.ax.axvline(x=xx,color='black',linewidth=1)
+                                # g.ax.vlines(x=xx,ymin=ymin, ymax=ymax,color='black',linewidth=1, linestyle='solid')
+                                # g.ax.axhline(y=ymax, xmin=xmin, xmax=margin+x1y1s[num_groups[group]*5-1,0],color='blue',linewidth=1)
+                                # g.ax.hlines(y=ymax, xmin=xmin, xmax=xx,color='black',linewidth=1.5, linestyle='solid')
+                                g.ax.hlines(y=ymin, xmin=xmin, xmax=xx,color='black',linewidth=1.5, linestyle='solid')
+
+                                g.ax.set_xlim([xmin,xmax])
+                                g.ax.set_ylim([ymin,ymax])
+                            else:
+                                sns.despine(top=True, right=True, bottom=False, left=False, ax=g.ax)
+
+                            g.fig.subplots_adjust(top=0.9, bottom=0.1)  # Adjust margins if needed
+                            plt.savefig(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.png', bbox_inches='tight', transparent=True, format='png')
+                            plt.savefig(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.svg', bbox_inches='tight', transparent=True, format='svg')
+                            df3.to_csv(f'{save_root}/boxplot_{group}_{expname}{postfix}_{style1}.csv')
+                            plt.close()
+
+                        if do_legend==0 and group!='structure': # for the legend
+                            break
+
+        writer.close()
+
+
 
 
 # 20240708  added CONCH
@@ -1889,6 +2517,7 @@ def Fig3_4():
     # }
     # df = df[df['label'].notna()].reset_index(drop=True)
     # hue_orders = {}
+
     order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
 
     for expname in ['overall']: #, 'R0_vs_R2R4']:
