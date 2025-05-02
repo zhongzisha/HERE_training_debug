@@ -835,29 +835,40 @@ def plot_jinlin_evaluation_boxplots_20250427():
 
     # 20250406 6 cases results from Jinlin
     expert_results = {}
+    expert_results_df11 = {}
+
     writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Fig3&4.xlsx'))
     save_root0 = f'{SAVE_ROOT}/Fig4 evaluation results'
     os.makedirs(save_root0, exist_ok=True)
-    for ei, expert_name in enumerate(['Huang', 'Li', 'Song']): #enumerate(['_Huang', '_Song', '_Li']):
 
-        save_root = f'{save_root0}/Doctor{expert_name}'
+    col_map_dict = {
+        'method1': compared_method,  # HERE
+        'method2': 'WebPLIP',
+        'method3': 'RetCCL',
+        'method4': 'SISH',
+        'method5': 'Yottixel'
+    }
+    methods_order = ['Yottixel', 'RetCCL', 'PLIP', 'SISH', 'HERE']
+    for ei, expert_name in enumerate(['Huang', 'Li', 'Song', 'Median']): #enumerate(['_Huang', '_Song', '_Li']):
+
+        save_root = f'{save_root0}/Doctor{ei+1}'
         if os.path.exists(save_root):
             os.system('rm -rf "{}"'.format(save_root))
         os.makedirs(save_root, exist_ok=True)
 
-        if False: #expert_name == 'Huang':
-            df11=df0.copy()
+        if expert_name == 'Median':
+            df1 = expert_results_df11['Huang'][list(col_map_dict.values())]
+            df2 = expert_results_df11['Li'][list(col_map_dict.values())]
+            df3 = expert_results_df11['Song'][list(col_map_dict.values())]
+            median_df = pd.concat([df1, df2, df3]).groupby(level=0).median()
+
+            df11=expert_results_df11['Huang'].copy()
+            df11[list(col_map_dict.values())] = median_df
         else:
             df3 = pd.read_excel(f'/Users/zhongz2/down/pilot package_{expert_name}.xlsx',index_col=0)
             df3_1 = pd.read_excel(f'/Users/zhongz2/down/scores_without_6cases_{expert_name}.xlsx',index_col=0)
             df3 = pd.concat([df3, df3_1])
-            col_map_dict = {
-                'method1': compared_method,  # HERE
-                'method2': 'WebPLIP',
-                'method3': 'RetCCL',
-                'method4': 'SISH',
-                'method5': 'Yottixel'
-            }
+
             for col, new_col in col_map_dict.items():
                 values = df3[col].values
                 new_values = []
@@ -881,6 +892,7 @@ def plot_jinlin_evaluation_boxplots_20250427():
             df = df.sort_values('query')
 
             df11=df.copy()
+            expert_results_df11[expert_name] = df11.copy()
 
         group_names = {
             'structure': 'tissue structure',
@@ -905,14 +917,18 @@ def plot_jinlin_evaluation_boxplots_20250427():
         cols_dict = group_names.copy()
         cols_dict.update({compared_method: 'HERE', 'WebPLIP': 'PLIP'})
         df11=df11.rename(columns=cols_dict)
-        df11.to_excel(writer, sheet_name='Fig 3, Fig 4b,4c {}'.format(expert_name))
+        # df11.to_excel(writer, sheet_name='Fig 3, Fig 4b,4c {}'.format(expert_name))
+        if ei!=3:
+            df11.to_excel(writer, sheet_name='Fig 3, Fig 4b,4c Pathologist {}'.format(ei+1))
+        else:
+            df11.to_excel(writer, sheet_name='Fig 3, Fig 4b,4c Median')
         expert_results[expert_name] = df11.copy()
 
         df2 = df[[compared_method, 'WebPLIP', 'RetCCL', 'Yottixel', 'SISH']].rename(columns={compared_method: 'HERE', 'WebPLIP': 'PLIP'})
         df3 = pd.melt(df2, value_vars=['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE'], var_name='method', value_name='score')
         df3['court'] = [i for i in range(len(df2))]*5
 
-        order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+        order = methods_order #['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
 
         pvalues = {}
         for method in ['RetCCL', 'Yottixel', 'SISH', 'PLIP']:
@@ -979,12 +995,13 @@ def plot_jinlin_evaluation_boxplots_20250427():
 
         # plt.text(0, 5.15, 'P={:.2e}'.format(pvalue), fontsize=30, color=(0, 0, 0))
         plt.savefig(f'{save_root}/overall_boxplot2.png', bbox_inches='tight', transparent=True, format='png')
-        plt.savefig(f'{save_root0}/overall_boxplot2_{expert_name}.png', bbox_inches='tight', transparent=True, format='png')
+        plt.savefig(f'{save_root0}/overall_boxplot2_Doctor{ei+1}.png', bbox_inches='tight', transparent=True, format='png')
         plt.savefig(f'{save_root}/overall_boxplot2.svg', bbox_inches='tight', transparent=True, format='svg')
         df3.to_excel(f'{save_root}/overall_boxplot2.xlsx')
         plt.close()
 
-        df4 = df2[['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE']]
+        # df4 = df2[['RetCCL', 'Yottixel', 'SISH', 'PLIP', 'HERE']]
+        df4 = df2[methods_order]
         df4.insert(0, column='query', value=df['query'].values)
 
         for expname in ['overall']: #, 'R0_vs_R2R4']:
@@ -1292,16 +1309,17 @@ def plot_jinlin_evaluation_boxplots_20250427():
 
     writer.close()
 
+    from scipy.stats import pearsonr
     # draw pairplot
-    methods = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
-    doctor_keys = list(expert_results.keys())
+    methods = methods_order #['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+    doctor_keys = list(expert_results.keys())[:-1]
     for e1 in range(len(doctor_keys)):
         df1 = expert_results[doctor_keys[e1]]
         df1 = df1.sort_values('query')
         for e2 in range(e1+1, len(doctor_keys)):
             df2 = expert_results[doctor_keys[e2]]
             df2 = df2.sort_values('query')
-            for method in methods:
+            for mi, method in enumerate(methods):
                 m1_values = df1[method].values
                 m2_values = df2[method].values
                 
@@ -1316,64 +1334,127 @@ def plot_jinlin_evaluation_boxplots_20250427():
                 ax = plt.gca()                
                 plt.scatter(m1_values, m2_values)
 
+                corr = pearsonr(m1_values, m2_values)
+
                 plt.xlim([0.5, 5.5])
                 plt.ylim([0.5, 5.5])
-                plt.xticks([1,2,3,4,5],['1','2','3','4','5'])
-                plt.yticks([1,2,3,4,5],['1','2','3','4','5'])
+                if mi==0:
+                    plt.yticks([1,2,3,4,5],['1','2','3','4','5'])
+                else:
+                    plt.yticks([1,2,3,4,5],['','','','',''])
 
-                plt.xlabel(doctor_keys[e1])
-                plt.ylabel(doctor_keys[e2])
+                if e1==1 and e2==2: 
+                    plt.xticks([1,2,3,4,5],['1','2','3','4','5'])
+                else:
+                    plt.xticks([1,2,3,4,5],['','','','',''])
+
+                # plt.xlabel(doctor_keys[e1])
+                # plt.ylabel(doctor_keys[e2])
                 plt.grid()
                 ax.plot([1, 5], [1, 5], linestyle=':', color='r')
                 # plt.title('{} vs {}'.format(doctor_keys[e1], doctor_keys[e2]))
-                plt.title(method)
+                plt.title('Corr = {:.3f}'.format(corr[0]))
                 
                 plt.tight_layout()
-                plt.savefig(os.path.join(save_root0, '{}_{}_{}.png'.format(method, doctor_keys[e1], doctor_keys[e2])))
+                # plt.savefig(os.path.join(save_root0, '{}_{}_{}.png'.format(method, doctor_keys[e1], doctor_keys[e2])))                
+                plt.savefig(os.path.join(save_root0, '{}_{}_{}.png'.format(method, e1, e2)))
+                plt.savefig(os.path.join(save_root0, '{}_{}_{}.svg'.format(method, e1, e2)), bbox_inches='tight', transparent=True, format='svg')
+
                 plt.close('all')
 
 
-    # draw pairplot one figure
-    font_size = 30
-    figure_height = 3*7
-    figure_width = 5*7
-    plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
-    plt.rcParams['axes.edgecolor'] = 'black'
-    plt.tick_params(pad = 10)  
+    if False:
+        # draw pairplot one figure
+        font_size = 30
+        figure_height = 3*7
+        figure_width = 5*7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.rcParams['axes.edgecolor'] = 'black'
+        plt.tick_params(pad = 10)  
 
-    methods = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
-    doctor_keys = list(expert_results.keys())
-    fig, axes = plt.subplots(nrows=len(doctor_keys), ncols=len(methods), figsize=(figure_width, figure_height), frameon=False)
+        methods = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+        doctor_keys = list(expert_results.keys())
+        fig, axes = plt.subplots(nrows=len(doctor_keys), ncols=len(methods), figsize=(figure_width, figure_height), frameon=False)
 
-    fi = 0
-    for e1 in range(len(doctor_keys)):
-        df1 = expert_results[doctor_keys[e1]]
-        df1 = df1.sort_values('query')
-        for e2 in range(e1+1, len(doctor_keys)):
-            df2 = expert_results[doctor_keys[e2]]
-            df2 = df2.sort_values('query')
-            for fj, method in enumerate(methods):
-                m1_values = df1[method].values
-                m2_values = df2[method].values
-                ax = axes[fi, fj]
-                ax.scatter(m1_values, m2_values)
+        fi = 0
+        for e1 in range(len(doctor_keys)):
+            df1 = expert_results[doctor_keys[e1]]
+            df1 = df1.sort_values('query')
+            for e2 in range(e1+1, len(doctor_keys)):
+                df2 = expert_results[doctor_keys[e2]]
+                df2 = df2.sort_values('query')
+                for fj, method in enumerate(methods):
+                    m1_values = df1[method].values
+                    m2_values = df2[method].values
+                    ax = axes[fi, fj]
+                    ax.scatter(m1_values, m2_values)
 
-                plt.xlim([0.5, 5.5])
-                plt.ylim([0.5, 5.5])
-                plt.xticks([1,2,3,4,5],['1','2','3','4','5'])
-                plt.yticks([1,2,3,4,5],['1','2','3','4','5'])
+                    plt.xlim([0.5, 5.5])
+                    plt.ylim([0.5, 5.5])
+                    plt.xticks([1,2,3,4,5],['1','2','3','4','5'])
+                    plt.yticks([1,2,3,4,5],['1','2','3','4','5'])
 
-                ax.set_xlabel(doctor_keys[e1])
-                ax.set_ylabel(doctor_keys[e2])
-                ax.grid()
-                ax.plot([1, 5], [1, 5], linestyle=':', color='r')
-                # plt.title('{} vs {}'.format(doctor_keys[e1], doctor_keys[e2]))
-                ax.set_title(method)
+                    ax.set_xlabel(doctor_keys[e1])
+                    ax.set_ylabel(doctor_keys[e2])
+                    ax.grid()
+                    ax.plot([1, 5], [1, 5], linestyle=':', color='r')
+                    # plt.title('{} vs {}'.format(doctor_keys[e1], doctor_keys[e2]))
+                    ax.set_title(method)
 
-            fi += 1 
-    plt.tight_layout()
-    plt.savefig(os.path.join(save_root0, 'all_pairplots.png'))
-    plt.close('all')
+                fi += 1 
+        plt.tight_layout()
+        plt.savefig(os.path.join(save_root0, 'all_pairplots.png'))
+        plt.close('all')
+
+
+    if False:
+        # draw pairplot one figure (share axis)
+        font_size = 30
+        figure_height = 3*7
+        figure_width = 5*7
+        plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+        plt.rcParams['axes.edgecolor'] = 'black'
+        plt.tick_params(pad = 10)  
+
+        methods = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
+        doctor_keys = list(expert_results.keys())
+        fig, axes = plt.subplots(nrows=len(doctor_keys), ncols=len(methods), figsize=(figure_width, figure_height), frameon=False, 
+            sharex='col', sharey='row')
+
+        fi = 0
+        for e1 in range(len(doctor_keys)):
+            df1 = expert_results[doctor_keys[e1]]
+            df1 = df1.sort_values('query')
+            for e2 in range(e1+1, len(doctor_keys)):
+                df2 = expert_results[doctor_keys[e2]]
+                df2 = df2.sort_values('query')
+                for fj, method in enumerate(methods):
+                    m1_values = df1[method].values
+                    m2_values = df2[method].values
+                    ax = axes[fi, fj]
+                    ax.scatter(m1_values, m2_values)
+
+                    # ax.set_xlabel(doctor_keys[e1])
+                    # ax.set_ylabel(doctor_keys[e2])
+                    ax.set_xlabel('Pathologist {}'.format(e1+1))
+                    ax.set_ylabel('Pathologist {}'.format(e2+1))
+                    ax.grid()
+                    ax.plot([1, 5], [1, 5], linestyle=':', color='r')
+                    # plt.title('{} vs {}'.format(doctor_keys[e1], doctor_keys[e2]))
+
+                    if fi == 0:
+                        ax.set_title(method)
+
+                fi += 1 
+
+        plt.xlim([0.5, 5.5])
+        plt.ylim([0.5, 5.5])
+        plt.xticks([1,2,3,4,5],['1','2','3','4','5'])
+        plt.yticks([1,2,3,4,5],['1','2','3','4','5'])
+
+        # plt.tight_layout()
+        plt.savefig(os.path.join(save_root0, 'all_pairplots_v3.png'))
+        plt.close('all')
 
 
 
