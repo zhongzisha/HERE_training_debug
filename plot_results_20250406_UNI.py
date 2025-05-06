@@ -179,7 +179,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250428'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250506'
 os.makedirs(SAVE_ROOT, exist_ok=True)
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
@@ -3958,7 +3958,9 @@ def plot_gene_mutation_and_regression_plots():
     ]
     palette = sorted(list(set(all_colors.values()))[::-1])
 
-
+    df22 = df1[df1['dataset']=='TCGA (test)']
+    df22 = df22.sort_values('score', ascending=False)
+    order = df22['var'].values.tolist()
     # gene mutation barplots
     font_size = 30
     figure_height = 7
@@ -3969,10 +3971,11 @@ def plot_gene_mutation_and_regression_plots():
     g = sns.catplot(
         data=df1, kind="bar",
         x="var", y="score", hue="dataset",
-        errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5
+        errorbar="sd", palette=palette, height=6,legend=False,aspect=1.5,order=order
     )
 
-    plt.axhline(y=0.5, color='blue', linestyle='dashed', linewidth=1.5)
+    plt.axhline(y=0.5, color='red', linestyle='dashed', linewidth=1.5)
+    plt.axhline(y=0.8, color='blue', linestyle='dashed', linewidth=1.5)
 
     sns.despine(top=True, right=False, left=True, bottom=False, ax=g.ax)
     g.ax.yaxis.tick_right()
@@ -5099,8 +5102,8 @@ def plot_colorbar_for_heatmap():
 if __name__ == '__main__':
     # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    main_20241218_CPTAC_comparision()       # Fig5.xlsx
-    # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
+    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
     # plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
