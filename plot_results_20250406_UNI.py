@@ -179,7 +179,7 @@ all_colors = {
     # 'UNI': '#91A0A5', 
     'HIPT': '#9AA655',  #'#9AA690'
 }
-SAVE_ROOT='/Users/zhongz2/down/temp_20250506'
+SAVE_ROOT='/Users/zhongz2/down/temp_20250507'
 os.makedirs(SAVE_ROOT, exist_ok=True)
 # for f in glob.glob(os.path.join(SAVE_ROOT, '*.xlsx')):
 #     shutil.rmtree(f, ignore_errors=True)
@@ -848,10 +848,10 @@ def plot_jinlin_evaluation_boxplots_20250427():
         'method4': 'SISH',
         'method5': 'Yottixel'
     }
-    methods_order = ['Yottixel', 'RetCCL', 'PLIP', 'SISH', 'HERE']
+    methods_order = ['PLIP', 'Yottixel', 'RetCCL', 'SISH', 'HERE']
     for ei, expert_name in enumerate(['Huang', 'Li', 'Song', 'Median']): #enumerate(['_Huang', '_Song', '_Li']):
 
-        save_root = f'{save_root0}/Doctor{ei+1}'
+        save_root = f'{save_root0}/Doctor{ei+1}' if ei!=3 else f'{save_root0}/DoctorMedian'
         if os.path.exists(save_root):
             os.system('rm -rf "{}"'.format(save_root))
         os.makedirs(save_root, exist_ok=True)
@@ -5103,11 +5103,12 @@ if __name__ == '__main__':
     # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
     # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
     # main_20241218_CPTAC_comparision()       # Fig5.xlsx
-    plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
+    # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
     # plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
     # Fig3_4()                                
+    plot_jinlin_evaluation_boxplots_20250427()
 
     # plot_scalability()                      # Extended Data Fig 3.xlsx
 
