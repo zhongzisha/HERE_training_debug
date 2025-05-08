@@ -472,7 +472,7 @@ def plot_jinlin_evaluation_boxplots():
         os.system('rm -rf "{}"'.format(save_root))
     os.makedirs(save_root, exist_ok=True)
 
-    writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Fig3&4.xlsx'))
+    writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Fig3&4 and Extended Data Fig. 6.xlsx'))
     df11=df.copy()
     group_names = {
         'structure': 'tissue structure',
@@ -838,7 +838,7 @@ def plot_jinlin_evaluation_boxplots_20250427():
     expert_results_df11 = {}
 
     writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, f'Fig3&4.xlsx'))
-    save_root0 = f'{SAVE_ROOT}/Fig4 evaluation results'
+    save_root0 = f'{SAVE_ROOT}/Fig4 and ExtFig6 evaluation results'
     os.makedirs(save_root0, exist_ok=True)
 
     col_map_dict = {
@@ -4030,12 +4030,14 @@ def plot_gene_mutation_and_regression_plots():
     for v in df1['dataset'].unique():
         values = df1[df1['dataset']==v]['score'].values
         U, pvalue = wilcoxon(values, 0.5*np.ones_like(values), alternative='two-sided')
+        pvalue *= 2 # suggested as Prof. Jiang 20250508
         print(v, pvalue)
         items.append((f'{v}(Gene mutation classification (n={len(values)}))', pvalue))
     print('\ngene set regression prediction:')
     for v in df2['dataset'].unique():
         values = df2[df2['dataset']==v]['score'].values
         U, pvalue = wilcoxon(values, np.zeros_like(values), alternative='two-sided')
+        pvalue *= 2 # suggested as Prof. Jiang 20250508
         print(v, pvalue) 
         items.append((f'{v}(Gene set regression (n=({len(values)})))', pvalue))
     dff = pd.DataFrame(items, columns=['cohort', 'p-value'])
@@ -5100,27 +5102,27 @@ def plot_colorbar_for_heatmap():
 
 
 if __name__ == '__main__':
-    # main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
-    # compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
-    # main_20241218_CPTAC_comparision()       # Fig5.xlsx
-    # plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
-    # plot_search_time_tcga_ncidata()         # Fig2.xlsx
+    main_20240708_encoder_comparision()     # Extended Data Fig 1.xlsx, Extended Data Fig 2e.xlsx
+    compare_attention_with_noattention()    # Extended Data Fig 2f.xlsx
+    main_20241218_CPTAC_comparision()       # Fig5.xlsx
+    plot_gene_mutation_and_regression_plots() # Extended Data Fig 2(g,h).xlsx
+    plot_search_time_tcga_ncidata()         # Fig2.xlsx
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
     # Fig3_4()                                
-    plot_jinlin_evaluation_boxplots_20250427()
+    plot_jinlin_evaluation_boxplots_20250427()  # Extended Data Fig 5
 
-    # plot_scalability()                      # Extended Data Fig 3.xlsx
+    plot_scalability()                      # Extended Data Fig 3.xlsx
 
     # ## run the following on Biowulf
     # # plot_segmentation_patching()         # Extended Data Fig 2b
     # # get_original_data_storage()           # Fig 1.xlsx
     # # plot_violin_Fig6a(): # run on biowulf  # Fig 6a
 
-    # results_dir = 'results_20241128_e100_noattention'
-    # plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Mean)')
-    # results_dir = 'results_20240724_e100'
-    # plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Attention)')    # Extended Data Fig 2(c,d,e,f).xlsx
+    results_dir = 'results_20241128_e100_noattention'
+    plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Mean)')
+    results_dir = 'results_20240724_e100'
+    plot_training_curves_TCGA(results_dir, 'Extended Data Fig 2 encoder training (Attention)')    # Extended Data Fig 2(c,d,e,f).xlsx
 
     pass
 
