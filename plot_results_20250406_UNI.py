@@ -4140,10 +4140,10 @@ def plot_scalability():
     import seaborn as sns
     root = '/Volumes/data-1/temp_20241204_scalability/'
     save_root = f'{SAVE_ROOT}/scability'
-    save_root = f'{SAVE_ROOT}/Extended Data Fig 3 scability analysis'
+    save_root = f'{SAVE_ROOT}/Extended Data Fig 4 scability analysis'
     os.makedirs(save_root, exist_ok=True)
 
-    writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Extended Data Fig 3.xlsx'))
+    writer = pd.ExcelWriter(os.path.join(SAVE_ROOT, 'Extended Data Fig 4.xlsx'))
 
     with open(os.path.join(root, 'index_time.pkl'), 'rb') as fp:
         index_time = pickle.load(fp)
@@ -5110,9 +5110,9 @@ if __name__ == '__main__':
 
     # plot_jinlin_evaluation_boxplots()       # Fig3&4.xlsx
     # Fig3_4()                                
-    plot_jinlin_evaluation_boxplots_20250427()  # Extended Data Fig 5
+    plot_jinlin_evaluation_boxplots_20250427()  # Extended Data Fig 6
 
-    plot_scalability()                      # Extended Data Fig 3.xlsx
+    plot_scalability()                      # Extended Data Fig 4.xlsx
 
     # ## run the following on Biowulf
     # # plot_segmentation_patching()         # Extended Data Fig 2b
