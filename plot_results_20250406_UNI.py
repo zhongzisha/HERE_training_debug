@@ -329,6 +329,34 @@ def plot_jinlin_6cases():
     plot_figure(df3, '/Users/zhongz2/down/new_scores.png')
 
 
+def collect_results_for_3pathologists():
+    df = pd.read_excel('/Users/zhongz2/down/hidare_evaluation_from_Jinlin/Jinlin_score_results/webplip_score_from_Jinlin.xlsx')
+    df = df[df['Jinlin\'s score'].notna()].reset_index(drop=True)
+    df['Jinlin\'s score'] = df['Jinlin\'s score'].astype(str)
+    df1 = pd.DataFrame(df.groupby('query')['Jinlin\'s score'].agg(','.join))
+    df1.columns = ['method2']
+
+    df3 = pd.read_excel('/Users/zhongz2/down/webplip_results part 2 jinlin.xlsx')
+    df3 = df3[df3['score.1'].notna()].reset_index(drop=True)
+    df3['score.1'] = df3['score.1'].astype(int).astype(str)
+    df11 = pd.DataFrame(df3.groupby('query')['score.1'].agg(','.join))
+    df11.columns = ['method2']
+
+    df = pd.concat([df1, df11], axis=0)
+
+    df2 = pd.read_excel('/Users/zhongz2/down/Jinlin_3methods_old.xlsx', sheet_name='CombinedZZS',index_col=0)
+    df = df.merge(df2, left_index=True, right_index=True)
+
+    df3 = pd.read_excel('/Users/zhongz2/down/scores_final.xlsx', sheet_name='Pathologist 1', index_col=0)
+    df31 = df3[df3['method2'].isna()]
+    df31 = df31.drop(columns=['method2', 'method3', 'method4', 'method5'])
+    
+    df31 = df31.merge(df, left_index=True, right_index=True)
+    df33 = pd.concat([df31, df3[df3['method2'].notna()]])
+
+    df33.to_excel('/Users/zhongz2/down/scores_final_p1.xlsx')
+
+
 # 20250113
 def plot_jinlin_evaluation_boxplots():
 
