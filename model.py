@@ -38,24 +38,24 @@ class Attn_Net_Gated(nn.Module):
 
 
 class AttentionModel(nn.Module):
-    def __init__(self, backbone='PLIP', dropout=0.25):
+    def __init__(self, backbone='PLIP', dropout=0.25, reduced_dim=256):
         super().__init__()
 
         self.attention_net = nn.Sequential(*[
-            nn.Linear(BACKBONE_DICT[backbone], 256), 
+            nn.Linear(BACKBONE_DICT[backbone], reduced_dim), 
             nn.ReLU(), 
             nn.Dropout(dropout),
-            Attn_Net_Gated(L=256, D=256, dropout=dropout, n_classes=1)
+            Attn_Net_Gated(L=reduced_dim, D=reduced_dim, dropout=dropout, n_classes=1)
         ])
-        self.rho = nn.Sequential(*[nn.Linear(256, 256), nn.ReLU(), nn.Dropout(dropout)])
+        self.rho = nn.Sequential(*[nn.Linear(reduced_dim, reduced_dim), nn.ReLU(), nn.Dropout(dropout)])
 
         classifiers = {}
         for k, labels in CLASSIFICATION_DICT.items():
-            classifiers[k] = nn.Linear(256, len(labels))
+            classifiers[k] = nn.Linear(reduced_dim, len(labels))
         self.classifiers = nn.ModuleDict(classifiers)
         regressors = {}
         for k in REGRESSION_LIST:
-            regressors[k] = nn.Linear(256, 1)
+            regressors[k] = nn.Linear(reduced_dim, 1)
         self.regressors = nn.ModuleDict(regressors)
 
         self.initialize_weights()
