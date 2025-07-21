@@ -848,7 +848,7 @@ def prepare_hidare_mysqldb():
     cur = conn.cursor()
     
     version = '_20240814'
-    version = '_20240903'
+    # version = '_20240903'
     sql_commands=[
     f'DROP TABLE IF EXISTS gene_table{version};',
     f'DROP TABLE IF EXISTS st_table{version};',
@@ -910,7 +910,7 @@ def add_ST_data_to_mysqldb():
     root = '/mnt/hidare-efs/data_20240208/differential_analysis/20240202v4_ST/PanCancer2GPUsFP/shared_attention_imagenetPLIP/split1_e95_h224_density_vis/feat_before_attention_feat/test'
     root = '/mnt/hidare-efs/data_20240208/ST_kmeans_clustering/'
     root = '/mnt/hidare-efs/data/HERE_assets/assets/ST_kmeans_clustering/'
-    root = ''
+    # root = ''
 
     all_prefixes = [os.path.basename(f).replace(
         '.tsv', '') for f in sorted(glob.glob(f'{root}/vst_dir/*.tsv'))]
