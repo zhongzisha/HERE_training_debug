@@ -649,6 +649,7 @@ def main(results_dir, task_types=['cls', 'reg']):
     # results_dir = 'results_20241128_e100_noattention'
     # results_dir = 'results_20240724_e100'
     save_root = f'/Users/zhongz2/down/temp_20250419/train_figures_{results_dir}_{save_postfix}' # Add UNI 
+    save_root = f'/Users/zhongz2/down/temp_20250813/train_figures_{results_dir}_{save_postfix}' # Add UNI 
     if os.path.isdir(save_root):
         shutil.rmtree(save_root, ignore_errors=True)
     os.makedirs(save_root, exist_ok=True)
@@ -839,6 +840,74 @@ def main(results_dir, task_types=['cls', 'reg']):
                 plt.close()
 
                 temp_img_paths.insert(0, savefilename)
+
+            if not per_cancer and task_type == 'loss':  # for plot loss
+                # for loss 
+                from collections import OrderedDict
+                from matplotlib import pyplot as plt
+                from matplotlib.lines import Line2D
+                import pickle, os
+
+                with open(os.path.join(save_root, subset+'_best_epoch_data.pkl'), 'rb') as fp:
+                    all_mean_results = pickle.load(fp)
+
+                savefilename = '{}/{}_best_epoch_loss.png'.format(save_root, subset)
+                font_size = 30
+                font_size_label = 20
+                figure_width = 7
+                plt.rcParams.update({'font.size': font_size , 'font.family': 'Helvetica', 'text.usetex': False, "svg.fonttype": 'none'})
+                plt.tick_params(pad = 10)
+                fig = plt.figure(figsize=(figure_width, figure_width), frameon=False)
+                # with open(savefilename.replace('.png', '_data.pkl'), 'wb') as fp:
+                #     pickle.dump(all_mean_results, fp)
+                # sortresults={}
+                for prefix, all_mean_results_ in all_mean_results.items():
+                    all_mean_results_ = all_mean_results[prefix]
+                    x = np.array(all_mean_results_).sum(axis=0).flatten()
+                    cls_loss = np.array(all_mean_results_)[:11].sum(axis=0).flatten()
+                    reg_loss = np.array(all_mean_results_)[11:].sum(axis=0).flatten()
+                    # best_epoch = np.argsort(x)[-1] if task_type != 'loss' else np.argsort(x)[0]
+                    label = shorten_prefix2(prefix)
+                    # plt.plot(x, 'o-', label=label, color=COMMON_COLORS[label])
+                    plt.plot(cls_loss, 'o-', label=label, color=COMMON_COLORS[label])
+                    # plt.plot(reg_loss, '*-', label=label, color=COMMON_COLORS[label])
+                    plt.plot(reg_loss, '*-', color=COMMON_COLORS[label])
+
+                if False:
+                    for prefix, all_mean_results_ in all_mean_results.items():
+                        x = np.array(all_mean_results_).sum(axis=0).flatten()
+                        best_epoch = np.argsort(x)[-1] if task_type != 'loss' else np.argsort(x)[0]
+                        if True: #task_type != 'loss':
+                            plt.scatter(best_epoch, x[best_epoch], s=144, c='red')
+                        # sortresults[prefix] = x[best_epoch]
+
+                plt.xlabel('Epochs')
+                # if task_type != 'loss':
+                #     plt.ylabel('Overall scores')
+                # else:
+                #     plt.ylabel('Overall losses')
+                plt.ylabel('Losses')
+                plt.title(label_names[subset], fontsize=font_size)
+                plt.grid()
+                if True: #subset == 'train':
+                    leg=plt.legend(loc='lower right' if task_type!='loss' else 'upper center',fontsize=14,handlelength=0, handletextpad=0, fancybox=True)
+                    for item, text in zip(leg.legend_handles, leg.get_texts()):
+                        print(item.get_color(), text)
+                        text.set_color(item.get_color())
+                        item.set_visible(False)
+                    plt.gca().add_artist(leg)  # keep the first legend
+
+                    # Second legend: markers → loss types
+                    style_handles = [
+                        Line2D([0], [0], marker='o', color='black', linestyle='-', label="Classification loss"),
+                        Line2D([0], [0], marker='*', color='black', linestyle='-', label="Regression loss")
+                    ]
+                    plt.legend(handles=style_handles, fontsize=12, loc="best")
+
+                # plt.tight_layout()
+                plt.savefig(savefilename, bbox_inches='tight', transparent=True, dpi=600)
+                plt.savefig(savefilename.replace('.png', '.svg'), bbox_inches='tight', transparent=True, format='svg')
+                plt.close()
 
             all_img_paths[subset] = temp_img_paths
 

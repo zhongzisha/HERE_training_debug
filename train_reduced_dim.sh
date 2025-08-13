@@ -110,6 +110,7 @@ fi
 BACKBONES=("PLIP")
 BACKBONES=("mobilenetv3" "CLIP" "PLIP" "ProvGigaPath" "CONCH")
 BACKBONES=("UNI")
+BACKBONES=("CONCH")
 TCGA_ROOT_DIR=/data/zhongz2/tcga
 DROPOUT=0.25
 
