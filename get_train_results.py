@@ -906,7 +906,7 @@ def main(results_dir, task_types=['cls', 'reg']):
                         Line2D([0], [0], marker='*', color='black', linestyle='-', label="Regression loss")
                     ]
                     # plt.legend(handles=style_handles, fontsize=18, loc="best")
-                    plt.legend(handles=style_handles, loc="best")
+                    plt.legend(handles=style_handles, fontsize=24, loc="best")
 
                 # plt.tight_layout()
                 plt.savefig(savefilename, bbox_inches='tight', transparent=True, dpi=600)
